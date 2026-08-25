@@ -3,8 +3,8 @@ from app.core.permissions import RoleEnum
 from app.core.security import get_password_hash
 from app.models.organization import Organization
 from app.models.user import User
-from app.models.audit_log import AuditLog
 from app.services.audit_service import AuditService
+from app.db.seed_frameworks import seed_nist_framework, seed_demo_organization_controls_and_policies
 
 
 def init_db(db: Session) -> None:
@@ -105,6 +105,12 @@ def init_db(db: Session) -> None:
         db.commit()
         db.refresh(meridian_user)
         print(f"Created secondary tenant admin: {meridian_user.email}")
+
+    # 3. Seed NIST CSF 2.0 Global Catalog
+    seed_nist_framework(db)
+
+    # 4. Seed initial controls & policies for Apex Financial
+    seed_demo_organization_controls_and_policies(db)
 
 
 if __name__ == "__main__":

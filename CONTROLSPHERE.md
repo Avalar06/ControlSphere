@@ -47,36 +47,59 @@ Permissions are verified server-side using `require_permission(...)` and `requir
 ## 4. Multi-Tenancy & Organization Isolation
 
 Organization isolation is a first-class security boundary:
-1. **Query Scoping**: Every data-access query for tenant-owned resources explicitly filters by `current_user.organization_id`.
-2. **IDOR Defense**: Accessing an object by ID from another tenant yields `404 Not Found`, eliminating information leakage and horizontal privilege escalation.
-3. **Client Isolation**: Client-supplied tenant IDs in request bodies are ignored or validated against the authenticated JWT context.
+1. **Global Catalog vs Tenant Data**: Compliance framework taxonomies (e.g. NIST CSF 2.0) are shared read-only definitions. Implementation states (`organization_controls`), policies (`policies`, `policy_versions`), and mappings (`policy_control_mappings`) are strictly tenant-scoped (`organization_id`).
+2. **Query Scoping**: Every data-access query for tenant-owned resources explicitly filters by `current_user.organization_id`.
+3. **IDOR Defense**: Accessing an object by ID from another tenant yields `404 Not Found`, eliminating information leakage and horizontal privilege escalation.
+4. **Client Isolation**: Client-supplied tenant IDs in request bodies are ignored or validated against the authenticated JWT context.
 
 ---
 
-## 5. Immutable Audit Logging Architecture
+## 5. Compliance Framework & Control Management (Phase 2)
+
+### Authoritative Taxonomy — NIST CSF 2.0
+The platform models the official NIST Cybersecurity Framework 2.0 hierarchy:
+- **Framework**: NIST Cybersecurity Framework 2.0
+- **Functions (6)**:
+  1. `GV` — Govern
+  2. `ID` — Identify
+  3. `PR` — Protect
+  4. `DE` — Detect
+  5. `RS` — Respond
+  6. `RC` — Recover
+- **Categories (22)**: Complete NIST categories (`GV.OC`, `GV.RM`, `GV.RR`, `GV.PO`, `GV.OV`, `GV.SC`, `ID.AM`, `ID.RA`, `ID.IM`, `PR.AA`, `PR.AT`, `PR.DS`, `PR.PS`, `PR.IR`, `DE.CM`, `DE.AE`, `RS.MA`, `RS.AN`, `RS.CO`, `RS.MI`, `RC.RP`, `RC.CO`).
+- **Subcategories (69 Outcomes)**: Authoritative NIST outcome statements.
+
+### Deterministic Implementation State
+Organization controls have verified implementation states:
+`NOT_STARTED`, `IN_PROGRESS`, `PARTIALLY_IMPLEMENTED`, `IMPLEMENTED`, `NOT_APPLICABLE`, `NEEDS_REVIEW`.
+
+### Compliance Scoring Formula
+```
+compliance_score_pct = ((implemented * 1.0) + (partially_implemented * 0.5)) / (total_controls - not_applicable) * 100
+```
+All scoring calculations are computed exclusively on the backend by `ControlService.calculate_framework_progress`.
+
+### Information Security Policy Lifecycle & Versioning
+- **Lifecycle States**: `DRAFT` -> `UNDER_REVIEW` -> `APPROVED` -> `PUBLISHED` -> `ARCHIVED` (state machine validated).
+- **Immutable Version History**: Published and draft policy iterations are versioned with revision summaries in `policy_versions`.
+- **Policy-to-Control Mapping**: Direct traceability linkages between security policies and NIST CSF 2.0 subcategories via `policy_control_mappings`.
+
+---
+
+## 6. Immutable Audit Logging Architecture
 
 The `audit_logs` table provides a tamper-resistant event log for forensic compliance:
-- **Captured Attributes**:
-  - `timestamp`: UTC event timestamp
-  - `organization_id`: Organization scope
-  - `actor_id`: Foreign key to `users.id` (set to `NULL` if actor is deleted to preserve history)
-  - `actor_email`: Preserved identity of actor at event time
-  - `action`: Categorized event (e.g. `auth.login.success`, `user.create`, `organization.update`)
-  - `resource_type`: Target entity (e.g. `USER`, `ORGANIZATION`, `AUTH`)
-  - `resource_id`: Affected entity identifier
-  - `status`: Outcome (`SUCCESS`, `FAILURE`, `UNAUTHORIZED`)
-  - `ip_address`: Client IP address
-  - `user_agent`: Client browser / API agent
-  - `details`: JSON payload with contextual parameters and diffs
-- **Immutability**: The API provides no mutation (`PATCH`/`PUT`) or deletion (`DELETE`) endpoints for audit logs.
+- **Captured Attributes**: `timestamp`, `organization_id`, `actor_id`, `actor_email`, `action`, `resource_type`, `resource_id`, `status`, `ip_address`, `user_agent`, `details`.
+- **Phase 2 Audit Actions**: `control.update`, `control.status.change`, `policy.create`, `policy.update`, `policy.version.create`, `policy.submit_review`, `policy.approve`, `policy.publish`, `policy.archive`, `policy.mapping.create`, `policy.mapping.delete`.
+- **Immutability**: No mutation or deletion API endpoints exist for audit logs.
 
 ---
 
-## 6. Implementation Roadmap
+## 7. Implementation Roadmap
 
 - [x] **Phase 0 — Architecture & Scaffolding**: Domain model design, workspace initialization, Docker Compose configuration.
 - [x] **Phase 1 — Foundation**: Authentication, RBAC, Multi-tenancy, Database Models & Migrations, Audit Logging, React Enterprise Shell, Automated Tests.
-- [ ] **Phase 2 — Frameworks & Controls**: NIST CSF 2.0 structured data, Control hierarchy, search, filter, and mappings.
+- [x] **Phase 2 — Frameworks, Controls & Policy Management**: NIST CSF 2.0 hierarchy, Organization Controls, Deterministic Compliance Scoring, Versioned Policies, Policy-to-Control Traceability, Automated Tests.
 - [ ] **Phase 3 — Evidence Management**: Secure file upload, MIME validation, storage abstraction, evidence review workflows.
 - [ ] **Phase 4 — Assessments & Findings**: Control assessments, gap analysis, deficiency findings (Low, Medium, High, Critical).
 - [ ] **Phase 5 — Deterministic Risk Engine**: Likelihood x Impact scoring, inherent risk vs residual risk calculations, risk heatmap.

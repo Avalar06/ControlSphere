@@ -8,7 +8,9 @@ from app.api.deps import get_db
 from app.core.permissions import RoleEnum
 from app.core.security import create_access_token, get_password_hash
 from app.db.base import Base
+from app.db.seed_frameworks import seed_nist_framework
 from app.main import app
+from app.models.framework import Framework
 from app.models.organization import Organization
 from app.models.user import User
 
@@ -152,6 +154,11 @@ def meridian_admin_user(db, org_meridian) -> User:
     db.commit()
     db.refresh(user)
     return user
+
+
+@pytest.fixture(scope="function")
+def seeded_framework(db) -> Framework:
+    return seed_nist_framework(db)
 
 
 def get_token_headers(user: User) -> dict:

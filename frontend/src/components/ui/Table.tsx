@@ -24,11 +24,15 @@ export const TableBody: React.FC<{ children: React.ReactNode }> = ({ children })
   </tbody>
 );
 
-export const TableRow: React.FC<{ children: React.ReactNode; className?: string }> = ({
-  children,
-  className,
-}) => (
-  <tr className={twMerge('hover:bg-slate-800/40 transition-colors', className)}>
+export const TableRow: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+}> = ({ children, className, onClick }) => (
+  <tr
+    onClick={onClick}
+    className={twMerge('hover:bg-slate-800/40 transition-colors', className)}
+  >
     {children}
   </tr>
 );

@@ -7,6 +7,10 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { UsersPage } from './pages/UsersPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
+import { FrameworksPage } from './pages/FrameworksPage';
+import { ControlsPage } from './pages/ControlsPage';
+import { PoliciesPage } from './pages/PoliciesPage';
+import { PolicyDetailPage } from './pages/PolicyDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -34,41 +38,13 @@ export const App: React.FC = () => {
               <Route path="/users" element={<UsersPage />} />
               <Route path="/audit-logs" element={<AuditLogsPage />} />
 
-              {/* Module Placeholders with Roadmap info */}
-              <Route
-                path="/frameworks"
-                element={
-                  <PlaceholderModulePage
-                    title="Framework Management"
-                    phase="Phase 2"
-                    workflowStep="Framework Definition"
-                    description="Browse and manage structured compliance frameworks (NIST CSF 2.0, ISO 27001, SOC 2)."
-                    upcomingFeatures={[
-                      'Structured NIST Cybersecurity Framework 2.0 hierarchy (Functions, Categories, Subcategories)',
-                      'Cross-framework domain mappings and applicability scoping',
-                      'Organizational framework target profiles',
-                    ]}
-                  />
-                }
-              />
+              {/* Phase 2: Frameworks, Controls & Policy Modules */}
+              <Route path="/frameworks" element={<FrameworksPage />} />
+              <Route path="/controls" element={<ControlsPage />} />
+              <Route path="/policies" element={<PoliciesPage />} />
+              <Route path="/policies/:id" element={<PolicyDetailPage />} />
 
-              <Route
-                path="/controls"
-                element={
-                  <PlaceholderModulePage
-                    title="Controls Library"
-                    phase="Phase 2"
-                    workflowStep="Control Implementation"
-                    description="Central security controls inventory with owners, maturity tracking, and evidence requirements."
-                    upcomingFeatures={[
-                      'Detailed control cards with implementation guidance',
-                      'Control status tracking (Compliant, Partially Compliant, Non-Compliant, Not Applicable)',
-                      'Direct linkage to evidence requirements and risks',
-                    ]}
-                  />
-                }
-              />
-
+              {/* Future Roadmap Placeholders */}
               <Route
                 path="/evidence"
                 element={
@@ -132,23 +108,6 @@ export const App: React.FC = () => {
                       'Deterministic Audit Readiness Score (e.g. 72%) with explainable blockers breakdown',
                       'What is preventing us from reaching 90%? actionable gap list',
                       'Comprehensive auditor workspace with exportable audit packages',
-                    ]}
-                  />
-                }
-              />
-
-              <Route
-                path="/policies"
-                element={
-                  <PlaceholderModulePage
-                    title="Information Security Policies"
-                    phase="Phase 2"
-                    workflowStep="Governance"
-                    description="Versioned policy repository mapped directly to controls and compliance frameworks."
-                    upcomingFeatures={[
-                      'Pre-built security policy templates (Access Control, Password, Incident Response, Backup)',
-                      'Policy lifecycle and review dates',
-                      'Control-to-policy compliance mapping',
                     ]}
                   />
                 }
