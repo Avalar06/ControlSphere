@@ -62,7 +62,8 @@ export const Sidebar: React.FC = () => {
     {
       group: 'Risk & Remediation',
       items: [
-        { name: 'Risk Register', path: '/risks', icon: AlertTriangle, tag: 'Phase 5' },
+        { name: 'Findings & Remediation', path: '/findings', icon: AlertTriangle, tag: 'Phase 4' },
+        { name: 'Risk Register', path: '/risks', icon: Shield, tag: 'Phase 5' },
         { name: 'Policies', path: '/policies', icon: BookOpen, tag: 'Phase 2' },
       ],
     },

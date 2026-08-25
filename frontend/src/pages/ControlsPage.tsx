@@ -415,6 +415,22 @@ export const ControlsPage: React.FC = () => {
               <p className="text-xs text-slate-400 leading-relaxed">
                 {selectedControl.subcategory?.description}
               </p>
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-900 text-xs">
+                <span className="text-[11px] text-slate-500 font-medium">Phase 4 Links:</span>
+                <a
+                  href={`/assessments`}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1"
+                >
+                  <FileCheck2 size={12} /> Control Assessments
+                </a>
+                <span className="text-slate-700">&bull;</span>
+                <a
+                  href={`/findings`}
+                  className="text-xs text-rose-400 hover:text-rose-300 font-medium inline-flex items-center gap-1"
+                >
+                  <AlertCircle size={12} /> Deficiency Findings
+                </a>
+              </div>
             </div>
 
             {activeTab === 'assessment' ? (

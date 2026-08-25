@@ -18,7 +18,16 @@ import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { evidenceService } from '../lib/evidenceService';
-import type { AuditLog, FrameworkProgress, OrganizationEvidenceStats, Policy } from '../types';
+import { assessmentService } from '../lib/assessmentService';
+import { findingService } from '../lib/findingService';
+import type {
+  AssessmentStats,
+  AuditLog,
+  FindingStats,
+  FrameworkProgress,
+  OrganizationEvidenceStats,
+  Policy,
+} from '../types';
 
 export const DashboardPage: React.FC = () => {
   const { user, organization, hasPermission } = useAuth();
@@ -27,6 +36,8 @@ export const DashboardPage: React.FC = () => {
   const [policiesCount, setPoliciesCount] = useState<number>(0);
   const [publishedPoliciesCount, setPublishedPoliciesCount] = useState<number>(0);
   const [evidenceStats, setEvidenceStats] = useState<OrganizationEvidenceStats | null>(null);
+  const [assessmentStats, setAssessmentStats] = useState<AssessmentStats | null>(null);
+  const [findingStats, setFindingStats] = useState<FindingStats | null>(null);
 
   const [logsLoading, setLogsLoading] = useState(false);
 
@@ -60,7 +71,19 @@ export const DashboardPage: React.FC = () => {
       .then((stats) => setEvidenceStats(stats))
       .catch((err) => console.error('Failed to load evidence stats in dashboard', err));
 
-    // 4. Fetch audit logs if permitted
+    // 4. Fetch assessment stats
+    assessmentService
+      .getAssessmentStats()
+      .then((stats) => setAssessmentStats(stats))
+      .catch((err) => console.error('Failed to load assessment stats in dashboard', err));
+
+    // 5. Fetch finding stats
+    findingService
+      .getFindingStats()
+      .then((stats) => setFindingStats(stats))
+      .catch((err) => console.error('Failed to load finding stats in dashboard', err));
+
+    // 6. Fetch audit logs if permitted
     if (hasPermission('audit_log:read')) {
       setLogsLoading(true);
       api
@@ -71,7 +94,6 @@ export const DashboardPage: React.FC = () => {
     }
   }, [user]);
 
-
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
@@ -80,7 +102,7 @@ export const DashboardPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-                Phase 3: Evidence &amp; Assurance Engine Active
+                Phase 4: Assessments, Findings &amp; Remediation Active
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             </div>
@@ -89,33 +111,33 @@ export const DashboardPage: React.FC = () => {
             </h1>
             <p className="text-xs text-slate-400 mt-1 max-w-2xl">
               Operating within <span className="text-slate-200 font-semibold">{organization?.name}</span>.
-              Deterministic framework progress metrics, security controls matrix, policy governance, and cryptographic evidence assurance are active.
+              Deterministic framework progress metrics, security controls matrix, policy governance, evidence assurance, and active remediation workflows are online.
             </p>
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-            <Link to="/evidence">
+            <Link to="/assessments">
               <Button size="sm" variant="primary">
-                <FileCheck size={14} />
-                Evidence
+                <FileCheck2 size={14} />
+                Assessments
               </Button>
             </Link>
-            <Link to="/evidence-requirements">
+            <Link to="/findings">
+              <Button size="sm" variant="secondary">
+                <FileCheck size={14} />
+                Findings &amp; Remediation
+              </Button>
+            </Link>
+            <Link to="/evidence">
               <Button size="sm" variant="secondary">
                 <Layers size={14} />
-                Requirements
+                Evidence
               </Button>
             </Link>
             <Link to="/controls">
               <Button size="sm" variant="secondary">
-                <FileCheck2 size={14} />
+                <ShieldCheck size={14} />
                 Controls
-              </Button>
-            </Link>
-            <Link to="/policies">
-              <Button size="sm" variant="secondary">
-                <BookOpen size={14} />
-                Policies
               </Button>
             </Link>
           </div>
@@ -123,46 +145,62 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Live Posture Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         {/* Compliance Posture Score */}
         <Card className="border-l-2 border-l-indigo-500">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">CSF 2.0 Compliance</span>
+            <span className="text-xs font-medium">CSF 2.0 Posture</span>
             <ShieldCheck size={16} className="text-indigo-400" />
           </div>
           <div className="text-2xl font-bold text-slate-100 font-mono">
             {progress ? `${progress.compliance_score_pct}%` : '...'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1 font-mono">
-            {progress ? `${progress.implemented_count} / ${progress.total_controls} controls` : 'Loading posture...'}
+            {progress ? `${progress.implemented_count} / ${progress.total_controls} controls` : 'Loading...'}
           </div>
         </Card>
 
         {/* Evidence Assurance Coverage */}
         <Card className="border-l-2 border-l-blue-500">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Evidence Assurance</span>
+            <span className="text-xs font-medium">Evidence Coverage</span>
             <FileCheck size={16} className="text-blue-400" />
           </div>
           <div className="text-2xl font-bold text-blue-400 font-mono">
             {evidenceStats ? `${evidenceStats.overall_coverage_pct}%` : '...'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1 font-mono">
-            {evidenceStats ? `${evidenceStats.accepted_count} accepted · ${evidenceStats.pending_review_count} pending` : 'Calculating...'}
+            {evidenceStats ? `${evidenceStats.accepted_count} accepted` : 'Calculating...'}
           </div>
         </Card>
 
-        {/* Controls Implementation Breakdown */}
+        {/* Assessments Posture */}
         <Card className="border-l-2 border-l-emerald-500">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Implemented Controls</span>
-            <CheckCircle2 size={16} className="text-emerald-400" />
+            <span className="text-xs font-medium">Control Assessments</span>
+            <FileCheck2 size={16} className="text-emerald-400" />
           </div>
           <div className="text-2xl font-bold text-emerald-400 font-mono">
-            {progress ? progress.implemented_count : '...'}
+            {assessmentStats ? assessmentStats.completed_count : '...'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {progress ? `${progress.partially_implemented_count} partial · ${progress.in_progress_count} in progress` : 'Calculating...'}
+            {assessmentStats ? `${assessmentStats.effective_count} effective · ${assessmentStats.ineffective_count} ineffective` : 'Calculating...'}
+          </div>
+        </Card>
+
+        {/* Active Findings */}
+        <Card className="border-l-2 border-l-rose-500">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-medium">Open Findings</span>
+            <span className="text-rose-400 text-xs font-bold font-mono">
+              {findingStats ? `${findingStats.critical_count + findingStats.high_count} Crit/High` : ''}
+            </span>
+          </div>
+          <div className="text-2xl font-bold text-rose-400 font-mono">
+            {findingStats ? findingStats.open_count + findingStats.in_remediation_count + findingStats.pending_validation_count : '...'}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1">
+            {findingStats ? `${findingStats.overdue_count} overdue · ${findingStats.pending_validation_count} pending val` : 'Calculating...'}
           </div>
         </Card>
 
@@ -183,14 +221,14 @@ export const DashboardPage: React.FC = () => {
         {/* Tenant Scope */}
         <Card className="border-l-2 border-l-sky-500">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Tenant Isolation</span>
+            <span className="text-xs font-medium">Tenant Scope</span>
             <Building size={16} className="text-sky-400" />
           </div>
           <div className="text-base font-bold text-slate-100 truncate">
             {organization?.name}
           </div>
           <div className="text-[11px] text-sky-400 mt-1 flex items-center gap-1 font-mono">
-            <CheckCircle2 size={12} /> ID #{organization?.id} Isolated
+            <CheckCircle2 size={12} /> ID #{organization?.id}
           </div>
         </Card>
       </div>

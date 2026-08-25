@@ -13,6 +13,10 @@ import { PoliciesPage } from './pages/PoliciesPage';
 import { PolicyDetailPage } from './pages/PolicyDetailPage';
 import { EvidencePage } from './pages/EvidencePage';
 import { EvidenceRequirementsPage } from './pages/EvidenceRequirementsPage';
+import { AssessmentsPage } from './pages/AssessmentsPage';
+import { AssessmentDetailPage } from './pages/AssessmentDetailPage';
+import { FindingsPage } from './pages/FindingsPage';
+import { FindingDetailPage } from './pages/FindingDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -50,23 +54,11 @@ export const App: React.FC = () => {
               <Route path="/evidence" element={<EvidencePage />} />
               <Route path="/evidence-requirements" element={<EvidenceRequirementsPage />} />
 
-
-              <Route
-                path="/assessments"
-                element={
-                  <PlaceholderModulePage
-                    title="Control Assessments"
-                    phase="Phase 4"
-                    workflowStep="Assessment & Findings"
-                    description="Rigorous control assessment workflow preserving immutable assessment history and gap findings."
-                    upcomingFeatures={[
-                      'Assessor evaluation workflow linked to verified evidence',
-                      'Deficiency finding generation with severity scoring (Low, Medium, High, Critical)',
-                      'Automated gap analysis linked to risk register',
-                    ]}
-                  />
-                }
-              />
+              {/* Phase 4: Assessments, Findings & Remediation */}
+              <Route path="/assessments" element={<AssessmentsPage />} />
+              <Route path="/assessments/:id" element={<AssessmentDetailPage />} />
+              <Route path="/findings" element={<FindingsPage />} />
+              <Route path="/findings/:id" element={<FindingDetailPage />} />
 
               <Route
                 path="/risks"

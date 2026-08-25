@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter
+from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth,
     users,
@@ -9,6 +9,8 @@ from app.api.v1.endpoints import (
     controls,
     policies,
     evidence,
+    assessments,
+    findings,
 )
 
 api_router = APIRouter()
@@ -22,3 +24,5 @@ api_router.include_router(frameworks.router, prefix="/frameworks", tags=["Framew
 api_router.include_router(controls.router, prefix="/controls", tags=["Controls"])
 api_router.include_router(policies.router, prefix="/policies", tags=["Policies"])
 api_router.include_router(evidence.router, prefix="/evidence", tags=["Evidence"])
+api_router.include_router(assessments.router, prefix="/assessments", tags=["Assessments"])
+api_router.include_router(findings.router, prefix="/findings", tags=["Findings"])

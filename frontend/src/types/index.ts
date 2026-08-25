@@ -1,4 +1,4 @@
-﻿export type Role =
+export type Role =
   | 'ADMIN'
   | 'GRC_ANALYST'
   | 'SECURITY_ANALYST'
@@ -291,4 +291,165 @@ export interface OrganizationEvidenceStats {
   superseded_count: number;
   overall_coverage_pct: number;
   controls_missing_required_evidence: number;
+}
+
+// Phase 4: Assessments, Findings & Remediation Types
+export type AssessmentMethod =
+  | 'EXAMINATION'
+  | 'INTERVIEW'
+  | 'TESTING'
+  | 'AUTOMATED_VERIFICATION'
+  | 'COMBINED';
+
+export type AssessmentStatus =
+  | 'DRAFT'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'SUPERSEDED';
+
+export type AssessmentConclusion =
+  | 'EFFECTIVE'
+  | 'PARTIALLY_EFFECTIVE'
+  | 'INEFFECTIVE'
+  | 'NOT_ASSESSED';
+
+export interface AssessmentEvidence {
+  id: number;
+  organization_id: number;
+  assessment_id: number;
+  evidence_id: number;
+  created_by_id?: number;
+  created_at: string;
+  evidence?: EvidenceItem;
+}
+
+export interface Assessment {
+  id: number;
+  organization_id: number;
+  organization_control_id: number;
+  assessor_id?: number;
+  assessment_method: AssessmentMethod;
+  assessment_scope?: string;
+  assessment_date: string;
+  status: AssessmentStatus;
+  conclusion: AssessmentConclusion;
+  summary?: string;
+  limitations?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+  assessor?: User;
+  control_identifier?: string;
+  control_title?: string;
+  evidence_count: number;
+  findings_count: number;
+  evidence_links?: AssessmentEvidence[];
+}
+
+export interface AssessmentStats {
+  total_assessments: number;
+  draft_count: number;
+  in_progress_count: number;
+  completed_count: number;
+  superseded_count: number;
+  effective_count: number;
+  partially_effective_count: number;
+  ineffective_count: number;
+  not_assessed_count: number;
+}
+
+export type FindingType =
+  | 'CONTROL_GAP'
+  | 'EVIDENCE_GAP'
+  | 'POLICY_GAP'
+  | 'PROCESS_GAP'
+  | 'TECHNICAL_GAP'
+  | 'OTHER';
+
+export type FindingSeverity =
+  | 'CRITICAL'
+  | 'HIGH'
+  | 'MEDIUM'
+  | 'LOW'
+  | 'INFORMATIONAL';
+
+export type FindingStatus =
+  | 'OPEN'
+  | 'IN_REMEDIATION'
+  | 'PENDING_VALIDATION'
+  | 'RESOLVED'
+  | 'ACCEPTED_RISK'
+  | 'CLOSED';
+
+export interface FindingEvidence {
+  id: number;
+  organization_id: number;
+  finding_id: number;
+  evidence_id: number;
+  created_by_id?: number;
+  created_at: string;
+  evidence?: EvidenceItem;
+}
+
+export interface Finding {
+  id: number;
+  organization_id: number;
+  organization_control_id: number;
+  assessment_id?: number;
+  title: string;
+  description: string;
+  finding_type: FindingType;
+  severity: FindingSeverity;
+  impact: number;
+  likelihood: number;
+  risk_score: number;
+  risk_band: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  recommendation: string;
+  root_cause?: string;
+  owner_id?: number;
+  due_date?: string;
+  overdue_status: 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE' | 'NO_DUE_DATE' | 'COMPLETED';
+  status: FindingStatus;
+  remediation_plan?: string;
+  remediation_notes?: string;
+  resolution?: string;
+  resolved_at?: string;
+  resolved_by_id?: number;
+  closed_at?: string;
+  closed_by_id?: number;
+  risk_acceptance_justification?: string;
+  risk_accepted_at?: string;
+  risk_accepted_by_id?: number;
+  risk_acceptance_expiry?: string;
+  created_by_id?: number;
+  created_at: string;
+  updated_at: string;
+  owner?: User;
+  created_by?: User;
+  resolved_by?: User;
+  closed_by?: User;
+  risk_accepted_by?: User;
+  control_identifier?: string;
+  control_title?: string;
+  assessment_summary?: string;
+  evidence_count: number;
+  evidence_links?: FindingEvidence[];
+}
+
+export interface FindingStats {
+  total_findings: number;
+  open_count: number;
+  in_remediation_count: number;
+  pending_validation_count: number;
+  resolved_count: number;
+  accepted_risk_count: number;
+  closed_count: number;
+  critical_count: number;
+  high_count: number;
+  medium_count: number;
+  low_count: number;
+  informational_count: number;
+  overdue_count: number;
+  due_soon_count: number;
+  on_track_count: number;
 }

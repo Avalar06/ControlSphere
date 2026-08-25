@@ -1,4 +1,4 @@
-﻿from app.db.base import Base
+from app.db.base import Base
 from app.models.organization import Organization
 from app.models.user import User
 from app.models.audit_log import AuditLog
@@ -28,6 +28,20 @@ from app.models.evidence import (
     EvidenceStatusEnum,
     ReviewDecisionEnum,
 )
+from app.models.assessment import (
+    Assessment,
+    AssessmentEvidence,
+    AssessmentMethodEnum,
+    AssessmentStatusEnum,
+    AssessmentConclusionEnum,
+)
+from app.models.finding import (
+    Finding,
+    FindingEvidence,
+    FindingTypeEnum,
+    FindingSeverityEnum,
+    FindingStatusEnum,
+)
 
 __all__ = [
     "Base",
@@ -52,4 +66,14 @@ __all__ = [
     "EvidenceTypeEnum",
     "EvidenceStatusEnum",
     "ReviewDecisionEnum",
+    "Assessment",
+    "AssessmentEvidence",
+    "AssessmentMethodEnum",
+    "AssessmentStatusEnum",
+    "AssessmentConclusionEnum",
+    "Finding",
+    "FindingEvidence",
+    "FindingTypeEnum",
+    "FindingSeverityEnum",
+    "FindingStatusEnum",
 ]
