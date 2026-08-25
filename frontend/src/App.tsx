@@ -17,6 +17,10 @@ import { AssessmentsPage } from './pages/AssessmentsPage';
 import { AssessmentDetailPage } from './pages/AssessmentDetailPage';
 import { FindingsPage } from './pages/FindingsPage';
 import { FindingDetailPage } from './pages/FindingDetailPage';
+import { RisksPage } from './pages/RisksPage';
+import { RiskDetailPage } from './pages/RiskDetailPage';
+import { ExceptionsPage } from './pages/ExceptionsPage';
+import { ExceptionDetailPage } from './pages/ExceptionDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -60,22 +64,11 @@ export const App: React.FC = () => {
               <Route path="/findings" element={<FindingsPage />} />
               <Route path="/findings/:id" element={<FindingDetailPage />} />
 
-              <Route
-                path="/risks"
-                element={
-                  <PlaceholderModulePage
-                    title="Cybersecurity Risk Register"
-                    phase="Phase 5"
-                    workflowStep="Risk Management"
-                    description="Deterministic risk calculation engine evaluating inherent risk, control effectiveness, and residual risk."
-                    upcomingFeatures={[
-                      'Deterministic backend risk engine (Likelihood x Impact, 1x1 to 5x5)',
-                      'Inherent risk vs. Residual risk calculation matrix',
-                      'Interactive Risk Heatmap and Treatment Plans (Mitigate, Transfer, Accept, Avoid)',
-                    ]}
-                  />
-                }
-              />
+              {/* Phase 5: Risk Management, Exceptions & Governance */}
+              <Route path="/risks" element={<RisksPage />} />
+              <Route path="/risks/:id" element={<RiskDetailPage />} />
+              <Route path="/exceptions" element={<ExceptionsPage />} />
+              <Route path="/exceptions/:id" element={<ExceptionDetailPage />} />
 
               <Route
                 path="/audits"

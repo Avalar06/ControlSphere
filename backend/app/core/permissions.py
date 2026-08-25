@@ -1,4 +1,4 @@
-﻿import enum
+import enum
 from typing import Set
 
 
@@ -36,8 +36,12 @@ class Permission(str, enum.Enum):
     FINDING_MANAGE = "finding:manage"
     RISK_READ = "risk:read"
     RISK_MANAGE = "risk:manage"
+    RISK_ACCEPT = "risk:accept"
     REMEDIATION_READ = "remediation:read"
     REMEDIATION_MANAGE = "remediation:manage"
+    EXCEPTION_READ = "exception:read"
+    EXCEPTION_MANAGE = "exception:manage"
+    EXCEPTION_APPROVE = "exception:approve"
     AUDIT_READ = "audit:read"
     AUDIT_MANAGE = "audit:manage"
     POLICY_READ = "policy:read"
@@ -61,8 +65,12 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.FINDING_MANAGE,
         Permission.RISK_READ,
         Permission.RISK_MANAGE,
+        Permission.RISK_ACCEPT,
         Permission.REMEDIATION_READ,
         Permission.REMEDIATION_MANAGE,
+        Permission.EXCEPTION_READ,
+        Permission.EXCEPTION_MANAGE,
+        Permission.EXCEPTION_APPROVE,
         Permission.AUDIT_READ,
         Permission.POLICY_READ,
         Permission.POLICY_MANAGE,
@@ -78,8 +86,11 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.FINDING_MANAGE,
         Permission.RISK_READ,
         Permission.RISK_MANAGE,
+        Permission.RISK_ACCEPT,
         Permission.REMEDIATION_READ,
         Permission.REMEDIATION_MANAGE,
+        Permission.EXCEPTION_READ,
+        Permission.EXCEPTION_MANAGE,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -92,6 +103,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.FINDING_READ,
         Permission.RISK_READ,
         Permission.REMEDIATION_READ,
+        Permission.EXCEPTION_READ,
         Permission.AUDIT_READ,
         Permission.AUDIT_MANAGE,
         Permission.POLICY_READ,
@@ -105,6 +117,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.FINDING_READ,
         Permission.RISK_READ,
         Permission.REMEDIATION_READ,
+        Permission.EXCEPTION_READ,
+        Permission.EXCEPTION_APPROVE,
         Permission.AUDIT_READ,
         Permission.POLICY_READ,
     },
@@ -116,6 +130,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.FINDING_READ,
         Permission.RISK_READ,
         Permission.REMEDIATION_READ,
+        Permission.EXCEPTION_READ,
         Permission.AUDIT_READ,
         Permission.POLICY_READ,
     },

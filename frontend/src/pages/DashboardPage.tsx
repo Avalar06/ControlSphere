@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Building,
   Lock,
-  CheckCircle2,
   ArrowRight,
   Sparkles,
   ShieldCheck,
-  BookOpen,
   FileCheck2,
   FileCheck,
-  Layers,
+  ShieldAlert,
+  FileWarning,
+  TrendingDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -18,26 +17,28 @@ import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { evidenceService } from '../lib/evidenceService';
-import { assessmentService } from '../lib/assessmentService';
 import { findingService } from '../lib/findingService';
+import { riskService } from '../lib/riskService';
+import { exceptionService } from '../lib/exceptionService';
 import type {
-  AssessmentStats,
   AuditLog,
+  ExceptionStats,
   FindingStats,
   FrameworkProgress,
+  HeatmapCell,
   OrganizationEvidenceStats,
-  Policy,
+  RiskStats,
 } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const { user, organization, hasPermission } = useAuth();
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
   const [progress, setProgress] = useState<FrameworkProgress | null>(null);
-  const [policiesCount, setPoliciesCount] = useState<number>(0);
-  const [publishedPoliciesCount, setPublishedPoliciesCount] = useState<number>(0);
   const [evidenceStats, setEvidenceStats] = useState<OrganizationEvidenceStats | null>(null);
-  const [assessmentStats, setAssessmentStats] = useState<AssessmentStats | null>(null);
   const [findingStats, setFindingStats] = useState<FindingStats | null>(null);
+  const [riskStats, setRiskStats] = useState<RiskStats | null>(null);
+  const [exceptionStats, setExceptionStats] = useState<ExceptionStats | null>(null);
+  const [heatmapCells, setHeatmapCells] = useState<HeatmapCell[]>([]);
 
   const [logsLoading, setLogsLoading] = useState(false);
 
@@ -55,33 +56,34 @@ export const DashboardPage: React.FC = () => {
       })
       .catch((err) => console.error('Failed to load frameworks in dashboard', err));
 
-    // 2. Fetch policies count
-    api
-      .get<Policy[]>('/api/v1/policies')
-      .then((res) => {
-        setPoliciesCount(res.data.length);
-        const published = res.data.filter((p) => p.status === 'PUBLISHED').length;
-        setPublishedPoliciesCount(published);
-      })
-      .catch((err) => console.error('Failed to load policies in dashboard', err));
-
-    // 3. Fetch evidence assurance stats
+    // 2. Fetch evidence assurance stats
     evidenceService
       .getEvidenceStats()
       .then((stats) => setEvidenceStats(stats))
       .catch((err) => console.error('Failed to load evidence stats in dashboard', err));
 
-    // 4. Fetch assessment stats
-    assessmentService
-      .getAssessmentStats()
-      .then((stats) => setAssessmentStats(stats))
-      .catch((err) => console.error('Failed to load assessment stats in dashboard', err));
-
-    // 5. Fetch finding stats
+    // 3. Fetch finding stats
     findingService
       .getFindingStats()
       .then((stats) => setFindingStats(stats))
       .catch((err) => console.error('Failed to load finding stats in dashboard', err));
+
+    // 4. Fetch risk stats & heatmap
+    riskService
+      .getStats()
+      .then((stats) => setRiskStats(stats))
+      .catch((err) => console.error('Failed to load risk stats in dashboard', err));
+
+    riskService
+      .getHeatmap()
+      .then((cells) => setHeatmapCells(cells))
+      .catch((err) => console.error('Failed to load heatmap in dashboard', err));
+
+    // 5. Fetch exception stats
+    exceptionService
+      .getStats()
+      .then((stats) => setExceptionStats(stats))
+      .catch((err) => console.error('Failed to load exception stats in dashboard', err));
 
     // 6. Fetch audit logs if permitted
     if (hasPermission('audit_log:read')) {
@@ -94,6 +96,22 @@ export const DashboardPage: React.FC = () => {
     }
   }, [user]);
 
+  const getHeatmapColor = (band: string, count: number) => {
+    if (count === 0) {
+      return 'bg-slate-950/60 border-slate-800/80 text-slate-600';
+    }
+    switch (band) {
+      case 'CRITICAL':
+        return 'bg-red-950/90 border-red-700 text-red-300 font-bold';
+      case 'HIGH':
+        return 'bg-amber-950/90 border-amber-700 text-amber-300 font-bold';
+      case 'MODERATE':
+        return 'bg-yellow-950/90 border-yellow-700 text-yellow-300 font-bold';
+      default:
+        return 'bg-emerald-950/90 border-emerald-700 text-emerald-300 font-bold';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
@@ -102,7 +120,7 @@ export const DashboardPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-                Phase 4: Assessments, Findings &amp; Remediation Active
+                Enterprise GRC &amp; Executive Risk Governance Active
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             </div>
@@ -111,13 +129,25 @@ export const DashboardPage: React.FC = () => {
             </h1>
             <p className="text-xs text-slate-400 mt-1 max-w-2xl">
               Operating within <span className="text-slate-200 font-semibold">{organization?.name}</span>.
-              Deterministic framework progress metrics, security controls matrix, policy governance, evidence assurance, and active remediation workflows are online.
+              Deterministic framework progress metrics, security controls matrix, policy governance, evidence assurance, risk appetite evaluations, and active exceptions are online.
             </p>
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-            <Link to="/assessments">
+            <Link to="/risks">
               <Button size="sm" variant="primary">
+                <ShieldAlert size={14} />
+                Risk Register
+              </Button>
+            </Link>
+            <Link to="/exceptions">
+              <Button size="sm" variant="secondary">
+                <FileWarning size={14} />
+                Exceptions
+              </Button>
+            </Link>
+            <Link to="/assessments">
+              <Button size="sm" variant="secondary">
                 <FileCheck2 size={14} />
                 Assessments
               </Button>
@@ -125,26 +155,14 @@ export const DashboardPage: React.FC = () => {
             <Link to="/findings">
               <Button size="sm" variant="secondary">
                 <FileCheck size={14} />
-                Findings &amp; Remediation
-              </Button>
-            </Link>
-            <Link to="/evidence">
-              <Button size="sm" variant="secondary">
-                <Layers size={14} />
-                Evidence
-              </Button>
-            </Link>
-            <Link to="/controls">
-              <Button size="sm" variant="secondary">
-                <ShieldCheck size={14} />
-                Controls
+                Findings
               </Button>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Live Posture Metrics Grid */}
+      {/* Live Executive Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         {/* Compliance Posture Score */}
         <Card className="border-l-2 border-l-indigo-500">
@@ -160,35 +178,49 @@ export const DashboardPage: React.FC = () => {
           </div>
         </Card>
 
-        {/* Evidence Assurance Coverage */}
-        <Card className="border-l-2 border-l-blue-500">
+        {/* Executive Risk Posture */}
+        <Card className="border-l-2 border-l-red-500">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Evidence Coverage</span>
-            <FileCheck size={16} className="text-blue-400" />
+            <span className="text-xs font-medium">Risks Above Appetite</span>
+            <ShieldAlert size={16} className="text-red-400" />
           </div>
-          <div className="text-2xl font-bold text-blue-400 font-mono">
-            {evidenceStats ? `${evidenceStats.overall_coverage_pct}%` : '...'}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1 font-mono">
-            {evidenceStats ? `${evidenceStats.accepted_count} accepted` : 'Calculating...'}
-          </div>
-        </Card>
-
-        {/* Assessments Posture */}
-        <Card className="border-l-2 border-l-emerald-500">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Control Assessments</span>
-            <FileCheck2 size={16} className="text-emerald-400" />
-          </div>
-          <div className="text-2xl font-bold text-emerald-400 font-mono">
-            {assessmentStats ? assessmentStats.completed_count : '...'}
+          <div className="text-2xl font-bold text-red-400 font-mono">
+            {riskStats ? riskStats.above_appetite_count : '...'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {assessmentStats ? `${assessmentStats.effective_count} effective · ${assessmentStats.ineffective_count} ineffective` : 'Calculating...'}
+            {riskStats ? `${riskStats.near_limit_count} near limit · ${riskStats.total_risks} total` : 'Calculating...'}
           </div>
         </Card>
 
-        {/* Active Findings */}
+        {/* Risk Reduction Gauge */}
+        <Card className="border-l-2 border-l-emerald-500">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-medium">Risk Reduction</span>
+            <TrendingDown size={16} className="text-emerald-400" />
+          </div>
+          <div className="text-2xl font-bold text-emerald-400 font-mono">
+            {riskStats ? `${riskStats.inherent_vs_residual_reduction}%` : '...'}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1">
+            Inherent vs residual delta
+          </div>
+        </Card>
+
+        {/* Security Exceptions */}
+        <Card className="border-l-2 border-l-amber-500">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-medium">Active Exceptions</span>
+            <FileWarning size={16} className="text-amber-400" />
+          </div>
+          <div className="text-2xl font-bold text-amber-400 font-mono">
+            {exceptionStats ? exceptionStats.active_count : '...'}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1">
+            {exceptionStats ? `${exceptionStats.expiring_soon_count} expiring soon (≤14d)` : 'Calculating...'}
+          </div>
+        </Card>
+
+        {/* Open Findings */}
         <Card className="border-l-2 border-l-rose-500">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-medium">Open Findings</span>
@@ -204,38 +236,57 @@ export const DashboardPage: React.FC = () => {
           </div>
         </Card>
 
-        {/* Policy Governance */}
-        <Card className="border-l-2 border-l-purple-500">
+        {/* Evidence Assurance */}
+        <Card className="border-l-2 border-l-blue-500">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Security Policies</span>
-            <BookOpen size={16} className="text-purple-400" />
+            <span className="text-xs font-medium">Evidence Coverage</span>
+            <FileCheck size={16} className="text-blue-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-100 font-mono">
-            {policiesCount}
+          <div className="text-2xl font-bold text-blue-400 font-mono">
+            {evidenceStats ? `${evidenceStats.overall_coverage_pct}%` : '...'}
           </div>
-          <div className="text-[11px] text-purple-300 mt-1 font-mono">
-            {publishedPoliciesCount} Published
-          </div>
-        </Card>
-
-        {/* Tenant Scope */}
-        <Card className="border-l-2 border-l-sky-500">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Tenant Scope</span>
-            <Building size={16} className="text-sky-400" />
-          </div>
-          <div className="text-base font-bold text-slate-100 truncate">
-            {organization?.name}
-          </div>
-          <div className="text-[11px] text-sky-400 mt-1 flex items-center gap-1 font-mono">
-            <CheckCircle2 size={12} /> ID #{organization?.id}
+          <div className="text-[11px] text-slate-400 mt-1 font-mono">
+            {evidenceStats ? `${evidenceStats.accepted_count} accepted` : 'Calculating...'}
           </div>
         </Card>
       </div>
 
-
-      {/* Main Content: NIST CSF Functions & Recent Activity */}
+      {/* 5x5 Inherent Risk Heatmap & Functions Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Heatmap Widget */}
+        <Card className="lg:col-span-1">
+          <CardHeader
+            title="5x5 Inherent Risk Heatmap"
+            subtitle="Likelihood (Y) vs Impact (X) distribution"
+            action={
+              <Link to="/risks" className="text-xs text-indigo-400 hover:text-indigo-300">
+                Manage Risks
+              </Link>
+            }
+          />
+          <div className="space-y-2">
+            <div className="grid grid-cols-5 gap-1.5">
+              {heatmapCells.map((cell, idx) => (
+                <div
+                  key={idx}
+                  title={`Likelihood: ${cell.likelihood}, Impact: ${cell.impact}, Score: ${cell.score} (${cell.band}), Risks: ${cell.count}`}
+                  className={`h-10 rounded border flex flex-col items-center justify-center text-[10px] transition-transform hover:scale-105 cursor-pointer ${getHeatmapColor(
+                    cell.band,
+                    cell.count
+                  )}`}
+                >
+                  <span className="text-xs font-bold">{cell.count > 0 ? cell.count : '·'}</span>
+                  <span className="text-[8px] opacity-70">{cell.score}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono pt-2 border-t border-slate-800">
+              <span>← Low Impact</span>
+              <span>High Impact →</span>
+            </div>
+          </div>
+        </Card>
+
         {/* NIST CSF 2.0 Functions Posture Breakdown */}
         <Card className="lg:col-span-2">
           <CardHeader
@@ -254,7 +305,7 @@ export const DashboardPage: React.FC = () => {
                 {Object.entries(progress.by_function).map(([fnKey, fnStats]) => (
                   <div
                     key={fnKey}
-                    className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800/80 space-y-2"
+                    className="p-3 rounded-lg bg-slate-950/70 border border-slate-800/80 space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -287,91 +338,89 @@ export const DashboardPage: React.FC = () => {
             )}
 
             {/* Traceability Roadmap */}
-            <div className="p-4 rounded-lg bg-indigo-950/20 border border-indigo-800/40 mt-4">
-              <div className="text-xs font-semibold text-indigo-300 mb-2 flex items-center gap-1.5">
+            <div className="p-3 rounded-lg bg-indigo-950/20 border border-indigo-800/40 mt-3">
+              <div className="text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
                 <Sparkles size={14} />
-                <span>Authoritative GRC Traceability Pipeline</span>
+                <span>Enterprise GRC Traceability Chain</span>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-300">
-                <span className="px-2 py-1 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Framework (CSF 2.0)</span>
-                <ArrowRight size={12} className="text-indigo-400" />
-                <span className="px-2 py-1 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Control Matrix</span>
-                <ArrowRight size={12} className="text-indigo-400" />
-                <span className="px-2 py-1 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Policies</span>
-                <ArrowRight size={12} className="text-indigo-400" />
-                <span className="px-2 py-1 bg-slate-900 rounded border border-slate-800">Evidence (P3)</span>
-                <ArrowRight size={12} className="text-indigo-400" />
-                <span className="px-2 py-1 bg-slate-900 rounded border border-slate-800">Assessment (P4)</span>
-                <ArrowRight size={12} className="text-indigo-400" />
-                <span className="px-2 py-1 bg-slate-900 rounded border border-slate-800">Risk (P5)</span>
-                <ArrowRight size={12} className="text-indigo-400" />
-                <span className="px-2 py-1 bg-slate-900 rounded border border-slate-800">Remediation (P6)</span>
-                <ArrowRight size={12} className="text-indigo-400" />
-                <span className="px-2 py-1 bg-slate-900 rounded border border-slate-800">Audit Readiness (P7)</span>
+              <div className="flex flex-wrap items-center gap-1 text-[10px] font-mono text-slate-300">
+                <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Framework</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Controls</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Policies</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Evidence</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Assessment</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Findings</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Risk &amp; Exceptions</span>
               </div>
             </div>
           </div>
         </Card>
-
-        {/* Live Audit Log Stream */}
-        <Card>
-          <CardHeader
-            title="Recent Audit Events"
-            subtitle={hasPermission('audit_log:read') ? 'Live tenant activity log' : 'Restricted to Auditor/Admin'}
-            action={
-              hasPermission('audit_log:read') && (
-                <Link to="/audit-logs" className="text-xs text-indigo-400 hover:text-indigo-300">
-                  View All
-                </Link>
-              )
-            }
-          />
-
-          {!hasPermission('audit_log:read') ? (
-            <div className="py-8 text-center text-xs text-slate-500">
-              <Lock size={20} className="mx-auto mb-2 opacity-50" />
-              Your role ({user?.role}) does not have permission to view audit logs.
-            </div>
-          ) : logsLoading ? (
-            <div className="py-6 text-center text-xs text-slate-400">Loading audit trail...</div>
-          ) : recentLogs.length === 0 ? (
-            <div className="py-6 text-center text-xs text-slate-500">No recent audit logs recorded.</div>
-          ) : (
-            <div className="space-y-2.5">
-              {recentLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-2.5 rounded bg-slate-950/60 border border-slate-800/80 text-xs space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] text-indigo-400 font-medium">
-                      {log.action}
-                    </span>
-                    <Badge
-                      variant={
-                        log.status === 'SUCCESS'
-                          ? 'success'
-                          : log.status === 'UNAUTHORIZED'
-                          ? 'warning'
-                          : 'danger'
-                      }
-                      className="text-[9px] px-1 py-0"
-                    >
-                      {log.status}
-                    </Badge>
-                  </div>
-                  <div className="text-[11px] text-slate-400 truncate">
-                    Actor: <span className="text-slate-300">{log.actor_email}</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-mono">
-                    {new Date(log.timestamp).toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
       </div>
+
+      {/* Live Audit Log Stream */}
+      <Card>
+        <CardHeader
+          title="Recent Audit Events"
+          subtitle={hasPermission('audit_log:read') ? 'Live tenant activity log' : 'Restricted to Auditor/Admin'}
+          action={
+            hasPermission('audit_log:read') && (
+              <Link to="/audit-logs" className="text-xs text-indigo-400 hover:text-indigo-300">
+                View All
+              </Link>
+            )
+          }
+        />
+
+        {!hasPermission('audit_log:read') ? (
+          <div className="py-6 text-center text-xs text-slate-500">
+            <Lock size={18} className="mx-auto mb-1.5 opacity-50" />
+            Your role ({user?.role}) does not have permission to view audit logs.
+          </div>
+        ) : logsLoading ? (
+          <div className="py-4 text-center text-xs text-slate-400">Loading audit trail...</div>
+        ) : recentLogs.length === 0 ? (
+          <div className="py-4 text-center text-xs text-slate-500">No recent audit logs recorded.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+            {recentLogs.map((log) => (
+              <div
+                key={log.id}
+                className="p-2.5 rounded bg-slate-950/60 border border-slate-800/80 text-xs space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] text-indigo-400 font-medium">
+                    {log.action}
+                  </span>
+                  <Badge
+                    variant={
+                      log.status === 'SUCCESS'
+                        ? 'success'
+                        : log.status === 'UNAUTHORIZED'
+                        ? 'warning'
+                        : 'danger'
+                    }
+                    className="text-[9px] px-1 py-0"
+                  >
+                    {log.status}
+                  </Badge>
+                </div>
+                <div className="text-[11px] text-slate-400 truncate">
+                  Actor: <span className="text-slate-300">{log.actor_email}</span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  {new Date(log.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

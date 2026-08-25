@@ -42,6 +42,21 @@ from app.models.finding import (
     FindingSeverityEnum,
     FindingStatusEnum,
 )
+from app.models.risk import (
+    Risk,
+    RiskControlLink,
+    RiskFindingLink,
+    RiskCategoryEnum,
+    RiskSourceEnum,
+    RiskStatusEnum,
+    RiskTreatmentStrategyEnum,
+)
+from app.models.exception import (
+    SecurityException,
+    ExceptionCompensatingControl,
+    ExceptionTypeEnum,
+    ExceptionStatusEnum,
+)
 
 __all__ = [
     "Base",
@@ -76,4 +91,15 @@ __all__ = [
     "FindingTypeEnum",
     "FindingSeverityEnum",
     "FindingStatusEnum",
+    "Risk",
+    "RiskControlLink",
+    "RiskFindingLink",
+    "RiskCategoryEnum",
+    "RiskSourceEnum",
+    "RiskStatusEnum",
+    "RiskTreatmentStrategyEnum",
+    "SecurityException",
+    "ExceptionCompensatingControl",
+    "ExceptionTypeEnum",
+    "ExceptionStatusEnum",
 ]

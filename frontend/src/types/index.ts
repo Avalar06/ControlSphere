@@ -453,3 +453,209 @@ export interface FindingStats {
   due_soon_count: number;
   on_track_count: number;
 }
+
+// Phase 5: Risk Management, Exceptions & Executive Governance Types
+export type RiskCategory =
+  | 'CYBERSECURITY'
+  | 'COMPLIANCE'
+  | 'OPERATIONAL'
+  | 'FINANCIAL'
+  | 'STRATEGIC'
+  | 'REPUTATIONAL'
+  | 'THIRD_PARTY'
+  | 'LEGAL';
+
+export type RiskSource =
+  | 'INTERNAL_AUDIT'
+  | 'EXTERNAL_AUDIT'
+  | 'THREAT_INTELLIGENCE'
+  | 'VULNERABILITY_ASSESSMENT'
+  | 'INCIDENT'
+  | 'VENDOR_ASSESSMENT'
+  | 'REGULATORY_CHANGE'
+  | 'BUSINESS_OPERATION';
+
+export type RiskStatus =
+  | 'IDENTIFIED'
+  | 'ASSESSED'
+  | 'TREATMENT_PLANNED'
+  | 'MITIGATING'
+  | 'MONITORING'
+  | 'ACCEPTED'
+  | 'CLOSED';
+
+export type RiskTreatmentStrategy =
+  | 'MITIGATE'
+  | 'TRANSFER'
+  | 'AVOID'
+  | 'ACCEPT'
+  | 'NOT_SPECIFIED';
+
+export interface RiskControlLink {
+  id: number;
+  organization_id: number;
+  risk_id: number;
+  organization_control_id: number;
+  created_by_id?: number;
+  created_at: string;
+  organization_control?: OrganizationControl;
+}
+
+export interface RiskFindingLink {
+  id: number;
+  organization_id: number;
+  risk_id: number;
+  finding_id: number;
+  created_by_id?: number;
+  created_at: string;
+  finding?: Finding;
+}
+
+export interface Risk {
+  id: number;
+  organization_id: number;
+  title: string;
+  description: string;
+  risk_category: RiskCategory;
+  risk_source: RiskSource;
+  owner_id?: number;
+  inherent_impact: number;
+  inherent_likelihood: number;
+  inherent_score: number;
+  inherent_band: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  residual_impact?: number;
+  residual_likelihood?: number;
+  residual_score?: number;
+  residual_band?: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  target_risk_band: string;
+  appetite_status: 'WITHIN_APPETITE' | 'NEAR_LIMIT' | 'ABOVE_APPETITE';
+  status: RiskStatus;
+  treatment_strategy: RiskTreatmentStrategy;
+  treatment_plan?: string;
+  treatment_owner_id?: number;
+  treatment_due_date?: string;
+  treatment_overdue_status: 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE' | 'NO_DUE_DATE' | 'COMPLETED';
+  review_date?: string;
+  risk_acceptance_justification?: string;
+  risk_accepted_at?: string;
+  risk_accepted_by_id?: number;
+  risk_acceptance_expiry?: string;
+  created_by_id?: number;
+  created_at: string;
+  updated_at: string;
+  owner?: User;
+  treatment_owner?: User;
+  created_by?: User;
+  risk_accepted_by?: User;
+  linked_controls_count: number;
+  linked_findings_count: number;
+  control_links?: RiskControlLink[];
+  finding_links?: RiskFindingLink[];
+}
+
+export interface HeatmapCell {
+  likelihood: number;
+  impact: number;
+  score: number;
+  band: string;
+  count: number;
+}
+
+export interface RiskStats {
+  total_risks: number;
+  identified_count: number;
+  assessed_count: number;
+  treatment_planned_count: number;
+  mitigating_count: number;
+  monitoring_count: number;
+  accepted_count: number;
+  closed_count: number;
+  critical_inherent_count: number;
+  high_inherent_count: number;
+  moderate_inherent_count: number;
+  low_inherent_count: number;
+  above_appetite_count: number;
+  near_limit_count: number;
+  within_appetite_count: number;
+  overdue_treatments_count: number;
+  due_soon_treatments_count: number;
+  inherent_vs_residual_reduction: number;
+}
+
+export type ExceptionType =
+  | 'CONTROL_DEVIATION'
+  | 'POLICY_EXCEPTION'
+  | 'CONFIGURATION_STANDARD'
+  | 'THIRD_PARTY_VENDOR'
+  | 'ACCESS_CONTROL'
+  | 'OTHER';
+
+export type ExceptionStatus =
+  | 'REQUESTED'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'REJECTED'
+  | 'CLOSED';
+
+export interface ExceptionCompensatingControl {
+  id: number;
+  organization_id: number;
+  exception_id: number;
+  organization_control_id: number;
+  implementation_notes?: string;
+  created_by_id?: number;
+  created_at: string;
+  organization_control?: OrganizationControl;
+}
+
+export interface SecurityException {
+  id: number;
+  organization_id: number;
+  title: string;
+  description: string;
+  justification: string;
+  exception_type: ExceptionType;
+  status: ExceptionStatus;
+  effective_status: string;
+  requested_by_id?: number;
+  owner_id?: number;
+  reviewer_id?: number;
+  requested_at: string;
+  approved_at?: string;
+  effective_date?: string;
+  expiry_date: string;
+  review_date?: string;
+  residual_risk_level: string;
+  approval_notes?: string;
+  rejection_reason?: string;
+  closure_notes?: string;
+  closed_at?: string;
+  closed_by_id?: number;
+  linked_organization_control_id?: number;
+  linked_policy_id?: number;
+  linked_finding_id?: number;
+  created_at: string;
+  updated_at: string;
+  requested_by?: User;
+  owner?: User;
+  reviewer?: User;
+  closed_by?: User;
+  linked_control?: OrganizationControl;
+  linked_policy?: Policy;
+  linked_finding?: Finding;
+  compensating_controls_count: number;
+  compensating_controls?: ExceptionCompensatingControl[];
+}
+
+export interface ExceptionStats {
+  total_exceptions: number;
+  requested_count: number;
+  under_review_count: number;
+  active_count: number;
+  expired_count: number;
+  rejected_count: number;
+  closed_count: number;
+  expiring_soon_count: number;
+}

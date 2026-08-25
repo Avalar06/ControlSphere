@@ -14,6 +14,8 @@ import {
   Settings,
   Shield,
   ListFilter,
+  FileWarning,
+  ShieldAlert,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -63,7 +65,8 @@ export const Sidebar: React.FC = () => {
       group: 'Risk & Remediation',
       items: [
         { name: 'Findings & Remediation', path: '/findings', icon: AlertTriangle, tag: 'Phase 4' },
-        { name: 'Risk Register', path: '/risks', icon: Shield, tag: 'Phase 5' },
+        { name: 'Risk Register', path: '/risks', icon: ShieldAlert, tag: 'Phase 5' },
+        { name: 'Exceptions', path: '/exceptions', icon: FileWarning, tag: 'Phase 5' },
         { name: 'Policies', path: '/policies', icon: BookOpen, tag: 'Phase 2' },
       ],
     },
