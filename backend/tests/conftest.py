@@ -1,10 +1,14 @@
-﻿import pytest
+﻿import shutil
+import tempfile
+from pathlib import Path
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.deps import get_db
+from app.core.config import settings
 from app.core.permissions import RoleEnum
 from app.core.security import create_access_token, get_password_hash
 from app.db.base import Base
@@ -13,6 +17,8 @@ from app.main import app
 from app.models.framework import Framework
 from app.models.organization import Organization
 from app.models.user import User
+from app.storage.local import LocalStorageProvider
+import app.storage.local as storage_module
 
 # In-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -34,6 +40,21 @@ def db():
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def temp_evidence_storage():
+    """Ensure tests write evidence files into an isolated temporary directory."""
+    temp_dir = tempfile.mkdtemp()
+    old_root = settings.EVIDENCE_STORAGE_ROOT
+    settings.EVIDENCE_STORAGE_ROOT = temp_dir
+    storage_module._default_provider = LocalStorageProvider(root_dir=temp_dir)
+    try:
+        yield temp_dir
+    finally:
+        settings.EVIDENCE_STORAGE_ROOT = old_root
+        storage_module._default_provider = None
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @pytest.fixture(scope="function")

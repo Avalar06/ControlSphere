@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     frameworks,
     controls,
     policies,
+    evidence,
 )
 
 api_router = APIRouter()
@@ -20,3 +21,4 @@ api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["Audit 
 api_router.include_router(frameworks.router, prefix="/frameworks", tags=["Frameworks"])
 api_router.include_router(controls.router, prefix="/controls", tags=["Controls"])
 api_router.include_router(policies.router, prefix="/policies", tags=["Policies"])
+api_router.include_router(evidence.router, prefix="/evidence", tags=["Evidence"])

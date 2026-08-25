@@ -23,7 +23,7 @@ class Permission(str, enum.Enum):
     # Audit Logs
     AUDIT_LOG_READ = "audit_log:read"
 
-    # GRC Domain Permissions (Foundations for upcoming phases)
+    # GRC Domain Permissions
     FRAMEWORK_READ = "framework:read"
     FRAMEWORK_MANAGE = "framework:manage"
     CONTROL_READ = "control:read"
@@ -31,6 +31,7 @@ class Permission(str, enum.Enum):
     EVIDENCE_READ = "evidence:read"
     EVIDENCE_UPLOAD = "evidence:upload"
     EVIDENCE_REVIEW = "evidence:review"
+    EVIDENCE_MANAGE = "evidence:manage"
     FINDING_READ = "finding:read"
     FINDING_MANAGE = "finding:manage"
     RISK_READ = "risk:read"
@@ -55,6 +56,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EVIDENCE_READ,
         Permission.EVIDENCE_UPLOAD,
         Permission.EVIDENCE_REVIEW,
+        Permission.EVIDENCE_MANAGE,
         Permission.FINDING_READ,
         Permission.FINDING_MANAGE,
         Permission.RISK_READ,

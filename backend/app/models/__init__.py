@@ -20,6 +20,14 @@ from app.models.policy import (
     PolicyStatusEnum,
     PolicyTypeEnum,
 )
+from app.models.evidence import (
+    EvidenceRequirement,
+    EvidenceItem,
+    EvidenceReview,
+    EvidenceTypeEnum,
+    EvidenceStatusEnum,
+    ReviewDecisionEnum,
+)
 
 __all__ = [
     "Base",
@@ -38,4 +46,10 @@ __all__ = [
     "PolicyControlMapping",
     "PolicyStatusEnum",
     "PolicyTypeEnum",
+    "EvidenceRequirement",
+    "EvidenceItem",
+    "EvidenceReview",
+    "EvidenceTypeEnum",
+    "EvidenceStatusEnum",
+    "ReviewDecisionEnum",
 ]

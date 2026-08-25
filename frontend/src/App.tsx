@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
@@ -11,6 +11,8 @@ import { FrameworksPage } from './pages/FrameworksPage';
 import { ControlsPage } from './pages/ControlsPage';
 import { PoliciesPage } from './pages/PoliciesPage';
 import { PolicyDetailPage } from './pages/PolicyDetailPage';
+import { EvidencePage } from './pages/EvidencePage';
+import { EvidenceRequirementsPage } from './pages/EvidenceRequirementsPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -44,23 +46,10 @@ export const App: React.FC = () => {
               <Route path="/policies" element={<PoliciesPage />} />
               <Route path="/policies/:id" element={<PolicyDetailPage />} />
 
-              {/* Future Roadmap Placeholders */}
-              <Route
-                path="/evidence"
-                element={
-                  <PlaceholderModulePage
-                    title="Evidence Library & Assurance"
-                    phase="Phase 3"
-                    workflowStep="Evidence Collection"
-                    description="Secure evidence repository with integrity verification, automated expiration alerts, and reviews."
-                    upcomingFeatures={[
-                      'MIME-validated, virus-checked secure file uploads (PDF, XLSX, CSV, Logs, Screenshots)',
-                      'Evidence review workflows (Accept, Reject, Request Additional)',
-                      'Integrity hashing and tamper-evident audit records',
-                    ]}
-                  />
-                }
-              />
+              {/* Phase 3: Evidence Management & Assurance */}
+              <Route path="/evidence" element={<EvidencePage />} />
+              <Route path="/evidence-requirements" element={<EvidenceRequirementsPage />} />
+
 
               <Route
                 path="/assessments"

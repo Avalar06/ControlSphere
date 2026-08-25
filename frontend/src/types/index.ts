@@ -195,3 +195,100 @@ export interface Policy {
   versions?: PolicyVersion[];
   mapped_subcategories: FrameworkSubcategory[];
 }
+
+// Phase 3 Evidence Types
+export type EvidenceType =
+  | 'DOCUMENT'
+  | 'CONFIGURATION'
+  | 'LOG_EXPORT'
+  | 'SCREENSHOT'
+  | 'POLICY_DOCUMENT'
+  | 'AUDIT_REPORT'
+  | 'OTHER';
+
+export type EvidenceStatus =
+  | 'UPLOADED'
+  | 'UNDER_REVIEW'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'SUPERSEDED';
+
+export type ReviewDecision = 'ACCEPT' | 'REJECT';
+
+export interface EvidenceRequirement {
+  id: number;
+  organization_id: number;
+  organization_control_id: number;
+  title: string;
+  description?: string;
+  evidence_type: EvidenceType;
+  is_required: boolean;
+  guidance?: string;
+  created_by_id?: number;
+  created_at: string;
+  updated_at: string;
+  created_by?: User;
+  items_count: number;
+  accepted_items_count: number;
+}
+
+export interface EvidenceReview {
+  id: number;
+  organization_id: number;
+  evidence_id: number;
+  reviewer_id?: number;
+  decision: ReviewDecision;
+  review_notes?: string;
+  rejection_reason?: string;
+  reviewed_at: string;
+  reviewer?: User;
+}
+
+export interface EvidenceItem {
+  id: number;
+  organization_id: number;
+  organization_control_id: number;
+  evidence_requirement_id?: number;
+  uploaded_by_id?: number;
+  title: string;
+  description?: string;
+  original_filename: string;
+  stored_filename: string;
+  file_extension: string;
+  content_type: string;
+  file_size: number;
+  sha256_hash: string;
+  status: EvidenceStatus;
+  superseded_by_id?: number;
+  created_at: string;
+  updated_at: string;
+  uploaded_by?: User;
+  requirement_title?: string;
+  control_identifier?: string;
+  control_title?: string;
+  latest_review?: EvidenceReview;
+  reviews?: EvidenceReview[];
+}
+
+export interface ControlEvidenceSummary {
+  organization_control_id: number;
+  total_requirements: number;
+  required_count: number;
+  submitted_count: number;
+  accepted_count: number;
+  rejected_count: number;
+  pending_count: number;
+  superseded_count: number;
+  evidence_coverage_pct: number;
+}
+
+export interface OrganizationEvidenceStats {
+  total_evidence_items: number;
+  accepted_count: number;
+  pending_review_count: number;
+  rejected_count: number;
+  uploaded_count: number;
+  superseded_count: number;
+  overall_coverage_pct: number;
+  controls_missing_required_evidence: number;
+}

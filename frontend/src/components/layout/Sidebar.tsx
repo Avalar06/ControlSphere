@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -13,6 +13,7 @@ import {
   ScrollText,
   Settings,
   Shield,
+  ListFilter,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -52,10 +53,12 @@ export const Sidebar: React.FC = () => {
     {
       group: 'Evidence & Assurance',
       items: [
-        { name: 'Evidence Library', path: '/evidence', icon: FolderCheck, tag: 'Phase 3' },
+        { name: 'Evidence Repository', path: '/evidence', icon: FolderCheck, tag: 'Phase 3' },
+        { name: 'Requirements', path: '/evidence-requirements', icon: ListFilter, tag: 'Phase 3' },
         { name: 'Audits & Readiness', path: '/audits', icon: CalendarCheck, tag: 'Phase 7' },
       ],
     },
+
     {
       group: 'Risk & Remediation',
       items: [

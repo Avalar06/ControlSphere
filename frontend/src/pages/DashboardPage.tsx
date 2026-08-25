@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Building,
   Lock,
@@ -8,6 +8,8 @@ import {
   ShieldCheck,
   BookOpen,
   FileCheck2,
+  FileCheck,
+  Layers,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -15,7 +17,8 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { AuditLog, FrameworkProgress, Policy } from '../types';
+import { evidenceService } from '../lib/evidenceService';
+import type { AuditLog, FrameworkProgress, OrganizationEvidenceStats, Policy } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const { user, organization, hasPermission } = useAuth();
@@ -23,6 +26,8 @@ export const DashboardPage: React.FC = () => {
   const [progress, setProgress] = useState<FrameworkProgress | null>(null);
   const [policiesCount, setPoliciesCount] = useState<number>(0);
   const [publishedPoliciesCount, setPublishedPoliciesCount] = useState<number>(0);
+  const [evidenceStats, setEvidenceStats] = useState<OrganizationEvidenceStats | null>(null);
+
   const [logsLoading, setLogsLoading] = useState(false);
 
   useEffect(() => {
@@ -49,7 +54,13 @@ export const DashboardPage: React.FC = () => {
       })
       .catch((err) => console.error('Failed to load policies in dashboard', err));
 
-    // 3. Fetch audit logs if permitted
+    // 3. Fetch evidence assurance stats
+    evidenceService
+      .getEvidenceStats()
+      .then((stats) => setEvidenceStats(stats))
+      .catch((err) => console.error('Failed to load evidence stats in dashboard', err));
+
+    // 4. Fetch audit logs if permitted
     if (hasPermission('audit_log:read')) {
       setLogsLoading(true);
       api
@@ -60,6 +71,7 @@ export const DashboardPage: React.FC = () => {
     }
   }, [user]);
 
+
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
@@ -68,7 +80,7 @@ export const DashboardPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-                Phase 2: Frameworks &amp; Controls Active
+                Phase 3: Evidence &amp; Assurance Engine Active
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             </div>
@@ -77,15 +89,21 @@ export const DashboardPage: React.FC = () => {
             </h1>
             <p className="text-xs text-slate-400 mt-1 max-w-2xl">
               Operating within <span className="text-slate-200 font-semibold">{organization?.name}</span>.
-              Deterministic framework progress metrics, security controls matrix, and policy governance are active.
+              Deterministic framework progress metrics, security controls matrix, policy governance, and cryptographic evidence assurance are active.
             </p>
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-            <Link to="/frameworks">
+            <Link to="/evidence">
               <Button size="sm" variant="primary">
-                <ShieldCheck size={14} />
-                Frameworks
+                <FileCheck size={14} />
+                Evidence
+              </Button>
+            </Link>
+            <Link to="/evidence-requirements">
+              <Button size="sm" variant="secondary">
+                <Layers size={14} />
+                Requirements
               </Button>
             </Link>
             <Link to="/controls">
@@ -105,18 +123,32 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Live Posture Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Compliance Posture Score */}
         <Card className="border-l-2 border-l-indigo-500">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">CSF 2.0 Compliance Score</span>
+            <span className="text-xs font-medium">CSF 2.0 Compliance</span>
             <ShieldCheck size={16} className="text-indigo-400" />
           </div>
           <div className="text-2xl font-bold text-slate-100 font-mono">
             {progress ? `${progress.compliance_score_pct}%` : '...'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1 font-mono">
-            {progress ? `${progress.implemented_count} of ${progress.total_controls} controls implemented` : 'Loading posture...'}
+            {progress ? `${progress.implemented_count} / ${progress.total_controls} controls` : 'Loading posture...'}
+          </div>
+        </Card>
+
+        {/* Evidence Assurance Coverage */}
+        <Card className="border-l-2 border-l-blue-500">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-medium">Evidence Assurance</span>
+            <FileCheck size={16} className="text-blue-400" />
+          </div>
+          <div className="text-2xl font-bold text-blue-400 font-mono">
+            {evidenceStats ? `${evidenceStats.overall_coverage_pct}%` : '...'}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1 font-mono">
+            {evidenceStats ? `${evidenceStats.accepted_count} accepted · ${evidenceStats.pending_review_count} pending` : 'Calculating...'}
           </div>
         </Card>
 
@@ -144,7 +176,7 @@ export const DashboardPage: React.FC = () => {
             {policiesCount}
           </div>
           <div className="text-[11px] text-purple-300 mt-1 font-mono">
-            {publishedPoliciesCount} Published &amp; Enforced
+            {publishedPoliciesCount} Published
           </div>
         </Card>
 
@@ -162,6 +194,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </Card>
       </div>
+
 
       {/* Main Content: NIST CSF Functions & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1,4 +1,4 @@
-﻿# ControlSphere — Master Architectural & Engineering Specification
+# ControlSphere — Master Architectural & Engineering Specification
 
 ## 1. Core Engineering Philosophy
 
@@ -95,12 +95,41 @@ The `audit_logs` table provides a tamper-resistant event log for forensic compli
 
 ---
 
-## 7. Implementation Roadmap
+## 7. Evidence Management & Assurance Architecture (Phase 3)
+
+### Traceability Hierarchy
+```
+Framework Subcategory -> Organization Control -> Evidence Requirement -> Evidence Item -> Evidence Review -> Assurance State
+```
+
+### Server-Side File Validation & Security Engine
+- **Max File Size**: 25 MB bounded (`MAX_EVIDENCE_FILE_SIZE_MB`).
+- **Extension Allowlist**: `.pdf`, `.docx`, `.xlsx`, `.csv`, `.txt`, `.png`, `.jpg`, `.jpeg`.
+- **Magic-Byte Inspection**: Binary header inspection validates genuine file types (e.g. `%PDF-` for PDFs, `\x89PNG\r\n\x1a\n` for PNGs, `PK\x03\x04` for Office ZIP archives) preventing MIME-spoofing and executable payloads.
+- **Cryptographic Hash Verification**: Canonical SHA-256 digests calculated server-side upon upload and stored immutably (`sha256_hash`).
+- **Path Traversal Mitigation**: Uploaded filenames are sanitized (`secure_filename`); physical storage uses cryptographically random UUID names partitioned by organization ID (`storage/evidence/{org_id}/{uuid}.{ext}`).
+- **Bounded Storage Abstraction**: Abstract `EvidenceStorageProvider` ensures all file paths resolve strictly within the configured root directory, blocking any directory traversal (`..`) attempts.
+- **Safe Content-Disposition**: Download endpoints serve files as attachments with sanitized names, preventing in-browser active script execution.
+
+### Deterministic Assurance Scoring Model
+- **Control Assurance Coverage**:
+  $$\text{Coverage \%} = \frac{\text{Accepted Mandatory Requirements}}{\text{Total Mandatory Requirements}} \times 100$$
+- **Separation of Concerns**: Evidence coverage $\neq$ compliance. Evidence acceptance $\neq$ automatic control implementation. Control implementation status is determined solely by authorized human assessments, while evidence metrics represent verifiable artifact readiness.
+
+### Review Workflow & Non-Repudiation
+- **Statuses**: `UPLOADED` -> `UNDER_REVIEW` -> `ACCEPTED` / `REJECTED` / `SUPERSEDED`.
+- **Review Requirement**: Rejection mandates a documented `rejection_reason`.
+- **Supersede Integrity**: Superseded evidence items preserve audit history while marking previous revisions as non-authoritative.
+- **Audit Actions**: `evidence.requirement.create`, `evidence.requirement.update`, `evidence.requirement.delete`, `evidence.upload`, `evidence.metadata.update`, `evidence.submit_review`, `evidence.accept`, `evidence.reject`, `evidence.supersede`, `evidence.download`.
+
+---
+
+## 8. Implementation Roadmap
 
 - [x] **Phase 0 — Architecture & Scaffolding**: Domain model design, workspace initialization, Docker Compose configuration.
 - [x] **Phase 1 — Foundation**: Authentication, RBAC, Multi-tenancy, Database Models & Migrations, Audit Logging, React Enterprise Shell, Automated Tests.
 - [x] **Phase 2 — Frameworks, Controls & Policy Management**: NIST CSF 2.0 hierarchy, Organization Controls, Deterministic Compliance Scoring, Versioned Policies, Policy-to-Control Traceability, Automated Tests.
-- [ ] **Phase 3 — Evidence Management**: Secure file upload, MIME validation, storage abstraction, evidence review workflows.
+- [x] **Phase 3 — Evidence Management & Assurance**: Bounded storage provider, MIME/magic-byte validation, SHA-256 integrity hashing, Evidence Requirements, Evidence Review workflow, Deterministic Assurance Coverage metrics, Control & Dashboard integrations, 87 passing tests.
 - [ ] **Phase 4 — Assessments & Findings**: Control assessments, gap analysis, deficiency findings (Low, Medium, High, Critical).
 - [ ] **Phase 5 — Deterministic Risk Engine**: Likelihood x Impact scoring, inherent risk vs residual risk calculations, risk heatmap.
 - [ ] **Phase 6 — Remediation Workflows**: Action plans, ownership, verification workflows before closure.

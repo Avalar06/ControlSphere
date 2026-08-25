@@ -36,6 +36,20 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_EMAIL: str = "admin@apexfinancial.com"
     FIRST_SUPERUSER_PASSWORD: str = "AdminPassword123!"
 
+    # Phase 3 Evidence Storage Configuration
+    EVIDENCE_STORAGE_ROOT: str = "storage/evidence"
+    MAX_EVIDENCE_FILE_SIZE_MB: int = 25
+    ALLOWED_EVIDENCE_EXTENSIONS: List[str] = [
+        ".pdf",
+        ".docx",
+        ".xlsx",
+        ".csv",
+        ".txt",
+        ".png",
+        ".jpg",
+        ".jpeg",
+    ]
+
     @property
     def sync_database_url(self) -> str:
         if self.DATABASE_URL:
