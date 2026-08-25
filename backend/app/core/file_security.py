@@ -1,4 +1,4 @@
-﻿import hashlib
+import hashlib
 import os
 import re
 import uuid
@@ -98,14 +98,19 @@ def verify_content_type(file_bytes: bytes, ext: str, declared_content_type: str)
 
     # 2. Check text formats (.csv, .txt)
     elif ext in [".csv", ".txt"]:
+        sample = file_bytes[:4096]
+        if b"\x00" in sample:
+            raise FileSecurityError(
+                f"File claiming to be '{ext}' contains embedded binary null bytes."
+            )
         try:
             # Attempt to decode sample as UTF-8 or ASCII
-            sample = file_bytes[:4096]
             sample.decode("utf-8")
         except UnicodeDecodeError:
             raise FileSecurityError(
                 f"File claiming to be '{ext}' contains non-text or binary data."
             )
+
 
     # Determine canonical content type
     return MIME_TYPE_MAP.get(ext, declared_content_type or "application/octet-stream")

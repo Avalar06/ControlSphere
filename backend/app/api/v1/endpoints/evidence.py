@@ -1,4 +1,4 @@
-﻿import io
+import io
 import urllib.parse
 from typing import Any, List, Optional
 from fastapi import (
@@ -276,8 +276,26 @@ async def upload_evidence(
     current_user: User = Depends(require_permission(Permission.EVIDENCE_UPLOAD)),
     db: Session = Depends(get_db),
 ) -> Any:
-    """Upload and validate an untrusted evidence file."""
-    file_bytes = await file.read()
+    """Upload and validate an untrusted evidence file with bounded streaming."""
+    from app.core.config import settings
+
+    max_bytes = settings.MAX_EVIDENCE_FILE_SIZE_MB * 1024 * 1024
+    chunk_size = 1024 * 1024  # 1MB chunks
+    buffer = bytearray()
+
+    # Stream reading to prevent unbounded process memory consumption
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        buffer.extend(chunk)
+        if len(buffer) > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File size exceeds maximum allowed limit of {settings.MAX_EVIDENCE_FILE_SIZE_MB} MB.",
+            )
+
+    file_bytes = bytes(buffer)
     orig_name = file.filename or "uploaded_artifact"
     declared_content_type = file.content_type or "application/octet-stream"
 
@@ -298,6 +316,7 @@ async def upload_evidence(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
 
     # Audit log
     ip = get_client_ip(request)
@@ -565,7 +584,10 @@ def download_evidence(
         "Content-Disposition": f'attachment; filename="{safe_filename}"; filename*=UTF-8\'\'{encoded_filename}',
         "Content-Length": str(file_size),
         "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "no-store, no-cache, must-revalidate, private",
+        "Pragma": "no-cache",
     }
+
 
     return StreamingResponse(
         io.BytesIO(file_bytes),

@@ -1,4 +1,4 @@
-﻿import os
+import os
 from pathlib import Path
 from typing import Optional
 from app.core.config import settings
@@ -19,11 +19,17 @@ class LocalStorageProvider(EvidenceStorageProvider):
         clean_key = storage_key.replace("\\", "/").lstrip("/")
         target_path = (self.root_path / clean_key).resolve()
 
-        # Path traversal confinement check
-        if not str(target_path).startswith(str(self.root_path)):
-            raise ValueError(f"Path traversal detected: {storage_key} resolves outside storage root.")
+        # Mathematically strict path traversal confinement check
+        try:
+            if not target_path.is_relative_to(self.root_path):
+                raise ValueError(f"Path traversal detected: {storage_key} resolves outside storage root.")
+        except AttributeError:
+            # Fallback for Python < 3.9
+            if self.root_path not in target_path.parents and target_path != self.root_path:
+                raise ValueError(f"Path traversal detected: {storage_key} resolves outside storage root.")
 
         return target_path
+
 
     def save(self, data: bytes, storage_key: str) -> str:
         target_path = self._resolve_safe_path(storage_key)

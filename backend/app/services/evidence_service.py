@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -393,6 +393,10 @@ class EvidenceService:
             )
             if not req:
                 raise ValueError(f"Evidence requirement ID {evidence_requirement_id} not found in your tenant.")
+            if req.organization_control_id != organization_control_id:
+                raise ValueError(
+                    f"Evidence requirement ID {evidence_requirement_id} does not belong to control ID {organization_control_id}."
+                )
 
         # 3. Security validations on untrusted file input
         file_size = len(file_bytes)
@@ -408,7 +412,7 @@ class EvidenceService:
         storage_provider = get_storage_provider()
         storage_provider.save(file_bytes, storage_key)
 
-        # 5. Create database record
+        # 5. Create database record with transactional compensation
         item = EvidenceItem(
             organization_id=organization_id,
             organization_control_id=organization_control_id,
@@ -425,9 +429,16 @@ class EvidenceService:
             storage_key=storage_key,
             status=EvidenceStatusEnum.UPLOADED,
         )
-        db.add(item)
-        db.commit()
-        db.refresh(item)
+        try:
+            db.add(item)
+            db.commit()
+            db.refresh(item)
+        except Exception:
+            # Compensate: clean up physical file if DB transaction fails
+            storage_provider.delete(storage_key)
+            db.rollback()
+            raise
+
         return item
 
     @staticmethod
@@ -505,8 +516,8 @@ class EvidenceService:
         if not item:
             raise ValueError("Evidence item not found in your organization.")
 
-        if item.status == EvidenceStatusEnum.SUPERSEDED:
-            raise ValueError("Cannot review superseded historical evidence.")
+        if item.status in [EvidenceStatusEnum.SUPERSEDED, EvidenceStatusEnum.ACCEPTED]:
+            raise ValueError(f"Cannot review evidence item in status '{item.status.value}'.")
 
         if review_in.decision == ReviewDecisionEnum.REJECT and not review_in.rejection_reason:
             raise ValueError("Rejection reason is required when rejecting an evidence item.")
@@ -541,6 +552,9 @@ class EvidenceService:
         new_evidence_id: int,
         organization_id: int,
     ) -> EvidenceItem:
+        if old_evidence_id == new_evidence_id:
+            raise ValueError("An evidence item cannot supersede itself.")
+
         old_item = (
             db.query(EvidenceItem)
             .filter(
@@ -551,6 +565,9 @@ class EvidenceService:
         )
         if not old_item:
             raise ValueError("Previous evidence item not found in your organization.")
+
+        if old_item.status == EvidenceStatusEnum.SUPERSEDED:
+            raise ValueError("Evidence item is already superseded.")
 
         new_item = (
             db.query(EvidenceItem)
@@ -563,12 +580,19 @@ class EvidenceService:
         if not new_item:
             raise ValueError("Replacement evidence item not found in your organization.")
 
+        if new_item.status == EvidenceStatusEnum.SUPERSEDED:
+            raise ValueError("Cannot supersede using an already superseded replacement item.")
+
+        if old_item.organization_control_id != new_item.organization_control_id:
+            raise ValueError("Replacement evidence must belong to the same organization control.")
+
         old_item.status = EvidenceStatusEnum.SUPERSEDED
         old_item.superseded_by_id = new_item.id
         db.add(old_item)
         db.commit()
         db.refresh(old_item)
         return old_item
+
 
     @staticmethod
     def get_evidence_file_for_download(
