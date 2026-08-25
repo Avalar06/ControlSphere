@@ -154,18 +154,19 @@ class AssessmentService:
         if not ctrl:
             raise ValueError(f"Organization control ID {obj_in.organization_control_id} not found in your organization.")
 
-        # Validate assessor belongs to same tenant if provided
+        # Validate assessor belongs to same tenant and is active if provided
         if obj_in.assessor_id:
             assessor = (
                 db.query(User)
                 .filter(
                     User.id == obj_in.assessor_id,
                     User.organization_id == organization_id,
+                    User.is_active.is_(True),
                 )
                 .first()
             )
             if not assessor:
-                raise ValueError(f"Assessor ID {obj_in.assessor_id} not found in your organization.")
+                raise ValueError(f"Assessor ID {obj_in.assessor_id} not found or inactive in your organization.")
 
         assessment = Assessment(
             organization_id=organization_id,
@@ -211,11 +212,12 @@ class AssessmentService:
                 .filter(
                     User.id == obj_in.assessor_id,
                     User.organization_id == organization_id,
+                    User.is_active.is_(True),
                 )
                 .first()
             )
             if not assessor:
-                raise ValueError(f"Assessor ID {obj_in.assessor_id} not found in your organization.")
+                raise ValueError(f"Assessor ID {obj_in.assessor_id} not found or inactive in your organization.")
 
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
@@ -268,8 +270,8 @@ class AssessmentService:
         if not assessment:
             return None
 
-        if assessment.status in [AssessmentStatusEnum.COMPLETED, AssessmentStatusEnum.SUPERSEDED]:
-            raise ValueError(f"Assessment is already '{assessment.status.value}'.")
+        if assessment.status != AssessmentStatusEnum.IN_PROGRESS:
+            raise ValueError(f"Only IN_PROGRESS assessments can be completed. Current status: '{assessment.status.value}'.")
 
         if complete_in.conclusion == AssessmentConclusionEnum.NOT_ASSESSED:
             raise ValueError("A completed assessment must have an authoritative conclusion (EFFECTIVE, PARTIALLY_EFFECTIVE, or INEFFECTIVE).")
@@ -346,6 +348,10 @@ class AssessmentService:
         # Cross-control verification: evidence must belong to the same control
         if evidence.organization_control_id != assessment.organization_control_id:
             raise ValueError("Evidence item does not belong to the same control as the assessment.")
+
+        # Prevent linking superseded evidence
+        if evidence.status.value == "SUPERSEDED":
+            raise ValueError("Cannot link superseded evidence artifact to an active assessment.")
 
         # Prevent duplicate linkage
         existing = (

@@ -251,11 +251,12 @@ class FindingService:
                 .filter(
                     User.id == obj_in.owner_id,
                     User.organization_id == organization_id,
+                    User.is_active.is_(True),
                 )
                 .first()
             )
             if not owner:
-                raise ValueError(f"Owner ID {obj_in.owner_id} not found in your organization.")
+                raise ValueError(f"Owner ID {obj_in.owner_id} not found or inactive in your organization.")
 
         # Deterministic Risk Calculation
         score, band = calculate_risk_score(obj_in.impact, obj_in.likelihood)
@@ -312,11 +313,12 @@ class FindingService:
                 .filter(
                     User.id == obj_in.owner_id,
                     User.organization_id == organization_id,
+                    User.is_active.is_(True),
                 )
                 .first()
             )
             if not owner:
-                raise ValueError(f"Owner ID {obj_in.owner_id} not found in your organization.")
+                raise ValueError(f"Owner ID {obj_in.owner_id} not found or inactive in your organization.")
 
         update_data = obj_in.model_dump(exclude_unset=True)
 
@@ -362,13 +364,16 @@ class FindingService:
         if current == FindingStatusEnum.CLOSED:
             raise ValueError("Closed findings cannot transition to another status.")
 
-        if target == FindingStatusEnum.IN_REMEDIATION:
+        if target == FindingStatusEnum.OPEN:
+            raise ValueError("Findings cannot transition back to OPEN status.")
+
+        elif target == FindingStatusEnum.IN_REMEDIATION:
             if current not in [FindingStatusEnum.OPEN, FindingStatusEnum.PENDING_VALIDATION]:
                 raise ValueError(f"Cannot transition to IN_REMEDIATION from '{current.value}'.")
 
         elif target == FindingStatusEnum.PENDING_VALIDATION:
-            if current not in [FindingStatusEnum.IN_REMEDIATION, FindingStatusEnum.OPEN]:
-                raise ValueError(f"Cannot submit for validation from status '{current.value}'.")
+            if current != FindingStatusEnum.IN_REMEDIATION:
+                raise ValueError(f"Findings must be IN_REMEDIATION before submitting for validation. Current status: '{current.value}'.")
             if not status_in.resolution and not finding.resolution:
                 raise ValueError("A documented resolution is required when submitting a finding for validation.")
 
@@ -454,8 +459,8 @@ class FindingService:
         if not finding:
             return None
 
-        if finding.status == FindingStatusEnum.CLOSED:
-            raise ValueError("Cannot perform risk acceptance on a closed finding.")
+        if finding.status not in [FindingStatusEnum.OPEN, FindingStatusEnum.IN_REMEDIATION]:
+            raise ValueError(f"Risk acceptance can only be performed on OPEN or IN_REMEDIATION findings. Current status: '{finding.status.value}'.")
 
         finding.status = FindingStatusEnum.ACCEPTED_RISK
         finding.risk_acceptance_justification = risk_in.justification.strip()
@@ -504,6 +509,10 @@ class FindingService:
         # Cross-control verification: evidence must belong to the same control
         if evidence.organization_control_id != finding.organization_control_id:
             raise ValueError("Evidence item does not belong to the same control as the finding.")
+
+        # Prevent linking superseded evidence
+        if evidence.status.value == "SUPERSEDED":
+            raise ValueError("Cannot link superseded evidence artifact to a finding.")
 
         # Prevent duplicate linkage
         existing = (
