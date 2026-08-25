@@ -26,7 +26,24 @@ def test_formal_risk_acceptance_workflow(
     )
     risk_id = res_create.json()["id"]
 
-    # 2. Viewer cannot accept risk (requires RISK_ACCEPT)
+    # 2. Cannot accept risk directly from IDENTIFIED (must be ASSESSED first)
+    res_unassessed = client.post(
+        f"/api/v1/risks/{risk_id}/risk-acceptance",
+        headers=analyst_headers,
+        json={"justification": "Trying to accept unassessed risk prematurely."},
+    )
+    assert res_unassessed.status_code == 400
+    assert "assessed" in res_unassessed.json()["detail"].lower()
+
+    # Move to ASSESSED
+    res_status = client.post(
+        f"/api/v1/risks/{risk_id}/status",
+        headers=analyst_headers,
+        json={"status": "ASSESSED"},
+    )
+    assert res_status.status_code == 200
+
+    # 3. Viewer cannot accept risk (requires RISK_ACCEPT)
     res_viewer_acc = client.post(
         f"/api/v1/risks/{risk_id}/risk-acceptance",
         headers=viewer_headers,
@@ -34,7 +51,7 @@ def test_formal_risk_acceptance_workflow(
     )
     assert res_viewer_acc.status_code == 403
 
-    # 3. Short justification (<5 chars) rejected
+    # 4. Short justification (<5 chars) rejected
     res_short = client.post(
         f"/api/v1/risks/{risk_id}/risk-acceptance",
         headers=analyst_headers,
@@ -42,7 +59,7 @@ def test_formal_risk_acceptance_workflow(
     )
     assert res_short.status_code == 422
 
-    # 4. Analyst accepts risk
+    # 5. Analyst accepts risk
     expiry = date.today() + timedelta(days=60)
     res_accept = client.post(
         f"/api/v1/risks/{risk_id}/risk-acceptance",
@@ -61,7 +78,7 @@ def test_formal_risk_acceptance_workflow(
     assert "Business critical partner" in data["risk_acceptance_justification"]
     assert data["risk_acceptance_expiry"] == expiry.isoformat()
 
-    # 5. Accepted risk can be closed
+    # 6. Accepted risk can be closed
     res_close = client.post(
         f"/api/v1/risks/{risk_id}/status",
         headers=analyst_headers,

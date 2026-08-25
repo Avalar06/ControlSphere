@@ -352,12 +352,16 @@ def unlink_risk_control(
     db: Session = Depends(get_db),
 ) -> None:
     """Unlink an organization control from a risk."""
-    success = RiskService.unlink_control(
-        db=db,
-        risk_id=risk_id,
-        organization_control_id=control_id,
-        organization_id=current_user.organization_id,
-    )
+    try:
+        success = RiskService.unlink_control(
+            db=db,
+            risk_id=risk_id,
+            organization_control_id=control_id,
+            organization_id=current_user.organization_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -430,12 +434,16 @@ def unlink_risk_finding(
     db: Session = Depends(get_db),
 ) -> None:
     """Unlink a deficiency finding from a risk."""
-    success = RiskService.unlink_finding(
-        db=db,
-        risk_id=risk_id,
-        finding_id=finding_id,
-        organization_id=current_user.organization_id,
-    )
+    try:
+        success = RiskService.unlink_finding(
+            db=db,
+            risk_id=risk_id,
+            finding_id=finding_id,
+            organization_id=current_user.organization_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

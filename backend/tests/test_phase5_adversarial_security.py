@@ -3,7 +3,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from app.core.security import get_password_hash
+from app.models.control import OrganizationControl
+from app.models.finding import Finding, FindingStatusEnum, FindingTypeEnum
 from app.models.organization import Organization
+from app.models.policy import Policy, PolicyStatusEnum
+from app.models.risk import Risk, RiskCategoryEnum, RiskSourceEnum, RiskStatusEnum, RiskTreatmentStrategyEnum
 from app.models.user import User
 from tests.conftest import get_token_headers
 
@@ -114,6 +118,67 @@ def test_cross_tenant_exception_idor_blocked(
     assert res_app.status_code == 404
 
 
+def test_cross_tenant_idor_in_exception_update_patch(
+    client: TestClient, analyst_user: User, db: Session, seeded_framework
+):
+    headers_org1 = get_token_headers(analyst_user)
+    expiry = date.today() + timedelta(days=45)
+
+    # Org 1 creates Exception
+    res_exc = client.post(
+        "/api/v1/exceptions",
+        headers=headers_org1,
+        json={
+            "title": "Org 1 Exception For Update Test",
+            "description": "Desc",
+            "justification": "Valid justification",
+            "expiry_date": expiry.isoformat(),
+        },
+    )
+    exc_id = res_exc.json()["id"]
+
+    # Create Org 2 and create control & policy in Org 2
+    org2 = Organization(name="Target Corp Exc IDOR", slug="target-corp-exc-idor", is_active=True)
+    db.add(org2)
+    db.commit()
+    db.refresh(org2)
+
+    # Org 2 Control
+    ctrl_org2 = OrganizationControl(
+        organization_id=org2.id,
+        subcategory_id=1,
+        status="IMPLEMENTED",
+    )
+    db.add(ctrl_org2)
+
+    # Org 2 Policy
+    policy_org2 = Policy(
+        organization_id=org2.id,
+        title="Org 2 Secret Policy",
+        status=PolicyStatusEnum.PUBLISHED,
+    )
+    db.add(policy_org2)
+    db.commit()
+
+    # Attempt to inject Org 2 control into Org 1 Exception via PATCH
+    res_patch_ctrl = client.patch(
+        f"/api/v1/exceptions/{exc_id}",
+        headers=headers_org1,
+        json={"linked_organization_control_id": ctrl_org2.id},
+    )
+    assert res_patch_ctrl.status_code == 400
+    assert "not found in your organization" in res_patch_ctrl.json()["detail"]
+
+    # Attempt to inject Org 2 policy into Org 1 Exception via PATCH
+    res_patch_pol = client.patch(
+        f"/api/v1/exceptions/{exc_id}",
+        headers=headers_org1,
+        json={"linked_policy_id": policy_org2.id},
+    )
+    assert res_patch_pol.status_code == 400
+    assert "not found in your organization" in res_patch_pol.json()["detail"]
+
+
 def test_foreign_and_inactive_user_assignment_blocked_on_risk_and_exception(
     client: TestClient, analyst_user: User, db: Session, seeded_framework
 ):
@@ -180,6 +245,177 @@ def test_foreign_and_inactive_user_assignment_blocked_on_risk_and_exception(
     )
     assert res_exc_foreign.status_code == 400
     assert "Reviewer ID" in res_exc_foreign.json()["detail"]
+
+
+def test_closed_exception_immutability_on_compensating_controls(
+    client: TestClient, analyst_user: User, db: Session, seeded_framework
+):
+    headers = get_token_headers(analyst_user)
+    expiry = date.today() + timedelta(days=30)
+
+    # 1. Create and close exception
+    res_create = client.post(
+        "/api/v1/exceptions",
+        headers=headers,
+        json={
+            "title": "Exception for Immutability Test",
+            "description": "Desc",
+            "justification": "Justification",
+            "expiry_date": expiry.isoformat(),
+        },
+    )
+    exc_id = res_create.json()["id"]
+
+    # Close exception
+    res_close = client.post(
+        f"/api/v1/exceptions/{exc_id}/close",
+        headers=headers,
+        json={"closure_notes": "Decommissioned."},
+    )
+    assert res_close.status_code == 200
+
+    # Get a control ID
+    controls = client.get("/api/v1/controls", headers=headers).json()
+    ctrl_id = controls[0]["id"]
+
+    # 2. Attempt to add compensating control on closed exception -> 400
+    res_link = client.post(
+        f"/api/v1/exceptions/{exc_id}/compensating-controls",
+        headers=headers,
+        json={"organization_control_id": ctrl_id},
+    )
+    assert res_link.status_code == 400
+    assert "CLOSED" in res_link.json()["detail"]
+
+    # 3. Attempt to modify closed exception via PATCH -> 400
+    res_patch = client.patch(
+        f"/api/v1/exceptions/{exc_id}",
+        headers=headers,
+        json={"title": "Modified Closed Exception"},
+    )
+    assert res_patch.status_code == 400
+    assert "CLOSED" in res_patch.json()["detail"]
+
+
+def test_closed_risk_immutability_on_control_and_finding_links(
+    client: TestClient, analyst_user: User, db: Session, seeded_framework
+):
+    headers = get_token_headers(analyst_user)
+
+    # 1. Create Risk
+    res_risk = client.post(
+        "/api/v1/risks",
+        headers=headers,
+        json={"title": "Risk for Closed Immutability", "description": "Desc"},
+    )
+    risk_id = res_risk.json()["id"]
+
+    # Transition to ASSESSED -> TREATMENT_PLANNED -> MITIGATING -> MONITORING -> CLOSED
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "ASSESSED"})
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "TREATMENT_PLANNED"})
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "MITIGATING"})
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "MONITORING"})
+    res_close = client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "CLOSED"})
+    assert res_close.status_code == 200
+
+    # 2. Attempt to link control to closed risk -> 400
+    controls = client.get("/api/v1/controls", headers=headers).json()
+    ctrl_id = controls[0]["id"]
+    res_link_ctrl = client.post(
+        f"/api/v1/risks/{risk_id}/controls",
+        headers=headers,
+        json={"organization_control_id": ctrl_id},
+    )
+    assert res_link_ctrl.status_code == 400
+    assert "closed risk" in res_link_ctrl.json()["detail"].lower()
+
+    # 3. Attempt to link finding to closed risk -> 400
+    res_link_fnd = client.post(
+        f"/api/v1/risks/{risk_id}/findings",
+        headers=headers,
+        json={"finding_id": 1},
+    )
+    assert res_link_fnd.status_code == 400
+    assert "closed risk" in res_link_fnd.json()["detail"].lower()
+
+
+def test_exception_validity_window_validation(
+    client: TestClient, analyst_user: User, db: Session, seeded_framework
+):
+    headers = get_token_headers(analyst_user)
+
+    # 1. Expiration in the past -> rejected
+    past_date = date.today() - timedelta(days=5)
+    res_past = client.post(
+        "/api/v1/exceptions",
+        headers=headers,
+        json={
+            "title": "Invalid Past Expiry Exception",
+            "description": "Desc",
+            "justification": "Valid justification text",
+            "expiry_date": past_date.isoformat(),
+        },
+    )
+    assert res_past.status_code == 400
+    assert "past" in res_past.json()["detail"].lower()
+
+    # 2. Expiration before effective date -> rejected
+    eff_date = date.today() + timedelta(days=10)
+    exp_date = date.today() + timedelta(days=5)
+    res_inv_dates = client.post(
+        "/api/v1/exceptions",
+        headers=headers,
+        json={
+            "title": "Invalid Inverted Dates Exception",
+            "description": "Desc",
+            "justification": "Valid justification text",
+            "effective_date": eff_date.isoformat(),
+            "expiry_date": exp_date.isoformat(),
+        },
+    )
+    assert res_inv_dates.status_code == 400
+    assert "strictly after" in res_inv_dates.json()["detail"].lower()
+
+
+def test_active_heatmap_excludes_closed_risks(
+    client: TestClient, analyst_user: User, db: Session, seeded_framework
+):
+    headers = get_token_headers(analyst_user)
+
+    # Initial heatmap count sum
+    res_hm1 = client.get("/api/v1/risks/heatmap", headers=headers)
+    assert res_hm1.status_code == 200
+    initial_count = sum(c["count"] for c in res_hm1.json())
+
+    # Create a risk: Likelihood=5, Impact=5 (Cell 5,5 -> CRITICAL, Score 25)
+    res_risk = client.post(
+        "/api/v1/risks",
+        headers=headers,
+        json={
+            "title": "Active Heatmap Test Risk",
+            "description": "Desc",
+            "inherent_impact": 5,
+            "inherent_likelihood": 5,
+        },
+    )
+    risk_id = res_risk.json()["id"]
+
+    # Heatmap count should increase by 1
+    res_hm2 = client.get("/api/v1/risks/heatmap", headers=headers)
+    new_count = sum(c["count"] for c in res_hm2.json())
+    assert new_count == initial_count + 1
+
+    # Transition risk to CLOSED
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "ASSESSED"})
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "TREATMENT_PLANNED"})
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "MITIGATING"})
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "MONITORING"})
+    client.post(f"/api/v1/risks/{risk_id}/status", headers=headers, json={"status": "CLOSED"})
+
+    # Heatmap count should return to initial_count (closed risk excluded)
+    res_hm3 = client.get("/api/v1/risks/heatmap", headers=headers)
+    closed_hm_count = sum(c["count"] for c in res_hm3.json())
+    assert closed_hm_count == initial_count
 
 
 def test_risk_score_tampering_authoritative_recalculation(

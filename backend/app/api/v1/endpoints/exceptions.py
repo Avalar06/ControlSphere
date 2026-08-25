@@ -418,12 +418,16 @@ def unlink_compensating_control(
     db: Session = Depends(get_db),
 ) -> None:
     """Unlink a compensating control from an exception."""
-    success = ExceptionService.unlink_compensating_control(
-        db=db,
-        exception_id=exception_id,
-        organization_control_id=control_id,
-        organization_id=current_user.organization_id,
-    )
+    try:
+        success = ExceptionService.unlink_compensating_control(
+            db=db,
+            exception_id=exception_id,
+            organization_control_id=control_id,
+            organization_id=current_user.organization_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

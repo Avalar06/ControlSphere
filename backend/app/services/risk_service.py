@@ -427,8 +427,14 @@ class RiskService:
         if not risk:
             return None
 
+        if risk.status == RiskStatusEnum.IDENTIFIED:
+            raise ValueError("Risks must be assessed before formal acceptance.")
+
         if risk.status in [RiskStatusEnum.CLOSED, RiskStatusEnum.ACCEPTED]:
             raise ValueError(f"Cannot accept risk in status '{risk.status.value}'.")
+
+        if acceptance_in.expiry_date and acceptance_in.expiry_date <= date.today():
+            raise ValueError("Risk acceptance expiry date must be in the future.")
 
         risk.status = RiskStatusEnum.ACCEPTED
         risk.treatment_strategy = RiskTreatmentStrategyEnum.ACCEPT
@@ -457,6 +463,9 @@ class RiskService:
         )
         if not risk:
             raise ValueError("Risk not found in your organization.")
+
+        if risk.status == RiskStatusEnum.CLOSED:
+            raise ValueError("Cannot link controls to a closed risk.")
 
         ctrl = (
             db.query(OrganizationControl)
@@ -498,6 +507,17 @@ class RiskService:
         organization_control_id: int,
         organization_id: int,
     ) -> bool:
+        risk = (
+            db.query(Risk)
+            .filter(Risk.id == risk_id, Risk.organization_id == organization_id)
+            .first()
+        )
+        if not risk:
+            return False
+
+        if risk.status == RiskStatusEnum.CLOSED:
+            raise ValueError("Cannot unlink controls from a closed risk.")
+
         link = (
             db.query(RiskControlLink)
             .filter(
@@ -529,6 +549,9 @@ class RiskService:
         )
         if not risk:
             raise ValueError("Risk not found in your organization.")
+
+        if risk.status == RiskStatusEnum.CLOSED:
+            raise ValueError("Cannot link findings to a closed risk.")
 
         find = (
             db.query(Finding)
@@ -570,6 +593,17 @@ class RiskService:
         finding_id: int,
         organization_id: int,
     ) -> bool:
+        risk = (
+            db.query(Risk)
+            .filter(Risk.id == risk_id, Risk.organization_id == organization_id)
+            .first()
+        )
+        if not risk:
+            return False
+
+        if risk.status == RiskStatusEnum.CLOSED:
+            raise ValueError("Cannot unlink findings from a closed risk.")
+
         link = (
             db.query(RiskFindingLink)
             .filter(
@@ -631,7 +665,7 @@ class RiskService:
 
         reduction = 0.0
         if total_inh > 0:
-            reduction = round(max(0.0, (total_inh - total_res) / total_inh * 100.0), 1)
+            reduction = round(max(0.0, min(100.0, (total_inh - total_res) / total_inh * 100.0)), 1)
 
         return {
             "total_risks": total,
@@ -656,5 +690,13 @@ class RiskService:
 
     @staticmethod
     def get_heatmap(db: Session, organization_id: int) -> List[Dict[str, Any]]:
-        risks = db.query(Risk).filter(Risk.organization_id == organization_id).all()
+        # Heatmap represents active, unclosed risks
+        risks = (
+            db.query(Risk)
+            .filter(
+                Risk.organization_id == organization_id,
+                Risk.status != RiskStatusEnum.CLOSED,
+            )
+            .all()
+        )
         return generate_risk_heatmap_matrix(risks)

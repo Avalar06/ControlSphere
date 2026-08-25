@@ -194,6 +194,12 @@ class ExceptionService:
         organization_id: int,
         creator_id: Optional[int],
     ) -> SecurityException:
+        if obj_in.expiry_date < date.today():
+            raise ValueError("Expiration date cannot be in the past.")
+        eff_date = obj_in.effective_date or date.today()
+        if obj_in.expiry_date <= eff_date:
+            raise ValueError("Expiration date must be strictly after the effective date.")
+
         # Validate owner if supplied
         if obj_in.owner_id:
             owner = (
@@ -271,7 +277,7 @@ class ExceptionService:
             requested_by_id=creator_id,
             owner_id=obj_in.owner_id or creator_id,
             reviewer_id=obj_in.reviewer_id,
-            effective_date=obj_in.effective_date or date.today(),
+            effective_date=eff_date,
             expiry_date=obj_in.expiry_date,
             review_date=obj_in.review_date,
             residual_risk_level=obj_in.residual_risk_level or "MODERATE",
@@ -305,6 +311,7 @@ class ExceptionService:
         if exc.status in [ExceptionStatusEnum.CLOSED, ExceptionStatusEnum.REJECTED]:
             raise ValueError(f"Cannot modify exception in status '{exc.status.value}'.")
 
+        # Validate owner
         if obj_in.owner_id is not None:
             owner = (
                 db.query(User)
@@ -318,6 +325,7 @@ class ExceptionService:
             if not owner:
                 raise ValueError(f"Owner ID {obj_in.owner_id} not found or inactive in your organization.")
 
+        # Validate reviewer
         if obj_in.reviewer_id is not None:
             rev = (
                 db.query(User)
@@ -330,6 +338,51 @@ class ExceptionService:
             )
             if not rev:
                 raise ValueError(f"Reviewer ID {obj_in.reviewer_id} not found or inactive in your organization.")
+
+        # Validate linked control (Cross-tenant IDOR protection)
+        if obj_in.linked_organization_control_id is not None:
+            ctrl = (
+                db.query(OrganizationControl)
+                .filter(
+                    OrganizationControl.id == obj_in.linked_organization_control_id,
+                    OrganizationControl.organization_id == organization_id,
+                )
+                .first()
+            )
+            if not ctrl:
+                raise ValueError("Linked organization control not found in your organization.")
+
+        # Validate linked policy (Cross-tenant IDOR protection)
+        if obj_in.linked_policy_id is not None:
+            pol = (
+                db.query(Policy)
+                .filter(
+                    Policy.id == obj_in.linked_policy_id,
+                    Policy.organization_id == organization_id,
+                )
+                .first()
+            )
+            if not pol:
+                raise ValueError("Linked policy not found in your organization.")
+
+        # Validate linked finding (Cross-tenant IDOR protection)
+        if obj_in.linked_finding_id is not None:
+            fnd = (
+                db.query(Finding)
+                .filter(
+                    Finding.id == obj_in.linked_finding_id,
+                    Finding.organization_id == organization_id,
+                )
+                .first()
+            )
+            if not fnd:
+                raise ValueError("Linked finding not found in your organization.")
+
+        # Validate updated date consistency
+        new_eff = obj_in.effective_date if obj_in.effective_date is not None else exc.effective_date
+        new_exp = obj_in.expiry_date if obj_in.expiry_date is not None else exc.expiry_date
+        if new_eff and new_exp and new_exp <= new_eff:
+            raise ValueError("Expiration date must be strictly after the effective date.")
 
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
@@ -388,6 +441,10 @@ class ExceptionService:
         if exc.status not in [ExceptionStatusEnum.REQUESTED, ExceptionStatusEnum.UNDER_REVIEW]:
             raise ValueError(f"Cannot approve exception in status '{exc.status.value}'.")
 
+        # Four-Eyes Governance: prevent self-approval by exception requester
+        if reviewer_id and exc.requested_by_id and reviewer_id == exc.requested_by_id:
+            raise ValueError("Self-approval prohibited: Exception requester cannot approve their own exception.")
+
         exc.status = ExceptionStatusEnum.APPROVED
         exc.approved_at = datetime.now(timezone.utc)
         exc.reviewer_id = reviewer_id
@@ -426,10 +483,12 @@ class ExceptionService:
         if exc.status not in [ExceptionStatusEnum.REQUESTED, ExceptionStatusEnum.UNDER_REVIEW]:
             raise ValueError(f"Cannot reject exception in status '{exc.status.value}'.")
 
+        if not action_in.rejection_reason or len(action_in.rejection_reason.strip()) < 5:
+            raise ValueError("A valid rejection reason (minimum 5 characters) is required.")
+
         exc.status = ExceptionStatusEnum.REJECTED
         exc.reviewer_id = reviewer_id
-        if action_in.rejection_reason:
-            exc.rejection_reason = action_in.rejection_reason
+        exc.rejection_reason = action_in.rejection_reason.strip()
 
         db.add(exc)
         db.commit()
@@ -487,6 +546,9 @@ class ExceptionService:
         if not exc:
             raise ValueError("Security exception not found in your organization.")
 
+        if exc.status in [ExceptionStatusEnum.CLOSED, ExceptionStatusEnum.REJECTED]:
+            raise ValueError(f"Cannot add compensating controls to exception in status '{exc.status.value}'.")
+
         ctrl = (
             db.query(OrganizationControl)
             .filter(
@@ -528,6 +590,20 @@ class ExceptionService:
         organization_control_id: int,
         organization_id: int,
     ) -> bool:
+        exc = (
+            db.query(SecurityException)
+            .filter(
+                SecurityException.id == exception_id,
+                SecurityException.organization_id == organization_id,
+            )
+            .first()
+        )
+        if not exc:
+            return False
+
+        if exc.status in [ExceptionStatusEnum.CLOSED, ExceptionStatusEnum.REJECTED]:
+            raise ValueError(f"Cannot remove compensating controls from exception in status '{exc.status.value}'.")
+
         link = (
             db.query(ExceptionCompensatingControl)
             .filter(
