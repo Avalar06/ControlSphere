@@ -46,7 +46,6 @@ class PolicyService:
         results = []
         for pol in policies:
             latest_version = pol.versions[0] if pol.versions else None
-            # Fetch mapped subcategories
             mapped_subcats = (
                 db.query(FrameworkSubcategory)
                 .join(PolicyControlMapping, PolicyControlMapping.subcategory_id == FrameworkSubcategory.id)
@@ -154,9 +153,9 @@ class PolicyService:
         )
         db.add(v1)
 
-        # Map initial subcategories
-        for subcat_id in obj_in.mapped_subcategory_ids:
-            # Verify subcategory exists
+        # Map initial subcategories (deduplicated)
+        unique_subcat_ids = list(dict.fromkeys(obj_in.mapped_subcategory_ids))
+        for subcat_id in unique_subcat_ids:
             sub = db.query(FrameworkSubcategory).filter(FrameworkSubcategory.id == subcat_id).first()
             if sub:
                 mapping = PolicyControlMapping(
@@ -185,6 +184,9 @@ class PolicyService:
         if not pol:
             return None
 
+        if pol.status == PolicyStatusEnum.ARCHIVED:
+            raise ValueError("Cannot modify an archived policy. Restore policy to DRAFT status first.")
+
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(pol, field, value)
@@ -212,6 +214,9 @@ class PolicyService:
         )
         if not pol:
             return None
+
+        if pol.status == PolicyStatusEnum.ARCHIVED:
+            raise ValueError("Cannot add new versions to an archived policy. Restore policy to DRAFT status first.")
 
         # Calculate next version number
         latest_ver = (
@@ -285,6 +290,9 @@ class PolicyService:
         if not pol:
             return None
 
+        if pol.status == PolicyStatusEnum.ARCHIVED:
+            raise ValueError("Cannot map controls to an archived policy. Restore policy to DRAFT status first.")
+
         sub = db.query(FrameworkSubcategory).filter(FrameworkSubcategory.id == subcategory_id).first()
         if not sub:
             raise ValueError(f"Subcategory ID {subcategory_id} not found in framework catalog")
@@ -315,6 +323,20 @@ class PolicyService:
     def remove_control_mapping(
         db: Session, policy_id: int, organization_id: int, subcategory_id: int
     ) -> bool:
+        pol = (
+            db.query(Policy)
+            .filter(
+                Policy.id == policy_id,
+                Policy.organization_id == organization_id,
+            )
+            .first()
+        )
+        if not pol:
+            return False
+
+        if pol.status == PolicyStatusEnum.ARCHIVED:
+            raise ValueError("Cannot unmap controls from an archived policy. Restore policy to DRAFT status first.")
+
         mapping = (
             db.query(PolicyControlMapping)
             .filter(

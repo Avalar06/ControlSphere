@@ -144,12 +144,18 @@ def update_policy(
                 detail="Assigned owner does not belong to your organization",
             )
 
-    updated_pol = PolicyService.update_policy(
-        db=db,
-        policy_id=policy_id,
-        organization_id=current_user.organization_id,
-        obj_in=policy_in,
-    )
+    try:
+        updated_pol = PolicyService.update_policy(
+            db=db,
+            policy_id=policy_id,
+            organization_id=current_user.organization_id,
+            obj_in=policy_in,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
     # Audit log
     ip = get_client_ip(request)
@@ -191,13 +197,19 @@ def create_policy_version(
             detail="Policy not found in your organization",
         )
 
-    ver = PolicyService.create_policy_version(
-        db=db,
-        policy_id=policy_id,
-        organization_id=current_user.organization_id,
-        obj_in=version_in,
-        created_by_id=current_user.id,
-    )
+    try:
+        ver = PolicyService.create_policy_version(
+            db=db,
+            policy_id=policy_id,
+            organization_id=current_user.organization_id,
+            obj_in=version_in,
+            created_by_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
     # Audit log
     ip = get_client_ip(request)
@@ -338,12 +350,19 @@ def remove_policy_control_mapping(
     db: Session = Depends(get_db),
 ) -> Any:
     """Remove a policy-to-control mapping."""
-    success = PolicyService.remove_control_mapping(
-        db=db,
-        policy_id=policy_id,
-        organization_id=current_user.organization_id,
-        subcategory_id=subcategory_id,
-    )
+    try:
+        success = PolicyService.remove_control_mapping(
+            db=db,
+            policy_id=policy_id,
+            organization_id=current_user.organization_id,
+            subcategory_id=subcategory_id,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
