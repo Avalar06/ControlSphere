@@ -1,6 +1,6 @@
 ﻿from typing import Optional
 from sqlalchemy.orm import Session
-from app.core.security import verify_password, create_access_token
+from app.core.security import verify_password, verify_dummy_password, create_access_token
 from app.models.user import User
 from app.services.audit_service import AuditService
 from app.services.user_service import UserService
@@ -17,6 +17,8 @@ class AuthService:
     ) -> Optional[User]:
         user = UserService.get_by_email(db, email=email)
         if not user:
+            # Perform dummy verification to prevent timing-based user enumeration attacks
+            verify_dummy_password(password)
             return None
 
         if not verify_password(password, user.hashed_password):

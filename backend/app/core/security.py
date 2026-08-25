@@ -4,6 +4,9 @@ import bcrypt
 from jose import jwt
 from app.core.config import settings
 
+# Pre-computed dummy hash to equalize timing on non-existent user authentication
+DUMMY_HASH = bcrypt.hashpw(b"ControlSphereDummyAuthPassword123!", bcrypt.gensalt()).decode("utf-8")
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
@@ -14,9 +17,21 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
+def verify_dummy_password(plain_password: str) -> None:
+    """Executes a dummy bcrypt check to equalize timing during authentication attempts for non-existent users."""
+    try:
+        bcrypt.checkpw(plain_password.encode("utf-8"), DUMMY_HASH.encode("utf-8"))
+    except Exception:
+        pass
+
+
 def get_password_hash(password: str) -> str:
+    # Ensure password does not exceed bcrypt 72 bytes limit
+    pwd_bytes = password.encode("utf-8")
+    if len(pwd_bytes) > 72:
+        raise ValueError("Password cannot exceed 72 bytes")
     salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
 
 def create_access_token(

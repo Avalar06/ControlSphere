@@ -8,7 +8,6 @@ from app.api.deps import (
     get_db,
     get_user_agent,
     require_permission,
-    require_roles,
 )
 from app.core.permissions import Permission, RoleEnum
 from app.models.user import User
@@ -106,6 +105,34 @@ def update_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found in your organization",
         )
+
+    # Check for email collision if email is being updated
+    if user_in.email and user_in.email != db_user.email:
+        existing_email_user = UserService.get_by_email(db, email=user_in.email)
+        if existing_email_user and existing_email_user.id != db_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A user with this email already exists",
+            )
+
+    # Prevent lockout / self-demotion if modifying the sole active administrator
+    is_demoting_admin = (
+        db_user.role == RoleEnum.ADMIN
+        and user_in.role is not None
+        and user_in.role != RoleEnum.ADMIN
+    )
+    is_deactivating_admin = (
+        db_user.role == RoleEnum.ADMIN
+        and user_in.is_active is False
+    )
+
+    if (is_demoting_admin or is_deactivating_admin) and db_user.is_active:
+        active_admins = UserService.count_active_admins_in_org(db, current_user.organization_id)
+        if active_admins <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot demote or deactivate the sole active Administrator in the organization.",
+            )
 
     updated_user = UserService.update(db=db, db_user=db_user, obj_in=user_in)
 

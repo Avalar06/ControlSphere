@@ -48,6 +48,23 @@ def update_my_organization(
             detail="Organization not found",
         )
 
+    # Check for name/slug collisions if updated
+    if org_in.name and org_in.name != org.name:
+        existing_name = OrganizationService.get_by_name(db, org_in.name)
+        if existing_name and existing_name.id != org.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An organization with this name already exists",
+            )
+
+    if org_in.slug and org_in.slug != org.slug:
+        existing_slug = OrganizationService.get_by_slug(db, org_in.slug)
+        if existing_slug and existing_slug.id != org.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An organization with this slug already exists",
+            )
+
     updated_org = OrganizationService.update(db, db_org=org, obj_in=org_in)
 
     # Audit log

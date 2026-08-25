@@ -1,5 +1,6 @@
 ﻿from typing import List, Optional
 from sqlalchemy.orm import Session
+from app.core.permissions import RoleEnum
 from app.core.security import get_password_hash
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
@@ -16,6 +17,18 @@ class UserService:
     @staticmethod
     def get_by_email(db: Session, email: str) -> Optional[User]:
         return db.query(User).filter(User.email == email).first()
+
+    @staticmethod
+    def count_active_admins_in_org(db: Session, organization_id: int) -> int:
+        return (
+            db.query(User)
+            .filter(
+                User.organization_id == organization_id,
+                User.role == RoleEnum.ADMIN,
+                User.is_active == True,
+            )
+            .count()
+        )
 
     @staticmethod
     def list_by_organization(

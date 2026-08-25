@@ -1,4 +1,7 @@
-﻿from tests.conftest import get_token_headers
+﻿from app.core.permissions import RoleEnum
+from app.core.security import get_password_hash
+from app.models.user import User
+from tests.conftest import get_token_headers
 
 
 def test_admin_can_create_user(client, admin_user):
@@ -87,3 +90,50 @@ def test_viewer_cannot_read_audit_logs(client, viewer_user):
     headers = get_token_headers(viewer_user)
     response = client.get("/api/v1/audit-logs", headers=headers)
     assert response.status_code == 403
+
+
+def test_sole_admin_cannot_self_demote(client, admin_user):
+    headers = get_token_headers(admin_user)
+    response = client.patch(
+        f"/api/v1/users/{admin_user.id}",
+        headers=headers,
+        json={"role": "VIEWER"},
+    )
+    assert response.status_code == 400
+    assert "sole active Administrator" in response.json()["detail"]
+
+
+def test_sole_admin_cannot_deactivate_self(client, admin_user):
+    headers = get_token_headers(admin_user)
+    response = client.patch(
+        f"/api/v1/users/{admin_user.id}",
+        headers=headers,
+        json={"is_active": False},
+    )
+    assert response.status_code == 400
+    assert "sole active Administrator" in response.json()["detail"]
+
+
+def test_user_email_collision_prevented_on_update(client, db, admin_user, org_apex):
+    # Create second user in org
+    second_user = User(
+        email="second.user@apexfinancial.com",
+        hashed_password=get_password_hash("Password123!"),
+        full_name="Second User",
+        role=RoleEnum.VIEWER,
+        is_active=True,
+        organization_id=org_apex.id,
+    )
+    db.add(second_user)
+    db.commit()
+    db.refresh(second_user)
+
+    headers = get_token_headers(admin_user)
+    # Attempt to update second_user's email to admin_user's email
+    response = client.patch(
+        f"/api/v1/users/{second_user.id}",
+        headers=headers,
+        json={"email": admin_user.email},
+    )
+    assert response.status_code == 400
+    assert "already exists" in response.json()["detail"]
