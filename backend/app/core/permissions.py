@@ -59,6 +59,12 @@ class Permission(str, enum.Enum):
     MONITORING_MANAGE = "monitoring:manage"
     MONITORING_ALERT_ACTION = "monitoring:alert_action"
 
+    # Phase 8: Multi-Framework Harmonization & Control Rationalization Permissions
+    HARMONIZATION_READ = "harmonization:read"
+    HARMONIZATION_MANAGE = "harmonization:manage"
+    HARMONIZATION_EXECUTE = "harmonization:execute"
+    CROSSWALK_ADMIN = "crosswalk:admin"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -92,6 +98,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.MONITORING_READ,
         Permission.MONITORING_EXECUTE,
         Permission.MONITORING_ALERT_ACTION,
+        Permission.HARMONIZATION_READ,
+        Permission.HARMONIZATION_MANAGE,
+        Permission.HARMONIZATION_EXECUTE,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -114,6 +123,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.MONITORING_READ,
         Permission.MONITORING_EXECUTE,
         Permission.MONITORING_ALERT_ACTION,
+        Permission.HARMONIZATION_READ,
+        Permission.HARMONIZATION_MANAGE,
+        Permission.HARMONIZATION_EXECUTE,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -134,6 +146,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_APPROVE,
         Permission.POLICY_READ,
         Permission.MONITORING_READ,
+        Permission.HARMONIZATION_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -154,6 +167,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.MONITORING_READ,
         Permission.MONITORING_MANAGE,
         Permission.MONITORING_ALERT_ACTION,
+        Permission.HARMONIZATION_READ,
+        Permission.HARMONIZATION_MANAGE,
+        Permission.HARMONIZATION_EXECUTE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -167,6 +183,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_READ,
         Permission.POLICY_READ,
         Permission.MONITORING_READ,
+        Permission.HARMONIZATION_READ,
     },
 }
 

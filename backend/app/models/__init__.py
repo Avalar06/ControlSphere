@@ -78,6 +78,15 @@ from app.models.monitoring import (
     DriftAlertSeverityEnum,
     DriftAlertStatusEnum,
 )
+from app.models.harmonization import (
+    FrameworkCrosswalkMapping,
+    RationalizedCommonControl,
+    CommonControlMapping,
+    FrameworkComplianceSnapshot,
+    MappingTypeEnum,
+    CommonControlDomainEnum,
+    RationalizationStatusEnum,
+)
 
 __all__ = [
     "Base",
@@ -140,4 +149,11 @@ __all__ = [
     "DriftAlertTypeEnum",
     "DriftAlertSeverityEnum",
     "DriftAlertStatusEnum",
+    "FrameworkCrosswalkMapping",
+    "RationalizedCommonControl",
+    "CommonControlMapping",
+    "FrameworkComplianceSnapshot",
+    "MappingTypeEnum",
+    "CommonControlDomainEnum",
+    "RationalizationStatusEnum",
 ]
