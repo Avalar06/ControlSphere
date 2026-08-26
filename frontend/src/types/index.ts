@@ -792,3 +792,121 @@ export interface AuditStats {
   critical_findings_count: number;
   unissued_opinion_count: number;
 }
+
+// ── Phase 7 Continuous Control Monitoring Types ──────────────────────────────
+export type ControlHealthStatus = 'HEALTHY' | 'DEGRADED' | 'AT_RISK' | 'FAILING';
+export type EvaluationTrigger = 'SCHEDULED' | 'MANUAL' | 'EVENT_DRIVEN';
+export type DriftAlertType =
+  | 'EVIDENCE_EXPIRED'
+  | 'EVIDENCE_MISSING'
+  | 'ASSESSMENT_OVERDUE'
+  | 'CRITICAL_FINDING_SLA_BREACH'
+  | 'EXCEPTION_EXPIRING_SOON'
+  | 'EXCEPTION_EXPIRED'
+  | 'CONTROL_DEGRADED';
+export type DriftAlertSeverity = 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type DriftAlertStatus = 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED' | 'DISMISSED';
+
+export interface ControlHealthSnapshot {
+  id: number;
+  organization_id: number;
+  organization_control_id: number;
+  health_score: number;
+  health_status: ControlHealthStatus;
+  evidence_freshness_score: number;
+  assessment_currency_score: number;
+  finding_penalty_score: number;
+  exception_penalty_score: number;
+  active_findings_count: number;
+  critical_high_findings_count: number;
+  active_exceptions_count: number;
+  accepted_evidence_count: number;
+  days_since_last_evidence?: number;
+  days_since_last_assessment?: number;
+  evaluated_at: string;
+  evaluation_trigger: EvaluationTrigger;
+}
+
+export interface ControlHealthSummary {
+  organization_control_id: number;
+  control_code?: string;
+  control_title?: string;
+  category_code?: string;
+  function_code?: string;
+  implementation_status: string;
+  health_score: number;
+  health_status: ControlHealthStatus;
+  evidence_freshness_score: number;
+  assessment_currency_score: number;
+  finding_penalty_score: number;
+  exception_penalty_score: number;
+  active_findings_count: number;
+  critical_high_findings_count: number;
+  active_exceptions_count: number;
+  accepted_evidence_count: number;
+  days_since_last_evidence?: number;
+  days_since_last_assessment?: number;
+  last_evaluated_at?: string;
+  active_drift_alerts_count: number;
+}
+
+export interface ComplianceDriftAlert {
+  id: number;
+  organization_id: number;
+  organization_control_id: number;
+  alert_type: DriftAlertType;
+  severity: DriftAlertSeverity;
+  status: DriftAlertStatus;
+  title: string;
+  description: string;
+  remediation_guidance?: string;
+  acknowledged_by_id?: number;
+  acknowledged_at?: string;
+  resolved_by_id?: number;
+  resolved_at?: string;
+  resolution_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonitoringConfig {
+  id: number;
+  organization_id: number;
+  frequency_hours: number;
+  is_enabled: boolean;
+  evidence_max_age_days: number;
+  assessment_max_age_days: number;
+  exception_warning_window_days: number;
+  finding_sla_critical_days: number;
+  finding_sla_high_days: number;
+  last_run_at?: string;
+  last_run_status?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonitoringOverview {
+  average_health_score: number;
+  overall_health_status: ControlHealthStatus;
+  total_monitored_controls: number;
+  healthy_controls_count: number;
+  degraded_controls_count: number;
+  at_risk_controls_count: number;
+  failing_controls_count: number;
+  active_drift_alerts_count: number;
+  critical_drift_alerts_count: number;
+  high_drift_alerts_count: number;
+  medium_drift_alerts_count: number;
+  low_drift_alerts_count: number;
+  evidence_freshness_aggregate_pct: number;
+  controls_assessed_currency_pct: number;
+  last_evaluation_run?: string;
+}
+
+export interface EvaluationRunResult {
+  evaluated_controls_count: number;
+  alerts_generated_count: number;
+  alerts_auto_resolved_count: number;
+  average_health_score: number;
+  evaluated_at: string;
+}

@@ -46,13 +46,18 @@ class Permission(str, enum.Enum):
     POLICY_MANAGE = "policy:manage"
 
     # Phase 6: Audit Management Permissions
-    # (Note: AUDIT_READ / AUDIT_MANAGE were already present — mapping preserved)
     AUDIT_READ = "audit:read"
     AUDIT_MANAGE = "audit:manage"
     AUDIT_EXECUTE = "audit:execute"
     AUDIT_REVIEW = "audit:review"
     AUDIT_APPROVE = "audit:approve"
     AUDIT_CLOSE = "audit:close"
+
+    # Phase 7: Continuous Control Monitoring Permissions
+    MONITORING_READ = "monitoring:read"
+    MONITORING_EXECUTE = "monitoring:execute"
+    MONITORING_MANAGE = "monitoring:manage"
+    MONITORING_ALERT_ACTION = "monitoring:alert_action"
 
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
@@ -84,6 +89,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_REVIEW,
         Permission.POLICY_READ,
         Permission.POLICY_MANAGE,
+        Permission.MONITORING_READ,
+        Permission.MONITORING_EXECUTE,
+        Permission.MONITORING_ALERT_ACTION,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -103,6 +111,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXCEPTION_MANAGE,
         Permission.AUDIT_READ,
         Permission.AUDIT_EXECUTE,
+        Permission.MONITORING_READ,
+        Permission.MONITORING_EXECUTE,
+        Permission.MONITORING_ALERT_ACTION,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -122,6 +133,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_REVIEW,
         Permission.AUDIT_APPROVE,
         Permission.POLICY_READ,
+        Permission.MONITORING_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -139,6 +151,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_APPROVE,
         Permission.AUDIT_CLOSE,
         Permission.POLICY_READ,
+        Permission.MONITORING_READ,
+        Permission.MONITORING_MANAGE,
+        Permission.MONITORING_ALERT_ACTION,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -151,6 +166,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXCEPTION_READ,
         Permission.AUDIT_READ,
         Permission.POLICY_READ,
+        Permission.MONITORING_READ,
     },
 }
 

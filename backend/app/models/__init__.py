@@ -68,6 +68,16 @@ from app.models.audit_engagement import (
     ProcedureResultEnum,
     AuditOpinionEnum,
 )
+from app.models.monitoring import (
+    ControlHealthSnapshot,
+    ComplianceDriftAlert,
+    MonitoringSchedule,
+    ControlHealthStatusEnum,
+    EvaluationTriggerEnum,
+    DriftAlertTypeEnum,
+    DriftAlertSeverityEnum,
+    DriftAlertStatusEnum,
+)
 
 __all__ = [
     "Base",
@@ -122,4 +132,12 @@ __all__ = [
     "AuditStatusEnum",
     "ProcedureResultEnum",
     "AuditOpinionEnum",
+    "ControlHealthSnapshot",
+    "ComplianceDriftAlert",
+    "MonitoringSchedule",
+    "ControlHealthStatusEnum",
+    "EvaluationTriggerEnum",
+    "DriftAlertTypeEnum",
+    "DriftAlertSeverityEnum",
+    "DriftAlertStatusEnum",
 ]

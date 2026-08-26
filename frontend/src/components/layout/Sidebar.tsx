@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Activity,
   ShieldCheck,
   FolderCheck,
   AlertTriangle,
@@ -47,6 +48,7 @@ export const Sidebar: React.FC = () => {
     {
       group: 'Compliance & Controls',
       items: [
+        { name: 'Continuous Monitoring', path: '/monitoring', icon: Activity, tag: 'Phase 7' },
         { name: 'Frameworks', path: '/frameworks', icon: ShieldCheck, tag: 'Phase 2' },
         { name: 'Controls Library', path: '/controls', icon: Shield, tag: 'Phase 2' },
         { name: 'Assessments', path: '/assessments', icon: FileCheck2, tag: 'Phase 4' },

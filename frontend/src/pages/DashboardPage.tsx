@@ -10,6 +10,7 @@ import {
   FileWarning,
   TrendingDown,
   CalendarCheck,
+  Activity,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -22,6 +23,7 @@ import { findingService } from '../lib/findingService';
 import { riskService } from '../lib/riskService';
 import { exceptionService } from '../lib/exceptionService';
 import { auditService } from '../lib/auditService';
+import { monitoringService } from '../lib/monitoringService';
 import type {
   AuditLog,
   AuditStats,
@@ -29,6 +31,7 @@ import type {
   FindingStats,
   FrameworkProgress,
   HeatmapCell,
+  MonitoringOverview,
   OrganizationEvidenceStats,
   RiskStats,
 } from '../types';
@@ -42,6 +45,7 @@ export const DashboardPage: React.FC = () => {
   const [riskStats, setRiskStats] = useState<RiskStats | null>(null);
   const [exceptionStats, setExceptionStats] = useState<ExceptionStats | null>(null);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
+  const [monitoringOverview, setMonitoringOverview] = useState<MonitoringOverview | null>(null);
   const [heatmapCells, setHeatmapCells] = useState<HeatmapCell[]>([]);
 
   const [logsLoading, setLogsLoading] = useState(false);
@@ -95,7 +99,13 @@ export const DashboardPage: React.FC = () => {
       .then((stats) => setAuditStats(stats))
       .catch((err) => console.error('Failed to load audit stats in dashboard', err));
 
-    // 6. Fetch audit logs if permitted
+    // 7. Fetch continuous monitoring overview
+    monitoringService
+      .getOverview()
+      .then((overview) => setMonitoringOverview(overview))
+      .catch((err) => console.error('Failed to load monitoring overview in dashboard', err));
+
+    // 8. Fetch audit logs if permitted
     if (hasPermission('audit_log:read')) {
       setLogsLoading(true);
       api
@@ -166,6 +176,12 @@ export const DashboardPage: React.FC = () => {
               <Button size="sm" variant="secondary">
                 <CalendarCheck size={14} />
                 Audits
+              </Button>
+            </Link>
+            <Link to="/monitoring">
+              <Button size="sm" variant="primary">
+                <Activity size={14} />
+                Monitoring ({monitoringOverview ? `${monitoringOverview.average_health_score}%` : '...'})
               </Button>
             </Link>
           </div>
@@ -369,6 +385,8 @@ export const DashboardPage: React.FC = () => {
                 <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Risk &amp; Exceptions</span>
                 <ArrowRight size={10} className="text-indigo-400" />
                 <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 rounded border border-purple-500/50 font-bold">Audit Assurance ({auditStats ? auditStats.total_audits : 0})</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-blue-600/30 text-blue-300 rounded border border-blue-500/50 font-bold">Continuous Monitoring (Phase 7)</span>
               </div>
             </div>
           </div>
