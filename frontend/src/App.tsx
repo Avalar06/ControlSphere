@@ -21,6 +21,8 @@ import { RisksPage } from './pages/RisksPage';
 import { RiskDetailPage } from './pages/RiskDetailPage';
 import { ExceptionsPage } from './pages/ExceptionsPage';
 import { ExceptionDetailPage } from './pages/ExceptionDetailPage';
+import { AuditsPage } from './pages/AuditsPage';
+import { AuditDetailPage } from './pages/AuditDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -70,22 +72,9 @@ export const App: React.FC = () => {
               <Route path="/exceptions" element={<ExceptionsPage />} />
               <Route path="/exceptions/:id" element={<ExceptionDetailPage />} />
 
-              <Route
-                path="/audits"
-                element={
-                  <PlaceholderModulePage
-                    title="Audit Workspace & Readiness"
-                    phase="Phase 7"
-                    workflowStep="Audit Readiness"
-                    description="Audit project management and deterministic audit readiness scoring engine."
-                    upcomingFeatures={[
-                      'Deterministic Audit Readiness Score (e.g. 72%) with explainable blockers breakdown',
-                      'What is preventing us from reaching 90%? actionable gap list',
-                      'Comprehensive auditor workspace with exportable audit packages',
-                    ]}
-                  />
-                }
-              />
+              {/* Phase 6: Audit Management & Assurance Readiness */}
+              <Route path="/audits" element={<AuditsPage />} />
+              <Route path="/audits/:id" element={<AuditDetailPage />} />
 
               <Route
                 path="/ai-analyst"

@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   FileWarning,
   TrendingDown,
+  CalendarCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -20,8 +21,10 @@ import { evidenceService } from '../lib/evidenceService';
 import { findingService } from '../lib/findingService';
 import { riskService } from '../lib/riskService';
 import { exceptionService } from '../lib/exceptionService';
+import { auditService } from '../lib/auditService';
 import type {
   AuditLog,
+  AuditStats,
   ExceptionStats,
   FindingStats,
   FrameworkProgress,
@@ -38,6 +41,7 @@ export const DashboardPage: React.FC = () => {
   const [findingStats, setFindingStats] = useState<FindingStats | null>(null);
   const [riskStats, setRiskStats] = useState<RiskStats | null>(null);
   const [exceptionStats, setExceptionStats] = useState<ExceptionStats | null>(null);
+  const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [heatmapCells, setHeatmapCells] = useState<HeatmapCell[]>([]);
 
   const [logsLoading, setLogsLoading] = useState(false);
@@ -84,6 +88,12 @@ export const DashboardPage: React.FC = () => {
       .getStats()
       .then((stats) => setExceptionStats(stats))
       .catch((err) => console.error('Failed to load exception stats in dashboard', err));
+
+    // 6. Fetch audit stats
+    auditService
+      .getStats()
+      .then((stats) => setAuditStats(stats))
+      .catch((err) => console.error('Failed to load audit stats in dashboard', err));
 
     // 6. Fetch audit logs if permitted
     if (hasPermission('audit_log:read')) {
@@ -152,10 +162,10 @@ export const DashboardPage: React.FC = () => {
                 Assessments
               </Button>
             </Link>
-            <Link to="/findings">
+            <Link to="/audits">
               <Button size="sm" variant="secondary">
-                <FileCheck size={14} />
-                Findings
+                <CalendarCheck size={14} />
+                Audits
               </Button>
             </Link>
           </div>
@@ -357,6 +367,8 @@ export const DashboardPage: React.FC = () => {
                 <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Findings</span>
                 <ArrowRight size={10} className="text-indigo-400" />
                 <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded border border-indigo-500/50">Risk &amp; Exceptions</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 rounded border border-purple-500/50 font-bold">Audit Assurance ({auditStats ? auditStats.total_audits : 0})</span>
               </div>
             </div>
           </div>

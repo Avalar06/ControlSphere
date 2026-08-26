@@ -57,6 +57,17 @@ from app.models.exception import (
     ExceptionTypeEnum,
     ExceptionStatusEnum,
 )
+from app.models.audit_engagement import (
+    Audit,
+    AuditScopeControl,
+    AuditProcedure,
+    AuditProcedureEvidence,
+    AuditFindingLink,
+    AuditTypeEnum,
+    AuditStatusEnum,
+    ProcedureResultEnum,
+    AuditOpinionEnum,
+)
 
 __all__ = [
     "Base",
@@ -102,4 +113,13 @@ __all__ = [
     "ExceptionCompensatingControl",
     "ExceptionTypeEnum",
     "ExceptionStatusEnum",
+    "Audit",
+    "AuditScopeControl",
+    "AuditProcedure",
+    "AuditProcedureEvidence",
+    "AuditFindingLink",
+    "AuditTypeEnum",
+    "AuditStatusEnum",
+    "ProcedureResultEnum",
+    "AuditOpinionEnum",
 ]

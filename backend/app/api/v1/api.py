@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     findings,
     risks,
     exceptions,
+    audits,
 )
 
 api_router = APIRouter()
@@ -30,3 +31,4 @@ api_router.include_router(assessments.router, prefix="/assessments", tags=["Asse
 api_router.include_router(findings.router, prefix="/findings", tags=["Findings"])
 api_router.include_router(risks.router, prefix="/risks", tags=["Risks"])
 api_router.include_router(exceptions.router, prefix="/exceptions", tags=["Exceptions"])
+api_router.include_router(audits.router, prefix="/audits", tags=["Audits"])

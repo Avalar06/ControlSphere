@@ -659,3 +659,136 @@ export interface ExceptionStats {
   closed_count: number;
   expiring_soon_count: number;
 }
+
+// ─── Phase 6: Audit Management ───────────────────────────────────────────────
+
+export type AuditType = 'INTERNAL' | 'EXTERNAL' | 'REGULATORY' | 'COMPLIANCE' | 'OPERATIONAL' | 'TECHNICAL' | 'THIRD_PARTY';
+
+export type AuditStatus = 'PLANNED' | 'INITIATED' | 'FIELDWORK' | 'REVIEW' | 'REPORTING' | 'COMPLETED' | 'CLOSED';
+
+export type AuditOpinion = 'UNISSUED' | 'UNQUALIFIED' | 'QUALIFIED' | 'ADVERSE' | 'DISCLAIMER';
+
+export type ProcedureResult = 'NOT_STARTED' | 'IN_PROGRESS' | 'PASSED' | 'PARTIALLY_PASSED' | 'FAILED' | 'NOT_APPLICABLE';
+
+export interface Audit {
+  id: number;
+  organization_id: number;
+  title: string;
+  audit_type: AuditType;
+  audit_reference?: string;
+  objective: string;
+  scope_description?: string;
+  methodology?: string;
+  limitations?: string;
+  summary?: string;
+  framework_id?: number;
+  lead_auditor_id?: number;
+  audit_team_notes?: string;
+  planned_start_date?: string;
+  planned_end_date?: string;
+  actual_start_date?: string;
+  actual_end_date?: string;
+  status: AuditStatus;
+  opinion: AuditOpinion;
+  opinion_issued_by_id?: number;
+  opinion_issued_at?: string;
+  opinion_notes?: string;
+  closed_at?: string;
+  closed_by_id?: number;
+  closure_notes?: string;
+  created_by_id?: number;
+  created_at: string;
+  updated_at: string;
+  scope_controls_count: number;
+  procedures_count: number;
+  findings_count: number;
+  // Detail-only fields
+  scope_controls?: AuditScopeControl[];
+  procedures?: AuditProcedure[];
+  finding_links?: AuditFindingLink[];
+}
+
+export interface AuditScopeControl {
+  id: number;
+  audit_id: number;
+  organization_control_id: number;
+  scope_notes?: string;
+  created_by_id?: number;
+  created_at: string;
+}
+
+export interface AuditProcedure {
+  id: number;
+  audit_id: number;
+  organization_control_id?: number;
+  title: string;
+  objective?: string;
+  test_steps?: string;
+  expected_result?: string;
+  actual_result?: string;
+  assessment_method?: string;
+  result: ProcedureResult;
+  execution_notes?: string;
+  limitations?: string;
+  tester_id?: number;
+  execution_date?: string;
+  created_by_id?: number;
+  created_at: string;
+  updated_at: string;
+  evidence_count: number;
+}
+
+export interface AuditFindingLink {
+  id: number;
+  audit_id: number;
+  finding_id: number;
+  source_procedure_id?: number;
+  link_notes?: string;
+  created_by_id?: number;
+  created_at: string;
+}
+
+export interface AuditProcedureEvidence {
+  id: number;
+  procedure_id: number;
+  evidence_id: number;
+  link_notes?: string;
+  created_by_id?: number;
+  created_at: string;
+}
+
+export interface AuditReadiness {
+  audit_id: number;
+  audit_status: AuditStatus;
+  controls_in_scope: number;
+  controls_with_evidence: number;
+  controls_assessed: number;
+  procedures_total: number;
+  procedures_not_started: number;
+  procedures_in_progress: number;
+  procedures_passed: number;
+  procedures_partially_passed: number;
+  procedures_failed: number;
+  procedures_not_applicable: number;
+  procedures_completed: number;
+  findings_total: number;
+  findings_open: number;
+  findings_critical: number;
+  findings_high: number;
+  findings_in_remediation: number;
+  active_exceptions_in_scope: number;
+  readiness_score: number;
+  readiness_band: 'NOT_READY' | 'PARTIALLY_READY' | 'SUBSTANTIALLY_READY' | 'READY';
+  readiness_blockers: string[];
+}
+
+export interface AuditStats {
+  total_audits: number;
+  planned_count: number;
+  in_progress_count: number;
+  completed_count: number;
+  closed_count: number;
+  open_findings_across_audits: number;
+  critical_findings_count: number;
+  unissued_opinion_count: number;
+}

@@ -57,7 +57,7 @@ export const Sidebar: React.FC = () => {
       items: [
         { name: 'Evidence Repository', path: '/evidence', icon: FolderCheck, tag: 'Phase 3' },
         { name: 'Requirements', path: '/evidence-requirements', icon: ListFilter, tag: 'Phase 3' },
-        { name: 'Audits & Readiness', path: '/audits', icon: CalendarCheck, tag: 'Phase 7' },
+        { name: 'Audits & Readiness', path: '/audits', icon: CalendarCheck, tag: 'Phase 6' },
       ],
     },
 

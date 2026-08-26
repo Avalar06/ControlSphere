@@ -42,10 +42,17 @@ class Permission(str, enum.Enum):
     EXCEPTION_READ = "exception:read"
     EXCEPTION_MANAGE = "exception:manage"
     EXCEPTION_APPROVE = "exception:approve"
-    AUDIT_READ = "audit:read"
-    AUDIT_MANAGE = "audit:manage"
     POLICY_READ = "policy:read"
     POLICY_MANAGE = "policy:manage"
+
+    # Phase 6: Audit Management Permissions
+    # (Note: AUDIT_READ / AUDIT_MANAGE were already present — mapping preserved)
+    AUDIT_READ = "audit:read"
+    AUDIT_MANAGE = "audit:manage"
+    AUDIT_EXECUTE = "audit:execute"
+    AUDIT_REVIEW = "audit:review"
+    AUDIT_APPROVE = "audit:approve"
+    AUDIT_CLOSE = "audit:close"
 
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
@@ -72,6 +79,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXCEPTION_MANAGE,
         Permission.EXCEPTION_APPROVE,
         Permission.AUDIT_READ,
+        Permission.AUDIT_MANAGE,
+        Permission.AUDIT_EXECUTE,
+        Permission.AUDIT_REVIEW,
         Permission.POLICY_READ,
         Permission.POLICY_MANAGE,
     },
@@ -91,6 +101,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.REMEDIATION_MANAGE,
         Permission.EXCEPTION_READ,
         Permission.EXCEPTION_MANAGE,
+        Permission.AUDIT_READ,
+        Permission.AUDIT_EXECUTE,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -106,6 +118,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXCEPTION_READ,
         Permission.AUDIT_READ,
         Permission.AUDIT_MANAGE,
+        Permission.AUDIT_EXECUTE,
+        Permission.AUDIT_REVIEW,
+        Permission.AUDIT_APPROVE,
         Permission.POLICY_READ,
     },
     RoleEnum.MANAGER: {
@@ -120,6 +135,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXCEPTION_READ,
         Permission.EXCEPTION_APPROVE,
         Permission.AUDIT_READ,
+        Permission.AUDIT_REVIEW,
+        Permission.AUDIT_APPROVE,
+        Permission.AUDIT_CLOSE,
         Permission.POLICY_READ,
     },
     RoleEnum.VIEWER: {
