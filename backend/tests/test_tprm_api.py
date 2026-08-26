@@ -125,12 +125,25 @@ class TestTPRMAPI:
         # Score = (2.0*1.0 + 1.0*0.5) / 3.0 * 100 = 2.5 / 3.0 * 100 = 83.3%
         assert res_items.json()["calculated_score"] == 83.3
 
-        # 4. Submit for review
+        # 4. Submit for review (transitions DRAFT -> SUBMITTED)
         res_sub = client.post(f"/api/v1/vendors/assessments/{asm_id}/submit", headers=analyst_headers)
         assert res_sub.status_code == 200
-        assert res_sub.json()["status"] == "IN_REVIEW"
+        assert res_sub.json()["status"] == "SUBMITTED"
 
-        # 5. Reject by Admin (Manager)
+        # Attempt to approve directly from SUBMITTED -> Must fail (must be IN_REVIEW)
+        res_early_appr = client.post(
+            f"/api/v1/vendors/assessments/{asm_id}/approve",
+            json={"review_notes": "Early approval attempt"},
+            headers=admin_headers,
+        )
+        assert res_early_appr.status_code == 400
+
+        # Start review (transitions SUBMITTED -> IN_REVIEW)
+        res_start = client.post(f"/api/v1/vendors/assessments/{asm_id}/start-review", headers=admin_headers)
+        assert res_start.status_code == 200
+        assert res_start.json()["status"] == "IN_REVIEW"
+
+        # 5. Reject by Admin (Manager) (transitions IN_REVIEW -> DRAFT)
         res_rej = client.post(
             f"/api/v1/vendors/assessments/{asm_id}/reject",
             json={"rejection_reason": "Need SOC 2 report attached"},
@@ -139,12 +152,17 @@ class TestTPRMAPI:
         assert res_rej.status_code == 200
         assert res_rej.json()["status"] == "DRAFT"
 
-        # 6. Re-submit by Analyst
+        # 6. Re-submit by Analyst (DRAFT -> SUBMITTED)
         res_sub2 = client.post(f"/api/v1/vendors/assessments/{asm_id}/submit", headers=analyst_headers)
         assert res_sub2.status_code == 200
-        assert res_sub2.json()["status"] == "IN_REVIEW"
+        assert res_sub2.json()["status"] == "SUBMITTED"
 
-        # 7. Approve by Admin (Manager)
+        # Start review again (SUBMITTED -> IN_REVIEW)
+        res_start2 = client.post(f"/api/v1/vendors/assessments/{asm_id}/start-review", headers=admin_headers)
+        assert res_start2.status_code == 200
+        assert res_start2.json()["status"] == "IN_REVIEW"
+
+        # 7. Approve by Admin (Manager) (IN_REVIEW -> APPROVED)
         res_appr = client.post(
             f"/api/v1/vendors/assessments/{asm_id}/approve",
             json={"review_notes": "SOC 2 attached and verified"},
@@ -153,6 +171,14 @@ class TestTPRMAPI:
         assert res_appr.status_code == 200
         assert res_appr.json()["status"] == "APPROVED"
         assert res_appr.json()["reviewer_id"] == admin_user.id
+
+        # Attempt to modify approved assessment -> Must fail
+        res_mutate = client.patch(
+            f"/api/v1/vendors/assessments/{asm_id}/items",
+            json={str(item1_id): {"response_status": "NON_COMPLIANT"}},
+            headers=analyst_headers,
+        )
+        assert res_mutate.status_code == 400
 
         # 8. Now vendor can transition to APPROVED
         res_v_appr = client.patch(

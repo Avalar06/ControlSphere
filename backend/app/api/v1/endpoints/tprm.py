@@ -733,7 +733,7 @@ def submit_assessment(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
 ):
-    """Submits a draft assessment for review (transitions DRAFT -> SUBMITTED -> IN_REVIEW)."""
+    """Submits a draft assessment (transitions DRAFT -> SUBMITTED)."""
     assessment = (
         db.query(VendorAssessment)
         .filter(
@@ -756,7 +756,7 @@ def submit_assessment(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    assessment.status = VendorAssessmentStatusEnum.IN_REVIEW
+    assessment.status = VendorAssessmentStatusEnum.SUBMITTED
     assessment.submitted_at = datetime.now(timezone.utc)
     assessment.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -766,6 +766,54 @@ def submit_assessment(
         db=db,
         organization_id=current_user.organization_id,
         action="VENDOR_ASSESSMENT_SUBMITTED",
+        resource_type="vendor_assessment",
+        resource_id=str(assessment.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"assessment_code": assessment.assessment_code},
+    )
+
+    return assessment
+
+
+@router.post("/assessments/{assessment_id}/start-review", response_model=VendorAssessmentRead)
+def start_assessment_review(
+    assessment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    """Transitions a submitted assessment into review (transitions SUBMITTED -> IN_REVIEW)."""
+    assessment = (
+        db.query(VendorAssessment)
+        .filter(
+            VendorAssessment.id == assessment_id,
+            VendorAssessment.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if not assessment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Assessment with ID {assessment_id} not found.",
+        )
+
+    try:
+        TPRMService.validate_assessment_transition(
+            current_status=assessment.status,
+            new_status=VendorAssessmentStatusEnum.IN_REVIEW,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    assessment.status = VendorAssessmentStatusEnum.IN_REVIEW
+    assessment.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(assessment)
+
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_ASSESSMENT_IN_REVIEW",
         resource_type="vendor_assessment",
         resource_id=str(assessment.id),
         actor_email=current_user.email,
