@@ -160,6 +160,12 @@ class Vendor(Base):
         nullable=False,
     )
 
+    @property
+    def effective_tier(self) -> VendorTierEnum:
+        if self.override_tier is not None:
+            return self.override_tier
+        return self.calculated_tier
+
     __table_args__ = (
         UniqueConstraint("organization_id", "vendor_code", name="uq_vendor_org_code"),
         CheckConstraint(

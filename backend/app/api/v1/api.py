@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     audits,
     monitoring,
     harmonization,
+    tprm,
 )
 
 api_router = APIRouter()
@@ -36,3 +37,4 @@ api_router.include_router(exceptions.router, prefix="/exceptions", tags=["Except
 api_router.include_router(audits.router, prefix="/audits", tags=["Audits"])
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["Continuous Monitoring"])
 api_router.include_router(harmonization.router, prefix="/harmonization", tags=["Multi-Framework Harmonization"])
+api_router.include_router(tprm.router, prefix="/vendors", tags=["Third-Party & Vendor Risk Management"])

@@ -243,7 +243,11 @@ class TPRMService:
 
     @classmethod
     def validate_vendor_transition(
-        cls, current_status: VendorStatusEnum, new_status: VendorStatusEnum
+        cls,
+        current_status: VendorStatusEnum,
+        new_status: VendorStatusEnum,
+        db: Optional[Session] = None,
+        vendor: Optional[Vendor] = None,
     ) -> None:
         """Validates that a vendor transition is legal according to the lifecycle state machine."""
         if current_status == new_status:
@@ -255,6 +259,28 @@ class TPRMService:
                 f"Allowed target states: {sorted([s.value for s in allowed])}"
             )
 
+        # DUE_DILIGENCE -> APPROVED requires at least one approved assessment
+        if (
+            current_status == VendorStatusEnum.DUE_DILIGENCE
+            and new_status == VendorStatusEnum.APPROVED
+            and db is not None
+            and vendor is not None
+        ):
+            has_approved_assessment = (
+                db.query(VendorAssessment)
+                .filter(
+                    VendorAssessment.vendor_id == vendor.id,
+                    VendorAssessment.status.in_(
+                        [VendorAssessmentStatusEnum.APPROVED, VendorAssessmentStatusEnum.SUPERSEDED]
+                    ),
+                )
+                .first()
+            )
+            if not has_approved_assessment:
+                raise ValueError(
+                    "Vendor approval requires at least one approved vendor assessment."
+                )
+
     # ─── 6. VENDOR ASSESSMENT LIFECYCLE & IMMUTABILITY ──────────────────────
 
     LEGAL_ASSESSMENT_TRANSITIONS = {
@@ -263,7 +289,6 @@ class TPRMService:
         },
         VendorAssessmentStatusEnum.SUBMITTED: {
             VendorAssessmentStatusEnum.IN_REVIEW,
-            VendorAssessmentStatusEnum.DRAFT,
         },
         VendorAssessmentStatusEnum.IN_REVIEW: {
             VendorAssessmentStatusEnum.APPROVED,
@@ -371,12 +396,32 @@ class TPRMService:
         )
         latest_score = latest_assessment.calculated_score if latest_assessment else None
 
-        # 3. Residual risk & Risk band
+        # 3. Calculate finding & exception penalties
+        from app.models.exception import SecurityException, ExceptionStatusEnum, ExceptionTypeEnum
+        active_exceptions = (
+            db.query(SecurityException)
+            .filter(
+                SecurityException.organization_id == vendor.organization_id,
+                SecurityException.status == ExceptionStatusEnum.ACTIVE,
+                SecurityException.exception_type == ExceptionTypeEnum.THIRD_PARTY_VENDOR,
+            )
+            .count()
+        )
+        exception_penalties = active_exceptions * 10.0
+
+        # Calculate finding penalties for items with non-zero findings
+        finding_penalties = 0.0
+        if latest_assessment:
+            for item in latest_assessment.items:
+                if item.findings_count > 0:
+                    finding_penalties += min(item.findings_count * 8.0, 30.0)
+
+        # 4. Residual risk & Risk band
         residual_risk, risk_band = cls.calculate_vendor_residual_risk(
             inherent_risk=inherent_risk,
             latest_assessment_score=latest_score,
-            finding_penalties=0.0,
-            exception_penalties=0.0,
+            finding_penalties=finding_penalties,
+            exception_penalties=exception_penalties,
         )
         vendor.residual_risk_score = residual_risk
         vendor.risk_band = risk_band
