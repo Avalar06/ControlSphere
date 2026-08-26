@@ -25,7 +25,9 @@ from app.schemas.harmonization import (
     CommonControlCreate,
     CommonControlUpdate,
     CrosswalkMappingCreate,
+    CrosswalkMappingUpdate,
     FrameworkCompliancePostureOverview,
+    FrameworkDetailedPostureResponse,
     SubcategoryComplianceMatrixItem,
 )
 from app.services.audit_service import AuditService
@@ -68,6 +70,16 @@ class HarmonizationService:
         return query.all()
 
     @staticmethod
+    def get_crosswalk(
+        db: Session,
+        crosswalk_id: int,
+    ) -> FrameworkCrosswalkMapping:
+        cw = db.query(FrameworkCrosswalkMapping).filter(FrameworkCrosswalkMapping.id == crosswalk_id).first()
+        if not cw:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Crosswalk mapping not found")
+        return cw
+
+    @staticmethod
     def create_crosswalk(
         db: Session,
         mapping_in: CrosswalkMappingCreate,
@@ -83,7 +95,7 @@ class HarmonizationService:
         if source.id == target.id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot crosswalk subcategory to itself")
 
-        # Check existing
+        # Check existing unique constraint
         existing = (
             db.query(FrameworkCrosswalkMapping)
             .filter(
@@ -110,7 +122,7 @@ class HarmonizationService:
         AuditService.log(
             db=db,
             organization_id=current_user.organization_id,
-            action="harmonization.crosswalk_create",
+            action="CROSSWALK_CREATED",
             resource_type="framework_crosswalk_mapping",
             actor_email=current_user.email,
             actor_id=current_user.id,
@@ -125,6 +137,45 @@ class HarmonizationService:
         return mapping
 
     @staticmethod
+    def update_crosswalk(
+        db: Session,
+        crosswalk_id: int,
+        mapping_update: CrosswalkMappingUpdate,
+        current_user: User,
+    ) -> FrameworkCrosswalkMapping:
+        cw = HarmonizationService.get_crosswalk(db, crosswalk_id)
+
+        if mapping_update.mapping_type is not None:
+            cw.mapping_type = mapping_update.mapping_type
+        if mapping_update.confidence_score is not None:
+            cw.confidence_score = round(max(0.0, min(1.0, mapping_update.confidence_score)), 2)
+        if mapping_update.bidirectional is not None:
+            cw.bidirectional = mapping_update.bidirectional
+        if mapping_update.rationale is not None:
+            cw.rationale = mapping_update.rationale
+
+        cw.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(cw)
+
+        AuditService.log(
+            db=db,
+            organization_id=current_user.organization_id,
+            action="CROSSWALK_UPDATED",
+            resource_type="framework_crosswalk_mapping",
+            actor_email=current_user.email,
+            actor_id=current_user.id,
+            resource_id=str(cw.id),
+            details={
+                "source_subcategory_id": cw.source_subcategory_id,
+                "target_subcategory_id": cw.target_subcategory_id,
+                "mapping_type": cw.mapping_type.value,
+                "confidence_score": cw.confidence_score,
+            },
+        )
+        return cw
+
+    @staticmethod
     def delete_crosswalk(
         db: Session,
         crosswalk_id: int,
@@ -137,7 +188,7 @@ class HarmonizationService:
         AuditService.log(
             db=db,
             organization_id=current_user.organization_id,
-            action="harmonization.crosswalk_delete",
+            action="CROSSWALK_DELETED",
             resource_type="framework_crosswalk_mapping",
             actor_email=current_user.email,
             actor_id=current_user.id,
@@ -245,7 +296,7 @@ class HarmonizationService:
         AuditService.log(
             db=db,
             organization_id=organization_id,
-            action="harmonization.common_control_create",
+            action="COMMON_CONTROL_CREATED",
             resource_type="rationalized_common_control",
             actor_email=current_user.email,
             actor_id=current_user.id,
@@ -304,7 +355,7 @@ class HarmonizationService:
         AuditService.log(
             db=db,
             organization_id=organization_id,
-            action="harmonization.common_control_update",
+            action="COMMON_CONTROL_UPDATED",
             resource_type="rationalized_common_control",
             actor_email=current_user.email,
             actor_id=current_user.id,
@@ -315,6 +366,22 @@ class HarmonizationService:
             },
         )
         return cc
+
+    @staticmethod
+    def get_common_control_mappings(
+        db: Session,
+        organization_id: int,
+        common_control_id: int,
+    ) -> List[CommonControlMapping]:
+        cc = HarmonizationService.get_common_control(db, organization_id, common_control_id)
+        return (
+            db.query(CommonControlMapping)
+            .filter(
+                CommonControlMapping.rationalized_common_control_id == cc.id,
+                CommonControlMapping.organization_id == organization_id,
+            )
+            .all()
+        )
 
     @staticmethod
     def map_organization_control(
@@ -337,7 +404,7 @@ class HarmonizationService:
         AuditService.log(
             db=db,
             organization_id=organization_id,
-            action="harmonization.mapping_create",
+            action="COMMON_CONTROL_MAPPING_CREATED",
             resource_type="common_control_mapping",
             actor_email=current_user.email,
             actor_id=current_user.id,
@@ -418,7 +485,7 @@ class HarmonizationService:
         AuditService.log(
             db=db,
             organization_id=organization_id,
-            action="harmonization.mapping_delete",
+            action="COMMON_CONTROL_MAPPING_REMOVED",
             resource_type="common_control_mapping",
             actor_email=current_user.email,
             actor_id=current_user.id,
@@ -605,7 +672,7 @@ class HarmonizationService:
             ctrl = org_control_by_subcat.get(sid)
             is_direct = False
 
-            # Direct coverage check
+            # Direct coverage check: status == IMPLEMENTED and CCMHealth >= 60.0
             if ctrl and ctrl.status == ImplementationStatusEnum.IMPLEMENTED:
                 ctrl_health = latest_score_by_ctrl.get(ctrl.id, 100.0)
                 if ctrl_health >= 60.0:
@@ -614,10 +681,10 @@ class HarmonizationService:
                     effective_health_map[sid] = ctrl_health
 
             # Crosswalk inherited coverage check (if not directly covered)
+            # Deterministic multi-candidate resolution:
+            # Sort eligible candidate mappings by (effective_health desc, confidence desc, cw.id asc)
             if not is_direct:
-                best_inherited_health = 0.0
-                has_inherited = False
-
+                candidates = []
                 for cw in crosswalks:
                     other_subcat_id = None
                     if cw.target_subcategory_id == sid:
@@ -630,14 +697,15 @@ class HarmonizationService:
                         if other_ctrl and other_ctrl.status == ImplementationStatusEnum.IMPLEMENTED:
                             other_health = latest_score_by_ctrl.get(other_ctrl.id, 100.0)
                             if other_health >= 60.0:
-                                inherited_health = other_health * cw.confidence_score
-                                if inherited_health > best_inherited_health:
-                                    best_inherited_health = inherited_health
-                                    has_inherited = True
+                                eff_health = round(other_health * cw.confidence_score, 1)
+                                candidates.append((eff_health, cw.confidence_score, cw.id))
 
-                if has_inherited:
+                if candidates:
+                    # Deterministic ordering: highest effective health, highest confidence, lowest cw.id
+                    candidates.sort(key=lambda x: (-x[0], -x[1], x[2]))
+                    best_eff_health = candidates[0][0]
                     crosswalk_covered_set.add(sid)
-                    effective_health_map[sid] = round(best_inherited_health, 1)
+                    effective_health_map[sid] = best_eff_health
 
         total_covered_count = len(directly_covered_set | crosswalk_covered_set)
         coverage_percentage = round((total_covered_count / total_subcategories) * 100.0, 1)
@@ -678,6 +746,175 @@ class HarmonizationService:
         return overview, snapshot
 
     @staticmethod
+    def get_framework_detailed_posture(
+        db: Session,
+        organization_id: int,
+        framework_id: int,
+    ) -> FrameworkDetailedPostureResponse:
+        now = datetime.now(timezone.utc)
+        overview, _ = HarmonizationService.calculate_framework_compliance_posture(
+            db=db,
+            organization_id=organization_id,
+            framework_id=framework_id,
+            eval_time=now,
+        )
+
+        subcategories = (
+            db.query(FrameworkSubcategory)
+            .join(FrameworkCategory, FrameworkSubcategory.category_id == FrameworkCategory.id)
+            .join(FrameworkFunction, FrameworkCategory.function_id == FrameworkFunction.id)
+            .filter(FrameworkFunction.framework_id == framework_id)
+            .order_by(FrameworkSubcategory.display_order.asc(), FrameworkSubcategory.identifier.asc())
+            .all()
+        )
+
+        org_controls = (
+            db.query(OrganizationControl)
+            .filter(OrganizationControl.organization_id == organization_id)
+            .all()
+        )
+        org_control_by_subcat: Dict[int, OrganizationControl] = {
+            ctrl.subcategory_id: ctrl for ctrl in org_controls
+        }
+
+        latest_snapshots = (
+            db.query(ControlHealthSnapshot)
+            .filter(ControlHealthSnapshot.organization_id == organization_id)
+            .order_by(ControlHealthSnapshot.evaluated_at.desc())
+            .all()
+        )
+        latest_score_by_ctrl: Dict[int, float] = {}
+        for s in latest_snapshots:
+            if s.organization_control_id not in latest_score_by_ctrl:
+                latest_score_by_ctrl[s.organization_control_id] = s.health_score
+
+        crosswalks = (
+            db.query(FrameworkCrosswalkMapping)
+            .filter(FrameworkCrosswalkMapping.confidence_score >= 0.80)
+            .all()
+        )
+
+        matrix_items: List[SubcategoryComplianceMatrixItem] = []
+        for subcat in subcategories:
+            sid = subcat.id
+            ctrl = org_control_by_subcat.get(sid)
+            is_direct = False
+            is_crosswalk = False
+            source_subcat_id = None
+            source_identifier = None
+            confidence = None
+            eff_score = 0.0
+
+            if ctrl and ctrl.status == ImplementationStatusEnum.IMPLEMENTED:
+                ctrl_health = latest_score_by_ctrl.get(ctrl.id, 100.0)
+                if ctrl_health >= 60.0:
+                    is_direct = True
+                    eff_score = ctrl_health
+
+            if not is_direct:
+                candidates = []
+                for cw in crosswalks:
+                    other_id = None
+                    if cw.target_subcategory_id == sid:
+                        other_id = cw.source_subcategory_id
+                    elif cw.source_subcategory_id == sid and cw.bidirectional:
+                        other_id = cw.target_subcategory_id
+
+                    if other_id:
+                        other_ctrl = org_control_by_subcat.get(other_id)
+                        if other_ctrl and other_ctrl.status == ImplementationStatusEnum.IMPLEMENTED:
+                            other_h = latest_score_by_ctrl.get(other_ctrl.id, 100.0)
+                            if other_h >= 60.0:
+                                h = round(other_h * cw.confidence_score, 1)
+                                candidates.append((h, cw.confidence_score, cw.id, other_id, cw.source_subcategory.identifier if cw.source_subcategory else ""))
+
+                if candidates:
+                    candidates.sort(key=lambda x: (-x[0], -x[1], x[2]))
+                    eff_score, confidence, _, source_subcat_id, source_identifier = candidates[0]
+                    is_crosswalk = True
+
+            if eff_score >= 80.0:
+                h_status = "HEALTHY"
+            elif eff_score >= 60.0:
+                h_status = "DEGRADED"
+            elif eff_score >= 40.0:
+                h_status = "AT_RISK"
+            elif eff_score > 0.0:
+                h_status = "FAILING"
+            else:
+                h_status = "UNMAPPED"
+
+            matrix_items.append(
+                SubcategoryComplianceMatrixItem(
+                    subcategory_id=subcat.id,
+                    subcategory_identifier=subcat.identifier,
+                    subcategory_title=subcat.title,
+                    category_identifier=subcat.category.identifier if subcat.category else "",
+                    function_identifier=subcat.category.function.identifier if subcat.category and subcat.category.function else "",
+                    is_directly_covered=is_direct,
+                    is_crosswalk_covered=is_crosswalk,
+                    source_subcategory_id=source_subcat_id,
+                    source_identifier=source_identifier,
+                    crosswalk_confidence=confidence,
+                    effective_health_score=eff_score,
+                    health_status=h_status,
+                )
+            )
+
+        return FrameworkDetailedPostureResponse(
+            overview=overview,
+            subcategories=matrix_items,
+        )
+
+    @staticmethod
+    def evaluate_single_framework(
+        db: Session,
+        organization_id: int,
+        framework_id: int,
+        current_user: User,
+    ) -> FrameworkComplianceSnapshot:
+        now = datetime.now(timezone.utc)
+        overview, snap = HarmonizationService.calculate_framework_compliance_posture(
+            db=db,
+            organization_id=organization_id,
+            framework_id=framework_id,
+            eval_time=now,
+        )
+
+        AuditService.log(
+            db=db,
+            organization_id=organization_id,
+            action="FRAMEWORK_EVALUATION_EXECUTED",
+            resource_type="framework",
+            actor_email=current_user.email,
+            actor_id=current_user.id,
+            resource_id=str(framework_id),
+            details={
+                "coverage_percentage": snap.coverage_percentage,
+                "compliance_health_score": snap.compliance_health_score,
+                "total_subcategories": snap.total_subcategories,
+                "covered_subcategories": snap.covered_subcategories,
+            },
+        )
+
+        AuditService.log(
+            db=db,
+            organization_id=organization_id,
+            action="COMPLIANCE_SNAPSHOT_CREATED",
+            resource_type="framework_compliance_snapshot",
+            actor_email=current_user.email,
+            actor_id=current_user.id,
+            resource_id=str(snap.id),
+            details={
+                "framework_id": framework_id,
+                "calculation_version": snap.calculation_version,
+                "coverage_percentage": snap.coverage_percentage,
+                "compliance_health_score": snap.compliance_health_score,
+            },
+        )
+        return snap
+
+    @staticmethod
     def execute_full_harmonization_evaluation(
         db: Session,
         organization_id: int,
@@ -695,13 +932,28 @@ class HarmonizationService:
         frameworks = db.query(Framework).all()
         snapshots_created = 0
         for fw in frameworks:
-            _, _ = HarmonizationService.calculate_framework_compliance_posture(db, organization_id, fw.id, now)
+            _, snap = HarmonizationService.calculate_framework_compliance_posture(db, organization_id, fw.id, now)
             snapshots_created += 1
+            AuditService.log(
+                db=db,
+                organization_id=organization_id,
+                action="COMPLIANCE_SNAPSHOT_CREATED",
+                resource_type="framework_compliance_snapshot",
+                actor_email=current_user.email,
+                actor_id=current_user.id,
+                resource_id=str(snap.id),
+                details={
+                    "framework_id": fw.id,
+                    "calculation_version": snap.calculation_version,
+                    "coverage_percentage": snap.coverage_percentage,
+                    "compliance_health_score": snap.compliance_health_score,
+                },
+            )
 
         AuditService.log(
             db=db,
             organization_id=organization_id,
-            action="harmonization.evaluate",
+            action="FRAMEWORK_EVALUATION_EXECUTED",
             resource_type="organization",
             actor_email=current_user.email,
             actor_id=current_user.id,
@@ -713,3 +965,39 @@ class HarmonizationService:
             },
         )
         return len(common_controls), len(frameworks), snapshots_created
+
+    @staticmethod
+    def get_snapshot(
+        db: Session,
+        organization_id: int,
+        snapshot_id: int,
+    ) -> FrameworkComplianceSnapshot:
+        snap = (
+            db.query(FrameworkComplianceSnapshot)
+            .filter(
+                FrameworkComplianceSnapshot.id == snapshot_id,
+                FrameworkComplianceSnapshot.organization_id == organization_id,
+            )
+            .first()
+        )
+        if not snap:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compliance snapshot not found")
+        return snap
+
+    @staticmethod
+    def list_framework_snapshots(
+        db: Session,
+        organization_id: int,
+        framework_id: int,
+        limit: int = 50,
+    ) -> List[FrameworkComplianceSnapshot]:
+        return (
+            db.query(FrameworkComplianceSnapshot)
+            .filter(
+                FrameworkComplianceSnapshot.organization_id == organization_id,
+                FrameworkComplianceSnapshot.framework_id == framework_id,
+            )
+            .order_by(FrameworkComplianceSnapshot.created_at.desc())
+            .limit(limit)
+            .all()
+        )

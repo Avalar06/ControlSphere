@@ -374,9 +374,8 @@ class TestPhase8AdversarialSecurity:
         # Verify audit logs in database
         logs = db.query(AuditLog).filter(
             AuditLog.organization_id == org_apex.id,
-            AuditLog.action.like("harmonization.%"),
         ).all()
         actions = [log.action for log in logs]
-        assert "harmonization.common_control_create" in actions
-        assert "harmonization.mapping_create" in actions
-        assert "harmonization.evaluate" in actions
+        assert "COMMON_CONTROL_CREATED" in actions
+        assert "COMMON_CONTROL_MAPPING_CREATED" in actions
+        assert "FRAMEWORK_EVALUATION_EXECUTED" in actions

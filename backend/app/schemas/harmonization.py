@@ -25,6 +25,13 @@ class CrosswalkMappingCreate(CrosswalkMappingBase):
     pass
 
 
+class CrosswalkMappingUpdate(BaseModel):
+    mapping_type: Optional[MappingTypeEnum] = None
+    confidence_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    bidirectional: Optional[bool] = None
+    rationale: Optional[str] = Field(default=None, min_length=3)
+
+
 class CrosswalkMappingResponse(CrosswalkMappingBase):
     id: int
     created_at: datetime
@@ -158,6 +165,11 @@ class MultiFrameworkPostureResponse(BaseModel):
     total_common_controls: int
     average_common_control_health: float
     evaluated_at: datetime
+
+
+class FrameworkDetailedPostureResponse(BaseModel):
+    overview: FrameworkCompliancePostureOverview
+    subcategories: List[SubcategoryComplianceMatrixItem] = []
 
 
 class HarmonizationEvaluationResponse(BaseModel):
