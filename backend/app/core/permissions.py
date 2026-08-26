@@ -65,6 +65,13 @@ class Permission(str, enum.Enum):
     HARMONIZATION_EXECUTE = "harmonization:execute"
     CROSSWALK_ADMIN = "crosswalk:admin"
 
+    # Phase 9: Third-Party & Vendor Risk Management (TPRM) Permissions
+    VENDOR_READ = "vendor:read"
+    VENDOR_MANAGE = "vendor:manage"
+    VENDOR_ASSESS = "vendor:assess"
+    VENDOR_APPROVE = "vendor:approve"
+    VENDOR_RISK_MANAGE = "vendor:risk_manage"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -101,6 +108,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.HARMONIZATION_READ,
         Permission.HARMONIZATION_MANAGE,
         Permission.HARMONIZATION_EXECUTE,
+        Permission.VENDOR_READ,
+        Permission.VENDOR_MANAGE,
+        Permission.VENDOR_ASSESS,
+        Permission.VENDOR_RISK_MANAGE,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -126,6 +137,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.HARMONIZATION_READ,
         Permission.HARMONIZATION_MANAGE,
         Permission.HARMONIZATION_EXECUTE,
+        Permission.VENDOR_READ,
+        Permission.VENDOR_MANAGE,
+        Permission.VENDOR_ASSESS,
+        Permission.VENDOR_RISK_MANAGE,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -147,6 +162,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.POLICY_READ,
         Permission.MONITORING_READ,
         Permission.HARMONIZATION_READ,
+        Permission.VENDOR_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -170,6 +186,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.HARMONIZATION_READ,
         Permission.HARMONIZATION_MANAGE,
         Permission.HARMONIZATION_EXECUTE,
+        Permission.VENDOR_READ,
+        Permission.VENDOR_MANAGE,
+        Permission.VENDOR_APPROVE,
+        Permission.VENDOR_RISK_MANAGE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -184,6 +204,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.POLICY_READ,
         Permission.MONITORING_READ,
         Permission.HARMONIZATION_READ,
+        Permission.VENDOR_READ,
     },
 }
 
