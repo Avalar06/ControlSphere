@@ -910,3 +910,173 @@ export interface EvaluationRunResult {
   average_health_score: number;
   evaluated_at: string;
 }
+
+// ── Phase 8: Multi-Framework Harmonization & Control Rationalization ─────────
+
+export type MappingType = 'EXACT' | 'SUBSET' | 'SUPERSET' | 'PARTIAL' | 'CORRELATED';
+
+export type CommonControlDomain =
+  | 'IDENTITY_ACCESS'
+  | 'CRYPTOGRAPHY'
+  | 'DATA_PROTECTION'
+  | 'INCIDENT_MANAGEMENT'
+  | 'VULNERABILITY_MANAGEMENT'
+  | 'BUSINESS_CONTINUITY'
+  | 'GOVERNANCE_RISK'
+  | 'PHYSICAL_SECURITY'
+  | 'OTHER';
+
+export type RationalizationStatus = 'DRAFT' | 'ACTIVE' | 'RETIRED';
+
+export interface FrameworkCrosswalkMapping {
+  id: number;
+  source_subcategory_id: number;
+  target_subcategory_id: number;
+  mapping_type: MappingType;
+  confidence_score: number;
+  bidirectional: boolean;
+  rationale: string;
+  created_at: string;
+  updated_at: string;
+  source_identifier?: string;
+  source_title?: string;
+  target_identifier?: string;
+  target_title?: string;
+}
+
+export interface CrosswalkMappingCreate {
+  source_subcategory_id: number;
+  target_subcategory_id: number;
+  mapping_type: MappingType;
+  confidence_score: number;
+  bidirectional: boolean;
+  rationale: string;
+}
+
+export interface CrosswalkMappingUpdate {
+  mapping_type?: MappingType;
+  confidence_score?: number;
+  bidirectional?: boolean;
+  rationale?: string;
+}
+
+export interface CommonControlMapping {
+  id: number;
+  organization_id: number;
+  rationalized_common_control_id: number;
+  organization_control_id: number;
+  weight: number;
+  created_at: string;
+  control_subcategory_identifier?: string;
+  control_subcategory_title?: string;
+  control_status?: string;
+  control_health_score?: number;
+  control_health_status?: string;
+}
+
+export interface CommonControlMappingCreate {
+  organization_control_id: number;
+  weight: number;
+}
+
+export interface RationalizedCommonControl {
+  id: number;
+  organization_id: number;
+  common_control_code: string;
+  title: string;
+  description: string;
+  domain: CommonControlDomain;
+  rationalization_status: RationalizationStatus;
+  owner_id?: number;
+  deprecation_reason?: string;
+  inherited_health_score: number;
+  inherited_health_status: ControlHealthStatus;
+  mapped_controls_count: number;
+  created_at: string;
+  updated_at: string;
+  mappings?: CommonControlMapping[];
+}
+
+export interface CommonControlCreate {
+  common_control_code: string;
+  title: string;
+  description: string;
+  domain: CommonControlDomain;
+  rationalization_status?: RationalizationStatus;
+  owner_id?: number;
+  deprecation_reason?: string;
+  initial_control_ids?: number[];
+}
+
+export interface CommonControlUpdate {
+  title?: string;
+  description?: string;
+  domain?: CommonControlDomain;
+  rationalization_status?: RationalizationStatus;
+  owner_id?: number;
+  deprecation_reason?: string;
+}
+
+export interface FrameworkComplianceSnapshot {
+  id: number;
+  organization_id: number;
+  framework_id: number;
+  calculation_version: string;
+  coverage_percentage: number;
+  compliance_health_score: number;
+  total_subcategories: number;
+  covered_subcategories: number;
+  unmapped_subcategories: number;
+  evaluated_at: string;
+  created_at: string;
+  framework_identifier?: string;
+  framework_name?: string;
+}
+
+export interface FrameworkCompliancePostureOverview {
+  framework_id: number;
+  framework_identifier: string;
+  framework_name: string;
+  total_subcategories: number;
+  directly_covered_subcategories: number;
+  crosswalk_covered_subcategories: number;
+  total_covered_subcategories: number;
+  coverage_percentage: number;
+  compliance_health_score: number;
+  evaluated_at?: string;
+}
+
+export interface SubcategoryComplianceMatrixItem {
+  subcategory_id: number;
+  subcategory_identifier: string;
+  subcategory_title: string;
+  category_identifier: string;
+  function_identifier: string;
+  is_directly_covered: boolean;
+  is_crosswalk_covered: boolean;
+  source_subcategory_id?: number;
+  source_identifier?: string;
+  crosswalk_confidence?: number;
+  effective_health_score: number;
+  health_status: string;
+}
+
+export interface FrameworkDetailedPostureResponse {
+  overview: FrameworkCompliancePostureOverview;
+  subcategories: SubcategoryComplianceMatrixItem[];
+}
+
+export interface MultiFrameworkPostureResponse {
+  frameworks: FrameworkCompliancePostureOverview[];
+  total_common_controls: number;
+  average_common_control_health: number;
+  evaluated_at: string;
+}
+
+export interface HarmonizationEvaluationResponse {
+  organization_id: number;
+  evaluated_common_controls: number;
+  evaluated_frameworks: number;
+  snapshots_created: number;
+  evaluated_at: string;
+}

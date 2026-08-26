@@ -24,6 +24,7 @@ import { riskService } from '../lib/riskService';
 import { exceptionService } from '../lib/exceptionService';
 import { auditService } from '../lib/auditService';
 import { monitoringService } from '../lib/monitoringService';
+import { harmonizationService } from '../lib/harmonizationService';
 import type {
   AuditLog,
   AuditStats,
@@ -32,6 +33,7 @@ import type {
   FrameworkProgress,
   HeatmapCell,
   MonitoringOverview,
+  MultiFrameworkPostureResponse,
   OrganizationEvidenceStats,
   RiskStats,
 } from '../types';
@@ -46,6 +48,7 @@ export const DashboardPage: React.FC = () => {
   const [exceptionStats, setExceptionStats] = useState<ExceptionStats | null>(null);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [monitoringOverview, setMonitoringOverview] = useState<MonitoringOverview | null>(null);
+  const [harmonizationPosture, setHarmonizationPosture] = useState<MultiFrameworkPostureResponse | null>(null);
   const [heatmapCells, setHeatmapCells] = useState<HeatmapCell[]>([]);
 
   const [logsLoading, setLogsLoading] = useState(false);
@@ -105,7 +108,13 @@ export const DashboardPage: React.FC = () => {
       .then((overview) => setMonitoringOverview(overview))
       .catch((err) => console.error('Failed to load monitoring overview in dashboard', err));
 
-    // 8. Fetch audit logs if permitted
+    // 8. Fetch multi-framework harmonization posture
+    harmonizationService
+      .getPosture()
+      .then((posture) => setHarmonizationPosture(posture))
+      .catch((err) => console.error('Failed to load harmonization posture in dashboard', err));
+
+    // 9. Fetch audit logs if permitted
     if (hasPermission('audit_log:read')) {
       setLogsLoading(true);
       api
@@ -387,11 +396,65 @@ export const DashboardPage: React.FC = () => {
                 <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 rounded border border-purple-500/50 font-bold">Audit Assurance ({auditStats ? auditStats.total_audits : 0})</span>
                 <ArrowRight size={10} className="text-indigo-400" />
                 <span className="px-1.5 py-0.5 bg-blue-600/30 text-blue-300 rounded border border-blue-500/50 font-bold">Continuous Monitoring (Phase 7)</span>
+                <ArrowRight size={10} className="text-indigo-400" />
+                <span className="px-1.5 py-0.5 bg-emerald-600/30 text-emerald-300 rounded border border-emerald-500/50 font-bold">Harmonization &amp; Posture (Phase 8)</span>
               </div>
             </div>
           </div>
         </Card>
       </div>
+
+      {/* Multi-Framework Compliance Posture (Phase 8 Widget) */}
+      <Card>
+        <CardHeader
+          title="Multi-Framework Compliance Posture"
+          subtitle="Harmonized crosswalk coverage and continuous compliance health"
+          action={
+            <Link to="/harmonization" className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+              Harmonization Workspace <ArrowRight size={12} />
+            </Link>
+          }
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Frameworks Monitored</span>
+            <div className="text-2xl font-bold text-slate-100 mt-1 font-mono">
+              {harmonizationPosture?.frameworks.length || 0}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Active compliance catalogs</div>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Average Coverage</span>
+            <div className="text-2xl font-bold text-emerald-400 mt-1 font-mono">
+              {harmonizationPosture && harmonizationPosture.frameworks.length > 0
+                ? `${(harmonizationPosture.frameworks.reduce((acc, f) => acc + f.coverage_percentage, 0) / harmonizationPosture.frameworks.length).toFixed(1)}%`
+                : '...'}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Direct + Crosswalk</div>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Average Compliance Health</span>
+            <div className="text-2xl font-bold text-blue-400 mt-1 font-mono">
+              {harmonizationPosture && harmonizationPosture.frameworks.length > 0
+                ? `${(harmonizationPosture.frameworks.reduce((acc, f) => acc + f.compliance_health_score, 0) / harmonizationPosture.frameworks.length).toFixed(1)}%`
+                : '...'}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">CCM health weighted</div>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Common Controls</span>
+            <div className="text-2xl font-bold text-indigo-400 mt-1 font-mono">
+              {harmonizationPosture ? harmonizationPosture.total_common_controls : '...'}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              Avg Health: {harmonizationPosture ? `${harmonizationPosture.average_common_control_health}%` : '...'}
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Live Audit Log Stream */}
       <Card>

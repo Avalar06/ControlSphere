@@ -24,6 +24,9 @@ import { ExceptionDetailPage } from './pages/ExceptionDetailPage';
 import { AuditsPage } from './pages/AuditsPage';
 import { AuditDetailPage } from './pages/AuditDetailPage';
 import { ContinuousMonitoringPage } from './pages/ContinuousMonitoringPage';
+import { HarmonizationPage } from './pages/HarmonizationPage';
+import { FrameworkPosturePage } from './pages/FrameworkPosturePage';
+import { CommonControlDetailPage } from './pages/CommonControlDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -51,8 +54,11 @@ export const App: React.FC = () => {
               <Route path="/users" element={<UsersPage />} />
               <Route path="/audit-logs" element={<AuditLogsPage />} />
 
-              {/* Phase 2 & 7: Continuous Monitoring, Frameworks, Controls & Policy Modules */}
+              {/* Phase 2, 7 & 8: Continuous Monitoring, Harmonization, Frameworks, Controls & Policy Modules */}
               <Route path="/monitoring" element={<ContinuousMonitoringPage />} />
+              <Route path="/harmonization" element={<HarmonizationPage />} />
+              <Route path="/harmonization/frameworks/:id" element={<FrameworkPosturePage />} />
+              <Route path="/harmonization/common-controls/:id" element={<CommonControlDetailPage />} />
               <Route path="/frameworks" element={<FrameworksPage />} />
               <Route path="/controls" element={<ControlsPage />} />
               <Route path="/policies" element={<PoliciesPage />} />
