@@ -1,4 +1,4 @@
-﻿"""frameworks_controls_policies
+"""frameworks_controls_policies
 
 Revision ID: 0002_frameworks_controls_policies
 Revises: 0001_initial
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '0002_frameworks_controls_policies'
-down_revision: Union[str, None] = '0001_initial'
+revision: str = '0002'
+down_revision: Union[str, None] = '0001'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
