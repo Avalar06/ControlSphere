@@ -81,6 +81,12 @@ class Permission(str, enum.Enum):
     INCIDENT_DISCLOSE = "incident:disclose"
     INCIDENT_CLOSE = "incident:close"
 
+    # Phase 12: QUANTUM-GRC Cyber Risk Quantification & ROSI Permissions
+    QUANTRISK_READ = "quantrisk:read"
+    QUANTRISK_MANAGE = "quantrisk:manage"
+    QUANTRISK_EXECUTE = "quantrisk:execute"
+    QUANTRISK_APPROVE = "quantrisk:approve"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -125,6 +131,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.INCIDENT_READ,
         Permission.INCIDENT_MANAGE,
         Permission.INCIDENT_DISCLOSE,
+        Permission.QUANTRISK_READ,
+        Permission.QUANTRISK_MANAGE,
+        Permission.QUANTRISK_EXECUTE,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -158,6 +167,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.INCIDENT_READ,
         Permission.INCIDENT_MANAGE,
         Permission.INCIDENT_DISCLOSE,
+        Permission.QUANTRISK_READ,
+        Permission.QUANTRISK_MANAGE,
+        Permission.QUANTRISK_EXECUTE,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -182,6 +194,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.HARMONIZATION_READ,
         Permission.VENDOR_READ,
         Permission.INCIDENT_READ,
+        Permission.QUANTRISK_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -217,6 +230,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.INCIDENT_MANAGE,
         Permission.INCIDENT_DISCLOSE,
         Permission.INCIDENT_CLOSE,
+        Permission.QUANTRISK_READ,
+        Permission.QUANTRISK_MANAGE,
+        Permission.QUANTRISK_EXECUTE,
+        Permission.QUANTRISK_APPROVE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -233,6 +250,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.HARMONIZATION_READ,
         Permission.VENDOR_READ,
         Permission.INCIDENT_READ,
+        Permission.QUANTRISK_READ,
     },
 }
 

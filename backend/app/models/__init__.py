@@ -135,6 +135,16 @@ from app.models.remediation import (
     ReTestResultEnum,
     SlaStatusEnum,
 )
+from app.models.quant_risk import (
+    QuantitativeRiskScenario,
+    QuantitativeSimulationRun,
+    RosiAnalysis,
+    FinancialRiskAppetite,
+    ScenarioStatusEnum,
+    ThreatActorCategoryEnum,
+    AppetiteStatusEnum,
+    AppetiteBreachStateEnum,
+)
 
 __all__ = [
     "Base",
@@ -249,4 +259,12 @@ __all__ = [
     "EvidenceVerificationStatusEnum",
     "ReTestResultEnum",
     "SlaStatusEnum",
+    "QuantitativeRiskScenario",
+    "QuantitativeSimulationRun",
+    "RosiAnalysis",
+    "FinancialRiskAppetite",
+    "ScenarioStatusEnum",
+    "ThreatActorCategoryEnum",
+    "AppetiteStatusEnum",
+    "AppetiteBreachStateEnum",
 ]
