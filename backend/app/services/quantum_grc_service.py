@@ -20,6 +20,7 @@ from app.models.quant_risk import (
     QuantitativeSimulationRun,
     RosiAnalysis,
     ScenarioStatusEnum,
+    ThreatActorCategoryEnum,
 )
 from app.models.remediation import RemediationPlan
 from app.models.risk import Risk
@@ -975,6 +976,194 @@ class QuantumGrcService:
         return appetite
 
     @classmethod
+    def list_scenarios(
+        cls,
+        db: Session,
+        org_id: int,
+        status_filter: Optional[ScenarioStatusEnum] = None,
+        threat_category: Optional[ThreatActorCategoryEnum] = None,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> List[QuantitativeRiskScenario]:
+        """List tenant scenarios with optional filtering."""
+        query = db.query(QuantitativeRiskScenario).filter(
+            QuantitativeRiskScenario.organization_id == org_id
+        )
+        if status_filter:
+            query = query.filter(QuantitativeRiskScenario.status == status_filter)
+        if threat_category:
+            query = query.filter(QuantitativeRiskScenario.threat_actor_category == threat_category)
+        if search:
+            s = f"%{search}%"
+            query = query.filter(
+                (QuantitativeRiskScenario.scenario_code.ilike(s))
+                | (QuantitativeRiskScenario.title.ilike(s))
+                | (QuantitativeRiskScenario.description.ilike(s))
+            )
+        return query.order_by(QuantitativeRiskScenario.created_at.desc()).offset(skip).limit(limit).all()
+
+    @classmethod
+    def activate_scenario(
+        cls, db: Session, org_id: int, user_id: int, scenario_id: int
+    ) -> QuantitativeRiskScenario:
+        """Transition a draft scenario to active status."""
+        scenario = cls.get_scenario(db, org_id, scenario_id)
+        if scenario.is_immutable or scenario.status == ScenarioStatusEnum.FROZEN:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Frozen quantitative scenarios cannot change status.",
+            )
+
+        scenario.status = ScenarioStatusEnum.ACTIVE
+        db.commit()
+        db.refresh(scenario)
+
+        AuditService.log(
+            db=db,
+            organization_id=org_id,
+            action="QUANTRISK_SCENARIO_ACTIVATED",
+            resource_type="QuantitativeRiskScenario",
+            actor_email=cls._get_actor_email(db, user_id),
+            actor_id=user_id,
+            resource_id=str(scenario.id),
+            details={"scenario_code": scenario.scenario_code},
+        )
+        return scenario
+
+    @classmethod
+    def archive_scenario(
+        cls, db: Session, org_id: int, user_id: int, scenario_id: int
+    ) -> QuantitativeRiskScenario:
+        """Archive a scenario."""
+        scenario = cls.get_scenario(db, org_id, scenario_id)
+        scenario.status = ScenarioStatusEnum.ARCHIVED
+        db.commit()
+        db.refresh(scenario)
+
+        AuditService.log(
+            db=db,
+            organization_id=org_id,
+            action="QUANTRISK_SCENARIO_ARCHIVED",
+            resource_type="QuantitativeRiskScenario",
+            actor_email=cls._get_actor_email(db, user_id),
+            actor_id=user_id,
+            resource_id=str(scenario.id),
+            details={"scenario_code": scenario.scenario_code},
+        )
+        return scenario
+
+    @classmethod
+    def list_simulations_for_scenario(
+        cls, db: Session, org_id: int, scenario_id: int, skip: int = 0, limit: int = 50
+    ) -> List[QuantitativeSimulationRun]:
+        """List historical simulation runs for a scenario in tenant."""
+        cls.get_scenario(db, org_id, scenario_id)
+        return (
+            db.query(QuantitativeSimulationRun)
+            .filter(
+                QuantitativeSimulationRun.scenario_id == scenario_id,
+                QuantitativeSimulationRun.organization_id == org_id,
+            )
+            .order_by(QuantitativeSimulationRun.simulated_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    @classmethod
+    def get_simulation(
+        cls, db: Session, org_id: int, run_id: int
+    ) -> QuantitativeSimulationRun:
+        """Fetch a specific simulation run in tenant."""
+        run = (
+            db.query(QuantitativeSimulationRun)
+            .filter(
+                QuantitativeSimulationRun.id == run_id,
+                QuantitativeSimulationRun.organization_id == org_id,
+            )
+            .first()
+        )
+        if not run:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Quantitative Simulation Run #{run_id} not found.",
+            )
+        return run
+
+    @classmethod
+    def list_rosi_for_scenario(
+        cls, db: Session, org_id: int, scenario_id: int, skip: int = 0, limit: int = 50
+    ) -> List[RosiAnalysis]:
+        """List ROSI analyses for a scenario in tenant."""
+        cls.get_scenario(db, org_id, scenario_id)
+        return (
+            db.query(RosiAnalysis)
+            .filter(
+                RosiAnalysis.scenario_id == scenario_id,
+                RosiAnalysis.organization_id == org_id,
+            )
+            .order_by(RosiAnalysis.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    @classmethod
+    def get_rosi_analysis(
+        cls, db: Session, org_id: int, analysis_id: int
+    ) -> RosiAnalysis:
+        """Fetch a specific ROSI analysis in tenant."""
+        analysis = (
+            db.query(RosiAnalysis)
+            .filter(
+                RosiAnalysis.id == analysis_id,
+                RosiAnalysis.organization_id == org_id,
+            )
+            .first()
+        )
+        if not analysis:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"ROSI Analysis #{analysis_id} not found.",
+            )
+        return analysis
+
+    @classmethod
+    def list_risk_appetites(
+        cls, db: Session, org_id: int, skip: int = 0, limit: int = 50
+    ) -> List[FinancialRiskAppetite]:
+        """List all risk appetite versions in tenant."""
+        return (
+            db.query(FinancialRiskAppetite)
+            .filter(FinancialRiskAppetite.organization_id == org_id)
+            .order_by(FinancialRiskAppetite.version.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    @classmethod
+    def get_risk_appetite(
+        cls, db: Session, org_id: int, appetite_id: int
+    ) -> FinancialRiskAppetite:
+        """Fetch a specific risk appetite version in tenant."""
+        appetite = (
+            db.query(FinancialRiskAppetite)
+            .filter(
+                FinancialRiskAppetite.id == appetite_id,
+                FinancialRiskAppetite.organization_id == org_id,
+            )
+            .first()
+        )
+        if not appetite:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Financial Risk Appetite #{appetite_id} not found.",
+            )
+        return appetite
+
+    @classmethod
     def get_active_appetite(
         cls, db: Session, org_id: int
     ) -> Optional[FinancialRiskAppetite]:
@@ -987,3 +1176,65 @@ class QuantumGrcService:
             )
             .first()
         )
+
+    @classmethod
+    def get_portfolio_overview(
+        cls, db: Session, org_id: int
+    ) -> Dict[str, Any]:
+        """Compute portfolio-wide quantitative posture and appetite breach evaluation."""
+        scenarios = (
+            db.query(QuantitativeRiskScenario)
+            .filter(QuantitativeRiskScenario.organization_id == org_id)
+            .all()
+        )
+
+        total_scenarios = len(scenarios)
+        active_scenarios = sum(1 for s in scenarios if s.status == ScenarioStatusEnum.ACTIVE)
+        frozen_scenarios = sum(1 for s in scenarios if s.status == ScenarioStatusEnum.FROZEN)
+
+        active_or_frozen = [
+            s for s in scenarios if s.status in {ScenarioStatusEnum.ACTIVE, ScenarioStatusEnum.FROZEN}
+        ]
+
+        portfolio_ale = sum(s.annualized_loss_expectancy for s in active_or_frozen)
+        portfolio_var_95 = sum(
+            (s.var_95_empirical if s.var_95_empirical is not None else (s.var_95_parametric or 0.0))
+            for s in active_or_frozen
+        )
+
+        active_appetite = cls.get_active_appetite(db, org_id)
+        if active_appetite:
+            appetite_status = evaluate_appetite_status(
+                ale=portfolio_ale,
+                var_95=portfolio_var_95,
+                ale_limit=active_appetite.ale_limit,
+                var_95_limit=active_appetite.var_95_limit,
+            )
+            ale_limit = active_appetite.ale_limit
+            var_95_limit = active_appetite.var_95_limit
+        else:
+            appetite_status = AppetiteBreachStateEnum.WITHIN_APPETITE
+            ale_limit = None
+            var_95_limit = None
+
+        threat_dist: Dict[str, int] = {}
+        for s in scenarios:
+            cat_name = s.threat_actor_category.value if s.threat_actor_category else "UNKNOWN"
+            threat_dist[cat_name] = threat_dist.get(cat_name, 0) + 1
+
+        top_scenarios = sorted(
+            scenarios, key=lambda s: s.annualized_loss_expectancy, reverse=True
+        )[:5]
+
+        return {
+            "total_scenarios": total_scenarios,
+            "active_scenarios": active_scenarios,
+            "frozen_scenarios": frozen_scenarios,
+            "portfolio_ale": round(portfolio_ale, 2),
+            "portfolio_var_95": round(portfolio_var_95, 2),
+            "appetite_status": appetite_status,
+            "ale_limit": ale_limit,
+            "var_95_limit": var_95_limit,
+            "threat_category_distribution": threat_dist,
+            "top_risk_scenarios": top_scenarios,
+        }

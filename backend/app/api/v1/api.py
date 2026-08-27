@@ -19,6 +19,7 @@ from app.api.v1.endpoints import (
     tprm,
     incidents,
     remediations,
+    quant_risk,
 )
 
 api_router = APIRouter()
@@ -42,3 +43,4 @@ api_router.include_router(harmonization.router, prefix="/harmonization", tags=["
 api_router.include_router(tprm.router, prefix="/vendors", tags=["Third-Party & Vendor Risk Management"])
 api_router.include_router(incidents.router, prefix="/incidents", tags=["Security Incident Management & Breach Governance"])
 api_router.include_router(remediations.router, prefix="/remediations", tags=["Governed Remediation & Corrective Actions"])
+api_router.include_router(quant_risk.router, prefix="/quant-risk", tags=["Cyber Risk Quantification & Loss Modeling (QUANTUM-GRC)"])
