@@ -1376,3 +1376,280 @@ export interface VendorOverviewResponse {
   status_distribution: Record<string, number>;
   risk_band_distribution: Record<string, number>;
 }
+
+// ============================================================================
+// Phase 10: Security Incident Management, Breach Governance & Regulatory Disclosure
+// ============================================================================
+
+export type IncidentSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+export type IncidentCategory =
+  | 'RANSOMWARE'
+  | 'DATA_BREACH'
+  | 'UNAUTHORIZED_ACCESS'
+  | 'DENIAL_OF_SERVICE'
+  | 'INSIDER_THREAT'
+  | 'SUPPLY_CHAIN_COMPROMISE'
+  | 'OTHER';
+
+export type IncidentStatus =
+  | 'DECLARED'
+  | 'TRIAGED'
+  | 'CONTAINED'
+  | 'ERADICATED'
+  | 'RECOVERED'
+  | 'POST_MORTEM'
+  | 'CLOSED';
+
+export type RootCauseClassification =
+  | 'CONTROL_FAILURE'
+  | 'HUMAN_ERROR'
+  | 'ZERO_DAY'
+  | 'THIRD_PARTY_FAILURE'
+  | 'CONFIGURATION_DRIFT';
+
+export type Regulator =
+  | 'GDPR_DPA'
+  | 'SEC_8K'
+  | 'HHS_OCR'
+  | 'PCI_SSC'
+  | 'NYDFS'
+  | 'STATE_AG';
+
+export type DisclosureStatus =
+  | 'NOT_APPLICABLE'
+  | 'PENDING'
+  | 'DUE'
+  | 'NOTIFIED'
+  | 'OVERDUE';
+
+export type DisclosureTriggerType =
+  | 'INCIDENT_DETECTION'
+  | 'MATERIALITY_DETERMINATION'
+  | 'PHI_THRESHOLD_BREACH'
+  | 'CDE_COMPROMISE'
+  | 'LEGAL_DIRECTIVE';
+
+export type TimelineEventType =
+  | 'DETECTION'
+  | 'CONTAINMENT_ACTION'
+  | 'ERADICATION_STEP'
+  | 'EVIDENCE_COLLECTED'
+  | 'REGULATOR_NOTIFIED'
+  | 'COMMAND_TRANSFER'
+  | 'POST_MORTEM_NOTE';
+
+export type TimelineEventSource =
+  | 'MANUAL_ENTRY'
+  | 'SYSTEM_AUTOMATION'
+  | 'CCM_DRIFT'
+  | 'FORENSIC_LOG';
+
+export type IncidentControlRelationship =
+  | 'FAILED_CONTROL'
+  | 'DEFICIENT_CONTROL'
+  | 'CIRCUMVENTED_CONTROL'
+  | 'DETECTING_CONTROL';
+
+export interface SecurityIncident {
+  id: number;
+  organization_id: number;
+  incident_code: string;
+  title: string;
+  description: string;
+  severity: IncidentSeverity;
+  category: IncidentCategory;
+  status: IncidentStatus;
+  incident_commander_id: number;
+  business_owner_id?: number;
+  closed_by_id?: number;
+  detected_at: string;
+  declared_at: string;
+  contained_at?: string;
+  eradicated_at?: string;
+  recovered_at?: string;
+  post_mortem_at?: string;
+  closed_at?: string;
+  affected_record_count: number;
+  affected_systems_summary?: string;
+  financial_impact_estimate: number;
+  is_material: boolean;
+  materiality_determined_at?: string;
+  materiality_determined_by_id?: number;
+  root_cause_classification?: RootCauseClassification;
+  root_cause_narrative?: string;
+  lessons_learned?: string;
+  closure_notes?: string;
+  compliance_drift_alert_id?: number;
+  created_at: string;
+  updated_at: string;
+  incident_commander?: User;
+  business_owner?: User;
+  closed_by?: User;
+}
+
+export interface IncidentCreate {
+  incident_code: string;
+  title: string;
+  description: string;
+  severity?: IncidentSeverity;
+  category?: IncidentCategory;
+  detected_at: string;
+  declared_at?: string;
+  business_owner_id?: number;
+  affected_record_count?: number;
+  affected_systems_summary?: string;
+  financial_impact_estimate?: number;
+  compliance_drift_alert_id?: number;
+}
+
+export interface IncidentUpdate {
+  title?: string;
+  description?: string;
+  severity?: IncidentSeverity;
+  category?: IncidentCategory;
+  business_owner_id?: number;
+  affected_record_count?: number;
+  affected_systems_summary?: string;
+  financial_impact_estimate?: number;
+  root_cause_classification?: RootCauseClassification;
+  root_cause_narrative?: string;
+  lessons_learned?: string;
+}
+
+export interface IncidentStatusTransition {
+  target_status: IncidentStatus;
+  notes?: string;
+}
+
+export interface IncidentCloseRequest {
+  closure_notes: string;
+  lessons_learned?: string;
+  root_cause_classification?: RootCauseClassification;
+  root_cause_narrative?: string;
+}
+
+export interface IncidentMaterialityUpdate {
+  is_material: boolean;
+  materiality_notes?: string;
+}
+
+export interface IncidentTimelineEvent {
+  id: number;
+  organization_id: number;
+  incident_id: number;
+  event_type: TimelineEventType;
+  event_occurred_at: string;
+  actor_id: number;
+  description: string;
+  source: TimelineEventSource;
+  created_at: string;
+  actor?: User;
+}
+
+export interface IncidentTimelineEventCreate {
+  event_type: TimelineEventType;
+  event_occurred_at: string;
+  description: string;
+  source?: TimelineEventSource;
+}
+
+export interface IncidentControlLink {
+  id: number;
+  organization_id: number;
+  incident_id: number;
+  organization_control_id: number;
+  relationship_type: IncidentControlRelationship;
+  notes?: string;
+  created_at: string;
+  organization_control?: OrganizationControl;
+}
+
+export interface IncidentControlLinkCreate {
+  organization_control_id: number;
+  relationship_type?: IncidentControlRelationship;
+  notes?: string;
+}
+
+export interface IncidentVendorLink {
+  id: number;
+  organization_id: number;
+  incident_id: number;
+  vendor_id: number;
+  vendor_engagement_id?: number;
+  is_vendor_originated: boolean;
+  notes?: string;
+  created_at: string;
+  vendor?: Vendor;
+  vendor_engagement?: VendorEngagement;
+}
+
+export interface IncidentVendorLinkCreate {
+  vendor_id: number;
+  vendor_engagement_id?: number;
+  is_vendor_originated?: boolean;
+  notes?: string;
+}
+
+export interface IncidentRegulatoryDisclosure {
+  id: number;
+  organization_id: number;
+  incident_id: number;
+  regulator: Regulator;
+  status: DisclosureStatus;
+  rule_version: string;
+  calculation_version: string;
+  trigger_type: DisclosureTriggerType;
+  triggered_at: string;
+  triggered_by_id?: number;
+  deadline_at: string;
+  notified_at?: string;
+  notified_by_id?: number;
+  notification_reference_code?: string;
+  exemption_reason?: string;
+  disclosure_notes?: string;
+  created_at: string;
+  updated_at: string;
+  triggered_by?: User;
+  notified_by?: User;
+}
+
+export interface IncidentRegulatoryDisclosureCreate {
+  regulator: Regulator;
+  trigger_type?: DisclosureTriggerType;
+  triggered_at: string;
+  rule_version?: string;
+  calculation_version?: string;
+}
+
+export interface IncidentRegulatoryNotificationRequest {
+  notification_reference_code: string;
+  disclosure_notes?: string;
+}
+
+export interface IncidentRegulatoryExemptionRequest {
+  exemption_reason: string;
+}
+
+export interface IncidentDetailRead extends SecurityIncident {
+  timeline_events: IncidentTimelineEvent[];
+  disclosures: IncidentRegulatoryDisclosure[];
+  control_links: IncidentControlLink[];
+  vendor_links: IncidentVendorLink[];
+  ttc_hours?: number;
+  mttr_hours?: number;
+  incident_age_hours?: number;
+}
+
+export interface IncidentOverviewResponse {
+  total_incidents: number;
+  open_incidents: number;
+  critical_or_high_incidents: number;
+  material_incidents: number;
+  overdue_disclosures: number;
+  status_distribution: Record<string, number>;
+  severity_distribution: Record<string, number>;
+  category_distribution: Record<string, number>;
+  average_ttc_hours?: number;
+  average_mttr_hours?: number;
+}

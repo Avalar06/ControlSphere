@@ -30,6 +30,8 @@ import { CommonControlDetailPage } from './pages/CommonControlDetailPage';
 import { VendorsPage } from './pages/VendorsPage';
 import { VendorDetailPage } from './pages/VendorDetailPage';
 import { VendorAssessmentDetailPage } from './pages/VendorAssessmentDetailPage';
+import { IncidentsPage } from './pages/IncidentsPage';
+import { IncidentDetailPage } from './pages/IncidentDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -91,6 +93,10 @@ export const App: React.FC = () => {
               <Route path="/vendors" element={<VendorsPage />} />
               <Route path="/vendors/:id" element={<VendorDetailPage />} />
               <Route path="/vendors/assessments/:assessmentId" element={<VendorAssessmentDetailPage />} />
+
+              {/* Phase 10: Security Incident Management, Breach Governance & Regulatory Disclosure */}
+              <Route path="/incidents" element={<IncidentsPage />} />
+              <Route path="/incidents/:id" element={<IncidentDetailPage />} />
 
               <Route
                 path="/ai-analyst"

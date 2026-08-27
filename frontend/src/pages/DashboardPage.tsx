@@ -11,6 +11,9 @@ import {
   TrendingDown,
   CalendarCheck,
   Activity,
+  Flame,
+  AlertOctagon,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -25,6 +28,7 @@ import { exceptionService } from '../lib/exceptionService';
 import { auditService } from '../lib/auditService';
 import { monitoringService } from '../lib/monitoringService';
 import { harmonizationService } from '../lib/harmonizationService';
+import { incidentService } from '../lib/incidentService';
 import type {
   AuditLog,
   AuditStats,
@@ -32,6 +36,7 @@ import type {
   FindingStats,
   FrameworkProgress,
   HeatmapCell,
+  IncidentOverviewResponse,
   MonitoringOverview,
   MultiFrameworkPostureResponse,
   OrganizationEvidenceStats,
@@ -49,6 +54,7 @@ export const DashboardPage: React.FC = () => {
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [monitoringOverview, setMonitoringOverview] = useState<MonitoringOverview | null>(null);
   const [harmonizationPosture, setHarmonizationPosture] = useState<MultiFrameworkPostureResponse | null>(null);
+  const [incidentOverview, setIncidentOverview] = useState<IncidentOverviewResponse | null>(null);
   const [heatmapCells, setHeatmapCells] = useState<HeatmapCell[]>([]);
 
   const [logsLoading, setLogsLoading] = useState(false);
@@ -113,6 +119,12 @@ export const DashboardPage: React.FC = () => {
       .getPosture()
       .then((posture) => setHarmonizationPosture(posture))
       .catch((err) => console.error('Failed to load harmonization posture in dashboard', err));
+
+    // 9. Fetch incident response overview
+    incidentService
+      .getOverview()
+      .then((ov) => setIncidentOverview(ov))
+      .catch((err) => console.error('Failed to load incident overview in dashboard', err));
 
     // 9. Fetch audit logs if permitted
     if (hasPermission('audit_log:read')) {
@@ -452,6 +464,67 @@ export const DashboardPage: React.FC = () => {
             <div className="text-[11px] text-slate-500 mt-0.5">
               Avg Health: {harmonizationPosture ? `${harmonizationPosture.average_common_control_health}%` : '...'}
             </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Security Incident & Breach Posture (Phase 10) */}
+      <Card>
+        <CardHeader
+          title="Security Incident Posture & Breach Governance"
+          subtitle="Reactive security telemetry, statutory regulatory countdowns, and forensic lifecycle governance"
+          action={
+            <Link to="/incidents" className="text-xs text-red-400 hover:text-red-300 font-semibold inline-flex items-center gap-1">
+              Incident Command <ArrowRight size={13} />
+            </Link>
+          }
+        />
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Open Incidents</span>
+              <Flame size={14} className="text-red-400" />
+            </div>
+            <div className="text-2xl font-bold text-slate-100 mt-1 font-mono">
+              {incidentOverview ? incidentOverview.open_incidents : '...'}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              {incidentOverview ? `${incidentOverview.total_incidents} lifetime declared` : '...'}
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Crit / High Severity</span>
+              <ShieldAlert size={14} className="text-red-400" />
+            </div>
+            <div className="text-2xl font-bold text-red-400 mt-1 font-mono">
+              {incidentOverview ? incidentOverview.critical_or_high_incidents : '...'}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">High priority response</div>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">SEC Material (8-K)</span>
+              <AlertOctagon size={14} className="text-purple-400" />
+            </div>
+            <div className="text-2xl font-bold text-purple-400 mt-1 font-mono">
+              {incidentOverview ? incidentOverview.material_incidents : '...'}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Item 1.05 disclosures</div>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Overdue Disclosures</span>
+              <AlertTriangle size={14} className="text-amber-400" />
+            </div>
+            <div className="text-2xl font-bold text-amber-400 mt-1 font-mono">
+              {incidentOverview ? incidentOverview.overdue_disclosures : '...'}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Statutory breach clock</div>
           </div>
         </div>
       </Card>

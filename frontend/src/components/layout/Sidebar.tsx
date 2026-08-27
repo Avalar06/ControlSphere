@@ -19,6 +19,7 @@ import {
   ShieldAlert,
   Split,
   Building2,
+  Flame,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -61,6 +62,12 @@ export const Sidebar: React.FC = () => {
       group: 'Third-Party & Vendor Risk',
       items: [
         { name: 'Vendor Risk (TPRM)', path: '/vendors', icon: Building2, tag: 'Phase 9' },
+      ],
+    },
+    {
+      group: 'Security & Breach Governance',
+      items: [
+        { name: 'Incident Response', path: '/incidents', icon: Flame, tag: 'Phase 10' },
       ],
     },
     {
