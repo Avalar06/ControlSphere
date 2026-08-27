@@ -1653,3 +1653,218 @@ export interface IncidentOverviewResponse {
   average_ttc_hours?: number;
   average_mttr_hours?: number;
 }
+
+// ─── PHASE 11: REMEDIATION ORCHESTRATION, CAPA & CLOSED-LOOP ASSURANCE ───────
+
+export type RemediationSourceType =
+  | 'FINDING'
+  | 'CCM_DRIFT'
+  | 'SECURITY_INCIDENT'
+  | 'TPRM_ASSESSMENT'
+  | 'AUDIT';
+
+export type RemediationRootCauseClassification =
+  | 'CONTROL_DEFICIENCY'
+  | 'CONFIGURATION_DRIFT'
+  | 'HUMAN_ERROR'
+  | 'VENDOR_DEFAULT'
+  | 'ARCHITECTURAL_GAP';
+
+export type RemediationStatus =
+  | 'DRAFT'
+  | 'APPROVED'
+  | 'IN_EXECUTION'
+  | 'PENDING_VALIDATION'
+  | 'VERIFIED_CLOSED'
+  | 'CANCELLED';
+
+export type RemediationSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+export type EvidenceVerificationStatus = 'SUBMITTED' | 'VALIDATED' | 'REJECTED';
+
+export type ReTestResult = 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+
+export type SlaStatus =
+  | 'NOT_STARTED'
+  | 'ON_TRACK'
+  | 'AT_RISK'
+  | 'BREACHED'
+  | 'COMPLETED_ON_TIME'
+  | 'COMPLETED_LATE';
+
+export interface RemediationEvidenceLink {
+  id: number;
+  organization_id: number;
+  remediation_task_id: number;
+  evidence_id: number;
+  verification_status: EvidenceVerificationStatus;
+  notes?: string;
+  created_at: string;
+  evidence?: EvidenceItem;
+}
+
+export interface RemediationEvidenceLinkCreate {
+  evidence_id: number;
+  notes?: string;
+}
+
+export interface RemediationTask {
+  id: number;
+  organization_id: number;
+  remediation_plan_id: number;
+  task_seq: number;
+  title: string;
+  description: string;
+  assignee_id?: number;
+  due_date?: string;
+  status: TaskStatus;
+  completed_at?: string;
+  implementation_notes?: string;
+  created_at: string;
+  updated_at: string;
+  assignee?: User;
+  evidence_links?: RemediationEvidenceLink[];
+}
+
+export interface RemediationTaskCreate {
+  task_seq: number;
+  title: string;
+  description: string;
+  assignee_id?: number;
+  due_date?: string;
+}
+
+export interface RemediationTaskUpdate {
+  title?: string;
+  description?: string;
+  assignee_id?: number;
+  due_date?: string;
+  status?: TaskStatus;
+  implementation_notes?: string;
+}
+
+export interface RemediationReTestRecord {
+  id: number;
+  organization_id: number;
+  remediation_plan_id: number;
+  test_executed_at: string;
+  tester_id: number;
+  test_result: ReTestResult;
+  metric_observed_value?: number;
+  evidence_id?: number;
+  validation_narrative: string;
+  created_at: string;
+  tester?: User;
+  evidence?: EvidenceItem;
+}
+
+export interface RemediationReTestCreate {
+  test_executed_at: string;
+  test_result: ReTestResult;
+  metric_observed_value?: number;
+  evidence_id?: number;
+  validation_narrative: string;
+}
+
+export interface RemediationPlan {
+  id: number;
+  organization_id: number;
+  plan_code: string;
+  title: string;
+  problem_statement: string;
+  root_cause_classification: RemediationRootCauseClassification;
+  source_type: RemediationSourceType;
+  severity: RemediationSeverity;
+  status: RemediationStatus;
+  plan_owner_id: number;
+  approved_by_id?: number;
+  approved_at?: string;
+  started_at?: string;
+  target_completion_at?: string;
+  verified_by_id?: number;
+  verified_at?: string;
+  verification_notes?: string;
+  cancellation_notes?: string;
+  validation_attempts_count: number;
+  rei_score?: number;
+  ttr_hours?: number;
+  is_immutable: boolean;
+  finding_id?: number;
+  compliance_drift_alert_id?: number;
+  security_incident_id?: number;
+  vendor_assessment_id?: number;
+  audit_id?: number;
+  created_at: string;
+  updated_at: string;
+  sla_status?: SlaStatus;
+  remaining_hours?: number;
+  plan_owner?: User;
+  approved_by?: User;
+  verified_by?: User;
+  finding?: Finding;
+  compliance_drift_alert?: ComplianceDriftAlert;
+  security_incident?: SecurityIncident;
+  vendor_assessment?: VendorAssessment;
+  audit?: Audit;
+}
+
+export interface RemediationPlanDetailRead extends RemediationPlan {
+  tasks: RemediationTask[];
+  retest_records: RemediationReTestRecord[];
+}
+
+export interface RemediationPlanCreate {
+  plan_code: string;
+  title: string;
+  problem_statement: string;
+  root_cause_classification: RemediationRootCauseClassification;
+  source_type: RemediationSourceType;
+  severity?: RemediationSeverity;
+  finding_id?: number;
+  compliance_drift_alert_id?: number;
+  security_incident_id?: number;
+  vendor_assessment_id?: number;
+  audit_id?: number;
+  target_completion_at?: string;
+}
+
+export interface RemediationPlanUpdate {
+  title?: string;
+  problem_statement?: string;
+  root_cause_classification?: RemediationRootCauseClassification;
+  severity?: RemediationSeverity;
+  target_completion_at?: string;
+}
+
+export interface RemediationPlanApproveRequest {
+  target_completion_at?: string;
+  notes?: string;
+}
+
+export interface RemediationPlanCancelRequest {
+  cancellation_notes: string;
+}
+
+export interface RemediationPlanRejectValidationRequest {
+  rejection_notes: string;
+}
+
+export interface RemediationPlanVerifyCloseRequest {
+  verification_notes: string;
+}
+
+export interface RemediationOverviewResponse {
+  total_plans: number;
+  open_plans: number;
+  critical_or_high_plans: number;
+  pending_validation_plans: number;
+  sla_breached_plans: number;
+  average_rei_score?: number;
+  average_ttr_hours?: number;
+  status_distribution: Record<string, number>;
+  severity_distribution: Record<string, number>;
+  source_distribution: Record<string, number>;
+  sla_distribution: Record<string, number>;
+}

@@ -39,6 +39,9 @@ class Permission(str, enum.Enum):
     RISK_ACCEPT = "risk:accept"
     REMEDIATION_READ = "remediation:read"
     REMEDIATION_MANAGE = "remediation:manage"
+    REMEDIATION_APPROVE = "remediation:approve"
+    REMEDIATION_EXECUTE = "remediation:execute"
+    REMEDIATION_VERIFY = "remediation:verify"
     EXCEPTION_READ = "exception:read"
     EXCEPTION_MANAGE = "exception:manage"
     EXCEPTION_APPROVE = "exception:approve"
@@ -99,6 +102,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.RISK_ACCEPT,
         Permission.REMEDIATION_READ,
         Permission.REMEDIATION_MANAGE,
+        Permission.REMEDIATION_EXECUTE,
         Permission.EXCEPTION_READ,
         Permission.EXCEPTION_MANAGE,
         Permission.EXCEPTION_APPROVE,
@@ -136,6 +140,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.RISK_ACCEPT,
         Permission.REMEDIATION_READ,
         Permission.REMEDIATION_MANAGE,
+        Permission.REMEDIATION_EXECUTE,
         Permission.EXCEPTION_READ,
         Permission.EXCEPTION_MANAGE,
         Permission.AUDIT_READ,
@@ -165,6 +170,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.FINDING_READ,
         Permission.RISK_READ,
         Permission.REMEDIATION_READ,
+        Permission.REMEDIATION_VERIFY,
         Permission.EXCEPTION_READ,
         Permission.AUDIT_READ,
         Permission.AUDIT_MANAGE,
@@ -186,6 +192,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.FINDING_READ,
         Permission.RISK_READ,
         Permission.REMEDIATION_READ,
+        Permission.REMEDIATION_MANAGE,
+        Permission.REMEDIATION_APPROVE,
+        Permission.REMEDIATION_EXECUTE,
+        Permission.REMEDIATION_VERIFY,
         Permission.EXCEPTION_READ,
         Permission.EXCEPTION_APPROVE,
         Permission.AUDIT_READ,

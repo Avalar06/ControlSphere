@@ -32,6 +32,8 @@ import { VendorDetailPage } from './pages/VendorDetailPage';
 import { VendorAssessmentDetailPage } from './pages/VendorAssessmentDetailPage';
 import { IncidentsPage } from './pages/IncidentsPage';
 import { IncidentDetailPage } from './pages/IncidentDetailPage';
+import { RemediationsPage } from './pages/RemediationsPage';
+import { RemediationDetailPage } from './pages/RemediationDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -97,6 +99,10 @@ export const App: React.FC = () => {
               {/* Phase 10: Security Incident Management, Breach Governance & Regulatory Disclosure */}
               <Route path="/incidents" element={<IncidentsPage />} />
               <Route path="/incidents/:id" element={<IncidentDetailPage />} />
+
+              {/* Phase 11: Governed Remediation Orchestration & Corrective Action Plans (ROC-V) */}
+              <Route path="/remediations" element={<RemediationsPage />} />
+              <Route path="/remediations/:id" element={<RemediationDetailPage />} />
 
               <Route
                 path="/ai-analyst"

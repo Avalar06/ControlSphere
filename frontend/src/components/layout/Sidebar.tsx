@@ -20,6 +20,7 @@ import {
   Split,
   Building2,
   Flame,
+  Target,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -82,6 +83,7 @@ export const Sidebar: React.FC = () => {
     {
       group: 'Risk & Remediation',
       items: [
+        { name: 'Remediation (CAPA)', path: '/remediations', icon: Target, tag: 'Phase 11' },
         { name: 'Findings & Remediation', path: '/findings', icon: AlertTriangle, tag: 'Phase 4' },
         { name: 'Risk Register', path: '/risks', icon: ShieldAlert, tag: 'Phase 5' },
         { name: 'Exceptions', path: '/exceptions', icon: FileWarning, tag: 'Phase 5' },
