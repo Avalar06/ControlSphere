@@ -72,6 +72,12 @@ class Permission(str, enum.Enum):
     VENDOR_APPROVE = "vendor:approve"
     VENDOR_RISK_MANAGE = "vendor:risk_manage"
 
+    # Phase 10: Security Incident Management & Regulatory Disclosure Permissions
+    INCIDENT_READ = "incident:read"
+    INCIDENT_MANAGE = "incident:manage"
+    INCIDENT_DISCLOSE = "incident:disclose"
+    INCIDENT_CLOSE = "incident:close"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -112,6 +118,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.VENDOR_MANAGE,
         Permission.VENDOR_ASSESS,
         Permission.VENDOR_RISK_MANAGE,
+        Permission.INCIDENT_READ,
+        Permission.INCIDENT_MANAGE,
+        Permission.INCIDENT_DISCLOSE,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -141,6 +150,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.VENDOR_MANAGE,
         Permission.VENDOR_ASSESS,
         Permission.VENDOR_RISK_MANAGE,
+        Permission.INCIDENT_READ,
+        Permission.INCIDENT_MANAGE,
+        Permission.INCIDENT_DISCLOSE,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -163,6 +175,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.MONITORING_READ,
         Permission.HARMONIZATION_READ,
         Permission.VENDOR_READ,
+        Permission.INCIDENT_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -190,6 +203,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.VENDOR_MANAGE,
         Permission.VENDOR_APPROVE,
         Permission.VENDOR_RISK_MANAGE,
+        Permission.INCIDENT_READ,
+        Permission.INCIDENT_MANAGE,
+        Permission.INCIDENT_DISCLOSE,
+        Permission.INCIDENT_CLOSE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -205,6 +222,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.MONITORING_READ,
         Permission.HARMONIZATION_READ,
         Permission.VENDOR_READ,
+        Permission.INCIDENT_READ,
     },
 }
 

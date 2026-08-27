@@ -107,6 +107,23 @@ from app.models.tprm import (
     VendorDocumentTypeEnum,
     VendorRiskBandEnum,
 )
+from app.models.incident import (
+    SecurityIncident,
+    IncidentRegulatoryDisclosure,
+    IncidentTimelineEvent,
+    IncidentControlLink,
+    IncidentVendorLink,
+    IncidentSeverityEnum,
+    IncidentCategoryEnum,
+    IncidentStatusEnum,
+    RootCauseClassificationEnum,
+    RegulatorEnum,
+    DisclosureStatusEnum,
+    DisclosureTriggerTypeEnum,
+    TimelineEventTypeEnum,
+    TimelineEventSourceEnum,
+    IncidentControlRelationshipEnum,
+)
 
 __all__ = [
     "Base",
@@ -194,4 +211,19 @@ __all__ = [
     "VendorResponseStatusEnum",
     "VendorDocumentTypeEnum",
     "VendorRiskBandEnum",
+    "SecurityIncident",
+    "IncidentRegulatoryDisclosure",
+    "IncidentTimelineEvent",
+    "IncidentControlLink",
+    "IncidentVendorLink",
+    "IncidentSeverityEnum",
+    "IncidentCategoryEnum",
+    "IncidentStatusEnum",
+    "RootCauseClassificationEnum",
+    "RegulatorEnum",
+    "DisclosureStatusEnum",
+    "DisclosureTriggerTypeEnum",
+    "TimelineEventTypeEnum",
+    "TimelineEventSourceEnum",
+    "IncidentControlRelationshipEnum",
 ]
