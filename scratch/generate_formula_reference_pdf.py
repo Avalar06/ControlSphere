@@ -1,0 +1,1715 @@
+import os
+import subprocess
+import sys
+
+def build_html_content() -> str:
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ControlSphere — Complete Mathematical & Risk Formula Reference (Phases 1–9)</title>
+<style>
+  @page {
+    size: letter portrait;
+    margin: 18mm 16mm 18mm 16mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Headings & Structure */
+  h1, h2, h3, h4, h5, h6 {
+    color: #0f172a;
+    font-weight: 700;
+    margin-top: 1.4em;
+    margin-bottom: 0.5em;
+    page-break-after: avoid;
+  }
+
+  h1 { font-size: 20pt; border-bottom: 2px solid #3b82f6; padding-bottom: 4px; margin-top: 0; }
+  h2 { font-size: 14pt; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-top: 1.8em; }
+  h3 { font-size: 12pt; color: #1e40af; margin-top: 1.2em; }
+  h4 { font-size: 11pt; color: #334155; margin-top: 1em; }
+
+  p { margin-top: 0.4em; margin-bottom: 0.7em; }
+
+  /* Page Break Utilities */
+  .page-break { page-break-before: always; }
+  .avoid-break { page-break-inside: avoid; }
+
+  /* Title Page */
+  .title-page {
+    height: 92vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 40px 10px 20px 10px;
+    border-bottom: 3px solid #1e40af;
+  }
+
+  .title-header {
+    border-left: 6px solid #2563eb;
+    padding-left: 20px;
+    margin-top: 40px;
+  }
+
+  .title-header h1 {
+    font-size: 28pt;
+    color: #0f172a;
+    border: none;
+    margin: 0;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+  }
+
+  .title-header .subtitle {
+    font-size: 14pt;
+    color: #3b82f6;
+    font-weight: 600;
+    margin-top: 12px;
+  }
+
+  .title-meta-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 30px 0;
+  }
+
+  .title-meta-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .title-meta-table td {
+    padding: 6px 10px;
+    font-size: 10pt;
+  }
+
+  .title-meta-table td.label {
+    font-weight: 600;
+    color: #475569;
+    width: 25%;
+  }
+
+  .title-meta-table td.val {
+    color: #0f172a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 9.5pt;
+  }
+
+  /* Formula Callout Boxes */
+  .formula-box {
+    background: #f8fafc;
+    border-left: 4px solid #2563eb;
+    border-top: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    page-break-inside: avoid;
+  }
+
+  .formula-title {
+    font-weight: 700;
+    font-size: 10pt;
+    color: #1e40af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .math-display {
+    font-family: "Cambria Math", "Latin Modern Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 12pt;
+    color: #091e42;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 8px 14px;
+    margin: 8px 0;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  .code-display {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 9pt;
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 8px 0;
+    overflow-x: hidden;
+  }
+
+  /* Tables */
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 9pt;
+    page-break-inside: avoid;
+  }
+
+  table.data-table th, table.data-table td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  table.data-table th {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  table.data-table tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge-healthy { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  .badge-degraded { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+  .badge-at-risk { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+  .badge-failing { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .badge-info { background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
+
+  /* Example Cards */
+  .example-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-top: 3px solid #0284c7;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 14px 0;
+    page-break-inside: avoid;
+  }
+
+  .example-card h4 {
+    margin-top: 0;
+    color: #0369a1;
+    font-size: 10.5pt;
+  }
+
+  ul, ol {
+    margin-top: 0.3em;
+    margin-bottom: 0.7em;
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 0.25em;
+  }
+
+  .footer-note {
+    font-size: 8pt;
+    color: #64748b;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 6px;
+    margin-top: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- COVER / TITLE PAGE                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="title-page">
+  <div>
+    <div style="font-size: 11pt; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">
+      Enterprise GRC Technical Architecture Reference
+    </div>
+    <div class="title-header">
+      <h1>ControlSphere</h1>
+      <div class="subtitle">Complete Mathematical & Risk Formula Reference</div>
+      <div style="font-size: 11pt; color: #475569; margin-top: 6px; font-weight: 500;">
+        Phases 1–9: Deterministic Governance, Risk, Compliance, Assurance & TPRM Telemetry
+      </div>
+    </div>
+
+    <div class="title-meta-card">
+      <table class="title-meta-table">
+        <tr>
+          <td class="label">Document Version:</td>
+          <td class="val">1.0.0 (Production Release)</td>
+          <td class="label">Status:</td>
+          <td class="val">APPROVED & AUTHORITATIVE</td>
+        </tr>
+        <tr>
+          <td class="label">Repository Reference:</td>
+          <td class="val">Commit 65f4ee8</td>
+          <td class="label">Date:</td>
+          <td class="val">August 26, 2026</td>
+        </tr>
+        <tr>
+          <td class="label">Alembic Schema Head:</td>
+          <td class="val">0009_tprm (Head)</td>
+          <td class="label">Test Baseline:</td>
+          <td class="val">330 / 330 Tests Passing (100%)</td>
+        </tr>
+        <tr>
+          <td class="label">Execution Engine:</td>
+          <td class="val">Server-Authoritative Python 3.12</td>
+          <td class="label">Architecture Scope:</td>
+          <td class="val">Phases 1 through 9 Complete</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <h4 style="color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">Executive Summary</h4>
+      <p style="font-size: 9.5pt; text-align: justify;">
+        This document constitutes the comprehensive, definitive mathematical and algorithmic reference for all deterministic scoring engines, risk models, decay algorithms, weighting matrices, boundary thresholds, and assurance calculations across the entire <strong>ControlSphere</strong> enterprise GRC platform. ControlSphere enforces strict server-authoritative calculations with 0% client-controlled metrics, deterministic reproducible math, and continuous multi-regulatory posture lineage.
+      </p>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    ControlSphere Enterprise Platform &bull; Confidential &bull; Authoritative Engineering Reference
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE OF CONTENTS                                                           -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>Table of Contents</h1>
+
+<table class="data-table" style="font-size: 9.5pt;">
+  <thead>
+    <tr>
+      <th style="width: 15%;">Section</th>
+      <th style="width: 65%;">Title & Coverage Area</th>
+      <th style="width: 20%;">Phase Scope</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Section 1</strong></td>
+      <td><strong>Formula Governance & Mathematical Principles</strong></td>
+      <td>Cross-Platform</td>
+    </tr>
+    <tr>
+      <td><strong>Section 2</strong></td>
+      <td><strong>Phase-by-Phase Comprehensive Formula Inventory</strong></td>
+      <td>Phases 1–9</td>
+    </tr>
+    <tr>
+      <td><strong>Section 3</strong></td>
+      <td><strong>Phases 1–5 Core Governance & Risk Matrix Calculations</strong></td>
+      <td>Phases 1–5</td>
+    </tr>
+    <tr>
+      <td><strong>Section 4</strong></td>
+      <td><strong>Phase 6: Audit Readiness & Assurance Scoring Engine</strong></td>
+      <td>Phase 6</td>
+    </tr>
+    <tr>
+      <td><strong>Section 5</strong></td>
+      <td><strong>Phase 7: Continuous Control Monitoring (CCM) Health Engine</strong></td>
+      <td>Phase 7</td>
+    </tr>
+    <tr>
+      <td><strong>Section 6</strong></td>
+      <td><strong>Phase 8: Multi-Framework Harmonization & Control Rationalization</strong></td>
+      <td>Phase 8</td>
+    </tr>
+    <tr>
+      <td><strong>Section 7</strong></td>
+      <td><strong>Phase 9: Third-Party & Vendor Cyber Risk Management (TPRM)</strong></td>
+      <td>Phase 9</td>
+    </tr>
+    <tr>
+      <td><strong>Section 8</strong></td>
+      <td><strong>Consolidated Threshold, Coefficient & Boundary Reference Matrix</strong></td>
+      <td>Phases 1–9</td>
+    </tr>
+    <tr>
+      <td><strong>Section 9</strong></td>
+      <td><strong>Fully Worked Numerical Examples (11 Benchmark Scenarios)</strong></td>
+      <td>Phases 6–9</td>
+    </tr>
+    <tr>
+      <td><strong>Section 10</strong></td>
+      <td><strong>Formula Dependency Lineage & Telemetry Propagation Architecture</strong></td>
+      <td>Platform Lineage</td>
+    </tr>
+    <tr>
+      <td><strong>Section 11</strong></td>
+      <td><strong>Specification vs. Implementation Verification Notes</strong></td>
+      <td>Audit Analysis</td>
+    </tr>
+    <tr>
+      <td><strong>Section 12</strong></td>
+      <td><strong>Source Code & Pytest Test Suite Traceability Directory</strong></td>
+      <td>Code Map</td>
+    </tr>
+    <tr>
+      <td><strong>Section 13</strong></td>
+      <td><strong>Formula Quick Reference & Engineering Cheat Sheet</strong></td>
+      <td>Executive Summary</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: FORMULA GOVERNANCE PRINCIPLES                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Section 1: Formula Governance & Mathematical Principles</h2>
+
+<p>
+ControlSphere strictly adheres to foundational software engineering and cybersecurity governance principles governing all numerical calculations:
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Core Mathematical Governance Tenets</div>
+  <ul>
+    <li><strong>Server-Authoritative Execution</strong>: No computed values (health scores, inherent risk, residual risk, coverage percentages, readiness scores, compliance indexes) are ever accepted from client payloads. All mathematical metrics are calculated exclusively server-side in Python services.</li>
+    <li><strong>Deterministic Computation</strong>: Given the identical operational state (evidence timestamps, finding severities, assessment responses, crosswalk weights), the scoring engines produce 100% bitwise-identical mathematical results. No non-deterministic random variables or unanchored heuristics are employed.</li>
+    <li><strong>No Stochastic / Unverifiable AI Scoring</strong>: ControlSphere strictly prohibits AI/LLM models from generating risk scores, audit readiness percentages, or compliance health values. Human reviewers issue opinions; deterministic engines calculate math.</li>
+    <li><strong>Explicit Numerical Clamping</strong>: All percentage and normalized score scales are mathematically clamped to their legitimate physical boundaries: $[0.0, 100.0]$ for percentages and health scores, $[1, 25]$ for $5\times 5$ risk matrices, and $[0.0, 1.0]$ for crosswalk confidence.</li>
+    <li><strong>Standardized Decimal Rounding</strong>: All user-facing scores and percentages are rounded to 1 decimal place using standard mathematical rounding (<code>round(val, 1)</code>). Crosswalk confidence scores are rounded to 2 decimal places (<code>round(val, 2)</code>).</li>
+    <li><strong>Historical Immutability</strong>: Point-in-time snapshots (such as <code>ControlHealthSnapshot</code>, <code>FrameworkComplianceSnapshot</code>, and approved <code>VendorAssessment</code> line items) are permanently immutable once written. Superseded records preserve historical metrics without modification.</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: PHASE-BY-PHASE FORMULA INVENTORY                                 -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 2: Phase-by-Phase Formula Inventory</h2>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width: 8%;">Phase</th>
+      <th style="width: 25%;">Formula / Engine Name</th>
+      <th style="width: 32%;">Mathematical Purpose</th>
+      <th style="width: 20%;">Responsible Service</th>
+      <th style="width: 15%;">Output Domain</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Phase 1</td>
+      <td>Tenant Isolation & RBAC Gate</td>
+      <td>Cryptographic hash check & bitwise role-permission resolution</td>
+      <td><code>AuthService</code> / <code>permissions.py</code></td>
+      <td>Boolean / Set</td>
+    </tr>
+    <tr>
+      <td>Phase 2</td>
+      <td>Control Compliance Score %</td>
+      <td>Measures framework implementation ratio</td>
+      <td><code>ControlService</code></td>
+      <td>$[0.0, 100.0]\%$</td>
+    </tr>
+    <tr>
+      <td>Phase 3</td>
+      <td>Evidence Coverage %</td>
+      <td>Measures satisfied mandatory evidence requirements</td>
+      <td><code>EvidenceService</code></td>
+      <td>$[0.0, 100.0]\%$</td>
+    </tr>
+    <tr>
+      <td>Phase 4</td>
+      <td>Finding Risk Matrix ($5\times 5$)</td>
+      <td>Evaluates finding risk score & severity band</td>
+      <td><code>FindingService</code> / <code>risk_engine.py</code></td>
+      <td>$[1, 25]$ / 4 Bands</td>
+    </tr>
+    <tr>
+      <td>Phase 4</td>
+      <td>Finding SLA Overdue Status</td>
+      <td>Determines remediation timeliness against target dates</td>
+      <td><code>FindingService</code> / <code>risk_engine.py</code></td>
+      <td>4 Status Enums</td>
+    </tr>
+    <tr>
+      <td>Phase 5</td>
+      <td>Enterprise Risk Register Scoring</td>
+      <td>Computes Inherent & Residual risk scores & appetite status</td>
+      <td><code>RiskService</code> / <code>risk_engine.py</code></td>
+      <td>$[1, 25]$ / Appetite</td>
+    </tr>
+    <tr>
+      <td>Phase 5</td>
+      <td>Risk Reduction %</td>
+      <td>Measures treatment effectiveness: $(I - R) / I \times 100$</td>
+      <td><code>RiskService</code></td>
+      <td>$[0.0, 100.0]\%$</td>
+    </tr>
+    <tr>
+      <td>Phase 6</td>
+      <td>Audit Procedure Completion %</td>
+      <td>Ratio of completed procedures to total scoped procedures</td>
+      <td><code>AuditEngagementService</code></td>
+      <td>$[0.0, 100.0]\%$</td>
+    </tr>
+    <tr>
+      <td>Phase 6</td>
+      <td>Audit Evidence Coverage %</td>
+      <td>Ratio of in-scope controls with accepted evidence</td>
+      <td><code>AuditEngagementService</code></td>
+      <td>$[0.0, 100.0]\%$</td>
+    </tr>
+    <tr>
+      <td>Phase 6</td>
+      <td>Audit Readiness Master Score</td>
+      <td>Weighted synthesis: $0.40\text{Proc} + 0.30\text{Evd} - P_{\text{audit}}$</td>
+      <td><code>AuditEngagementService</code></td>
+      <td>$[0.0, 100.0]$ / 4 Bands</td>
+    </tr>
+    <tr>
+      <td>Phase 7</td>
+      <td>Evidence Freshness Decay ($E$)</td>
+      <td>Linear aging decay over $2\times$ threshold window</td>
+      <td><code>MonitoringService</code></td>
+      <td>$[0.0, 100.0]$</td>
+    </tr>
+    <tr>
+      <td>Phase 7</td>
+      <td>Assessment Currency Metric ($A$)</td>
+      <td>Step-wise valuation based on implementation status & age</td>
+      <td><code>MonitoringService</code></td>
+      <td>$\{0, 25, 50, 60, 100\}$</td>
+    </tr>
+    <tr>
+      <td>Phase 7</td>
+      <td>Finding Penalty Score ($P_F$)</td>
+      <td>Severity-weighted accumulation with SLA breach multipliers</td>
+      <td><code>MonitoringService</code></td>
+      <td>$[0.0, \infty)$</td>
+    </tr>
+    <tr>
+      <td>Phase 7</td>
+      <td>Exception Penalty Score ($P_E$)</td>
+      <td>Penalty for active approved (+5) and expired (+15) exceptions</td>
+      <td><code>MonitoringService</code></td>
+      <td>$[0.0, \infty)$</td>
+    </tr>
+    <tr>
+      <td>Phase 7</td>
+      <td>Master CCM Health Score</td>
+      <td>$E\times 0.35 + A\times 0.25 + (40 - \min(40, P_F + P_E))$</td>
+      <td><code>MonitoringService</code></td>
+      <td>$[0.0, 100.0]$ / 4 Bands</td>
+    </tr>
+    <tr>
+      <td>Phase 8</td>
+      <td>Common Control Inherited Health</td>
+      <td>Weighted average of mapped organization controls' CCM scores</td>
+      <td><code>HarmonizationService</code></td>
+      <td>$[0.0, 100.0]$ / 4 Bands</td>
+    </tr>
+    <tr>
+      <td>Phase 8</td>
+      <td>Framework Direct Coverage</td>
+      <td>Evaluates $\text{status} = \text{IMPLEMENTED} \land \text{CCMHealth} \ge 60.0$</td>
+      <td><code>HarmonizationService</code></td>
+      <td>Boolean</td>
+    </tr>
+    <tr>
+      <td>Phase 8</td>
+      <td>Crosswalk Inherited Coverage</td>
+      <td>Evaluates mapped candidate with $\text{conf} \ge 0.80 \land \text{CCM} \ge 60.0$</td>
+      <td><code>HarmonizationService</code></td>
+      <td>Boolean</td>
+    </tr>
+    <tr>
+      <td>Phase 8</td>
+      <td>Framework Coverage %</td>
+      <td>$|S_{\text{direct}} \cup S_{\text{crosswalk}}| / N_F \times 100.0$</td>
+      <td><code>HarmonizationService</code></td>
+      <td>$[0.0, 100.0]\%$</td>
+    </tr>
+    <tr>
+      <td>Phase 8</td>
+      <td>Framework Compliance Health Score</td>
+      <td>$\sum \text{EffectiveHealth} / N_F$</td>
+      <td><code>HarmonizationService</code></td>
+      <td>$[0.0, 100.0]$</td>
+    </tr>
+    <tr>
+      <td>Phase 9</td>
+      <td>Vendor Engagement Risk Score</td>
+      <td>$0.30C + 0.30D + 0.20N + 0.10P + 0.10H$</td>
+      <td><code>TPRMService</code></td>
+      <td>$[0.0, 100.0]$</td>
+    </tr>
+    <tr>
+      <td>Phase 9</td>
+      <td>Vendor Inherent Risk Score</td>
+      <td>$\max_{e \in \text{ActiveEngagements}} (\text{EngagementRisk}(e))$</td>
+      <td><code>TPRMService</code></td>
+      <td>$[0.0, 100.0]$</td>
+    </tr>
+    <tr>
+      <td>Phase 9</td>
+      <td>Deterministic Tier Mapping</td>
+      <td>Maps Inherent Risk & Criticality escalation to Tiers 1–4</td>
+      <td><code>TPRMService</code></td>
+      <td>4 Tier Enums</td>
+    </tr>
+    <tr>
+      <td>Phase 9</td>
+      <td>Assessment Questionnaire Score</td>
+      <td>Weighted response ratio excluding NOT_APPLICABLE</td>
+      <td><code>TPRMService</code></td>
+      <td>$[0.0, 100.0]\%$</td>
+    </tr>
+    <tr>
+      <td>Phase 9</td>
+      <td>Vendor Residual Risk Engine</td>
+      <td>$\text{clamp}(\max(\text{Floor}, \text{Base}) + P_{\text{find}} + P_{\text{exc}}, 0, 100)$</td>
+      <td><code>TPRMService</code></td>
+      <td>$[0.0, 100.0]$ / 4 Bands</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: PHASES 1–5 CORE GOVERNANCE FORMULAS                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 3: Phases 1–5 Core Governance & Risk Calculations</h2>
+
+<h3>3.1 Phase 2: Framework Control Compliance Score</h3>
+<p>
+Located in <code>backend/app/services/control_service.py</code>. Evaluates the aggregate implementation maturity of a framework:
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Control Compliance Score Formula</div>
+  <div class="math-display">
+    \text{ApplicableCount} = N_{\text{total}} - N_{\text{NOT\_APPLICABLE}}
+  </div>
+  <div class="math-display">
+    \text{EffectiveScore} = (N_{\text{IMPLEMENTED}} \times 1.0) + (N_{\text{PARTIALLY\_IMPLEMENTED}} \times 0.5)
+  </div>
+  <div class="math-display">
+    \text{ComplianceScorePct} = \text{round}\left( \frac{\text{EffectiveScore}}{\text{ApplicableCount}} \times 100.0, 1 \right) \quad (\text{if ApplicableCount} > 0 \text{ else } 0.0)
+  </div>
+  <p style="font-size: 9pt; margin-top: 6px;">
+    <strong>Weighting:</strong> Implemented controls receive 100% weight ($1.0$), Partially Implemented receive 50% weight ($0.5$), In Progress / Not Started receive 0% weight ($0.0$). Controls marked <code>NOT_APPLICABLE</code> are entirely excluded from both numerator and denominator.
+  </p>
+</div>
+
+<h3>3.2 Phase 3: Evidence Requirement Coverage</h3>
+<p>
+Located in <code>backend/app/services/evidence_service.py</code>. Evaluates the ratio of satisfied mandatory evidence requirements:
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Evidence Requirement Coverage Formula</div>
+  <div class="math-display">
+    \text{CoveragePercentage} = \text{round}\left( \frac{|\{r \in \mathcal{R}_{\text{mandatory}} \mid \exists e \in \mathcal{E}_A(r)\}|}{|\mathcal{R}_{\text{mandatory}}|} \times 100.0, 1 \right)
+  </div>
+  <p style="font-size: 9pt;">
+    Where $\mathcal{R}_{\text{mandatory}}$ is the set of required evidence requirements, and $\mathcal{E}_A(r)$ is the set of items linked to requirement $r$ with status <code>ACCEPTED</code>. If no mandatory requirements exist, coverage is $100.0\%$ if any accepted item exists, else $0.0\%$.
+  </p>
+</div>
+
+<h3>3.3 Phase 4 & 5: Deterministic $5\times 5$ Risk Matrix Engine</h3>
+<p>
+Located in <code>backend/app/core/risk_engine.py</code>. Shared across findings and risk register:
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Deterministic Risk Matrix Engine ($5\times 5$)</div>
+  <div class="math-display">
+    \text{RiskScore} = \text{clamp}(\text{Impact}, 1, 5) \times \text{clamp}(\text{Likelihood}, 1, 5) \in [1, 25]
+  </div>
+  <table class="data-table" style="margin-top: 8px;">
+    <thead>
+      <tr>
+        <th>Risk Score Range</th>
+        <th>Risk Band</th>
+        <th>Impact &times; Likelihood Coordinates</th>
+        <th>Appetite Boundary</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>$[1, 4]$</td>
+        <td><span class="badge badge-healthy">LOW</span></td>
+        <td>$(1,1), (1,2), (1,3), (1,4), (2,1), (2,2), (3,1), (4,1)$</td>
+        <td>Within Low Appetite</td>
+      </tr>
+      <tr>
+        <td>$[5, 9]$</td>
+        <td><span class="badge badge-degraded">MODERATE</span></td>
+        <td>$(1,5), (2,3), (2,4), (3,2), (3,3), (4,2), (5,1)$</td>
+        <td>Within Moderate Appetite</td>
+      </tr>
+      <tr>
+        <td>$[10, 16]$</td>
+        <td><span class="badge badge-at-risk">HIGH</span></td>
+        <td>$(2,5), (3,4), (3,5), (4,3), (4,4), (5,2), (5,3)$</td>
+        <td>Within High Appetite</td>
+      </tr>
+      <tr>
+        <td>$[17, 25]$</td>
+        <td><span class="badge badge-failing">CRITICAL</span></td>
+        <td>$(4,5), (5,4), (5,5)$</td>
+        <td>Exceeds High Appetite</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: PHASE 6 AUDIT READINESS SCORING                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 4: Phase 6 — Audit Readiness & Assurance Scoring Engine</h2>
+
+<p>
+Located in <code>backend/app/services/audit_engagement_service.py</code>. Deterministically evaluates whether an audit engagement is prepared for formal review and assurance opinion issuance.
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Audit Readiness Score Master Formula</div>
+  <div class="math-display">
+    \text{ReadinessScore} = \text{round}\Big(\max\big(0.0, \min(100.0, (\text{Score}_{\text{proc}} \times 0.40) + (\text{Score}_{\text{evd}} \times 0.30) - P_{\text{audit}}\big)\Big), 1\Big)
+  </div>
+</div>
+
+<h3>4.1 Constituent Components</h3>
+
+<h4>1. Procedure Completion Score ($\text{Score}_{\text{proc}}$) — Weight: $40\%$</h4>
+<div class="math-display">
+  \text{Score}_{\text{proc}} = \begin{cases} \left( \frac{N_{\text{PASSED}} + N_{\text{PARTIALLY\_PASSED}} + N_{\text{FAILED}} + N_{\text{NOT\_APPLICABLE}}}{N_{\text{total\_procedures}}} \times 100.0 \right) & \text{if } N_{\text{total\_procedures}} > 0 \\ 0.0 & \text{otherwise} \end{cases}
+</div>
+<p style="font-size: 9pt;">
+Procedures in <code>NOT_STARTED</code> or <code>IN_PROGRESS</code> do not count as completed.
+</p>
+
+<h4>2. In-Scope Evidence Coverage Score ($\text{Score}_{\text{evd}}$) — Weight: $30\%$</h4>
+<div class="math-display">
+  \text{Score}_{\text{evd}} = \begin{cases} \left( \frac{N_{\text{controls\_with\_accepted\_evidence}}}{N_{\text{controls\_in\_scope}}} \times 100.0 \right) & \text{if } N_{\text{controls\_in\_scope}} > 0 \\ 0.0 & \text{otherwise} \end{cases}
+</div>
+
+<h4>3. Unresolved Finding Penalties ($P_{\text{audit}}$)</h4>
+<div class="math-display">
+  P_{\text{crit\_high}} = \min\big((N_{\text{critical\_findings}} + N_{\text{high\_findings}}) \times 5.0, \, 20.0\big)
+</div>
+<div class="math-display">
+  P_{\text{open}} = \min(N_{\text{open\_findings}} \times 2.0, \, 10.0)
+</div>
+<div class="math-display">
+  P_{\text{audit}} = P_{\text{crit\_high}} + P_{\text{open}} \quad (\text{Maximum Penalty Cap: } 30.0)
+</div>
+
+<h3>4.2 Audit Readiness Bands & Blocker Triggers</h3>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Readiness Band</th>
+      <th>Score Range</th>
+      <th>Audit State Implication</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>READY</strong></td>
+      <td>$[85.0, 100.0]$</td>
+      <td>Procedures complete, evidence in place, zero high/critical blockers. Ready for opinion issuance.</td>
+    </tr>
+    <tr>
+      <td><strong>SUBSTANTIALLY_READY</strong></td>
+      <td>$[60.0, 84.9]$</td>
+      <td>Minor procedural or evidence gaps remain; remediation on track.</td>
+    </tr>
+    <tr>
+      <td><strong>PARTIALLY_READY</strong></td>
+      <td>$[35.0, 59.9]$</td>
+      <td>Significant gaps in testing procedures or missing evidence on scoped controls.</td>
+    </tr>
+    <tr>
+      <td><strong>NOT_READY</strong></td>
+      <td>$[0.0, 34.9]$</td>
+      <td>Critical unmitigated findings, unperformed procedures, or absent evidence.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="formula-box">
+  <div class="formula-title">Deterministic Readiness Blockers Generated</div>
+  <ul>
+    <li><code>"{N} critical/high finding(s) unresolved"</code>: Triggered when $N_{\text{critical}} + N_{\text{high}} > 0$.</li>
+    <li><code>"{N} open finding(s) pending remediation"</code>: Triggered when $N_{\text{open}} > 0 \land (N_{\text{critical}} + N_{\text{high}} = 0)$.</li>
+    <li><code>"No audit procedures defined"</code>: Triggered when $N_{\text{total\_procedures}} = 0$.</li>
+    <li><code>"{N} procedure(s) not yet started"</code>: Triggered when $N_{\text{NOT\_STARTED}} > 0$.</li>
+    <li><code>"No controls added to audit scope"</code>: Triggered when $N_{\text{controls\_in\_scope}} = 0$.</li>
+    <li><code>"{N} in-scope control(s) lack accepted evidence"</code>: Triggered when $N_{\text{controls\_with\_evidence}} < N_{\text{controls\_in\_scope}}$.</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: PHASE 7 CCM ENGINE                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 5: Phase 7 — Continuous Control Monitoring (CCM) Health Engine</h2>
+
+<p>
+Located in <code>backend/app/services/monitoring_service.py</code> and specified in <code>PHASE7_CANONICAL_SPEC.md</code>. Evaluates real-time operational health of controls based on live telemetry.
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Canonical CCM Health Score Master Formula</div>
+  <div class="math-display">
+    \text{RawScore}(c) = \big(E(c) \times 0.35\big) + \big(A(c) \times 0.25\big) + \Big(40.0 - \min\big(40.0, \, P_F(c) + P_E(c)\big)\Big)
+  </div>
+  <div class="math-display">
+    \text{HealthScore}(c) = \text{round}\Big(\max\big(0.0, \min(100.0, \, \text{RawScore}(c))\big), 1\Big)
+  </div>
+</div>
+
+<h3>5.1 Constituent Metrics & Degradation Curves</h3>
+
+<h4>1. Evidence Freshness Metric ($E$) — Max Contribution: $35.0\text{ pts}$</h4>
+<p>Let $\Delta_{\text{ev}}$ be the age in days of the latest <code>ACCEPTED</code> evidence item for control $c$, and $\tau_{\text{ev}} = \text{evidence\_max\_age\_days}$ (default 90 days):</p>
+<div class="math-display">
+  E(c) = \begin{cases} 
+    0.0 & \text{if no accepted evidence exists} \\
+    100.0 & \text{if } \Delta_{\text{ev}} \le \tau_{\text{ev}} \text{ (Fresh)} \\
+    \text{round}\left(\max\left(0.0, 1.0 - \frac{\Delta_{\text{ev}} - \tau_{\text{ev}}}{\tau_{\text{ev}}}\right) \times 100.0, 1\right) & \text{if } \Delta_{\text{ev}} > \tau_{\text{ev}} \text{ (Linear Decay)}
+  \end{cases}
+</div>
+<p style="font-size: 9pt;">
+<strong>Decay Dynamics:</strong> Over days $\tau_{\text{ev}} \rightarrow 2\tau_{\text{ev}}$ ($90\text{d} \rightarrow 180\text{d}$), the freshness score decreases linearly from $100.0 \rightarrow 0.0$. At day 135 (45 days stale), $E = 50.0$. At $\ge 180$ days, $E = 0.0$.
+</p>
+
+<h4>2. Assessment Currency Metric ($A$) — Max Contribution: $25.0\text{ pts}$</h4>
+<p>Evaluates formal control review status and age ($\Delta_{\text{assess}}$) against $\tau_{\text{assess}} = 180\text{ days}$:</p>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Control Implementation Status</th>
+      <th>Assessment Age Condition</th>
+      <th>Currency Score ($A$)</th>
+      <th>Weighted Pts ($A \times 0.25$)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>IMPLEMENTED</code></td>
+      <td>$\Delta_{\text{assess}} \le 180\text{ days}$ (Current)</td>
+      <td>$100.0$</td>
+      <td>$25.0\text{ pts}$</td>
+    </tr>
+    <tr>
+      <td><code>IMPLEMENTED</code></td>
+      <td>$\Delta_{\text{assess}} > 180\text{ days}$ (Overdue)</td>
+      <td>$60.0$</td>
+      <td>$15.0\text{ pts}$</td>
+    </tr>
+    <tr>
+      <td><code>PARTIALLY_IMPLEMENTED</code></td>
+      <td>Any Age</td>
+      <td>$50.0$</td>
+      <td>$12.5\text{ pts}$</td>
+    </tr>
+    <tr>
+      <td><code>IN_PROGRESS</code> / <code>NEEDS_REVIEW</code></td>
+      <td>Any Age</td>
+      <td>$25.0$</td>
+      <td>$6.25\text{ pts}$</td>
+    </tr>
+    <tr>
+      <td><code>NOT_STARTED</code> / <code>NOT_APPLICABLE</code></td>
+      <td>Any Age</td>
+      <td>$0.0$</td>
+      <td>$0.0\text{ pts}$</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4>3. Finding Penalty Score ($P_F$) & Exception Penalty Score ($P_E$) — Baseline Credit: $40.0\text{ pts}$</h4>
+<p>Penalties deduct directly from the 40-point baseline credit, capped at a maximum deduction of $40.0$ points:</p>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Finding / Exception Condition</th>
+      <th>Base Penalty</th>
+      <th>SLA Breach Surcharge</th>
+      <th>Total Penalty</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>CRITICAL</code> Finding ($\text{Age} \le 15\text{d}$)</td>
+      <td>$+20.0$</td>
+      <td>$+0.0$</td>
+      <td>$+20.0$</td>
+    </tr>
+    <tr>
+      <td><code>CRITICAL</code> Finding ($\text{Age} > 15\text{d}$ SLA Breach)</td>
+      <td>$+20.0$</td>
+      <td>$+10.0$</td>
+      <td>$+30.0$</td>
+    </tr>
+    <tr>
+      <td><code>HIGH</code> Finding ($\text{Age} \le 30\text{d}$)</td>
+      <td>$+10.0$</td>
+      <td>$+0.0$</td>
+      <td>$+10.0$</td>
+    </tr>
+    <tr>
+      <td><code>HIGH</code> Finding ($\text{Age} > 30\text{d}$ SLA Breach)</td>
+      <td>$+10.0$</td>
+      <td>$+5.0$</td>
+      <td>$+15.0$</td>
+    </tr>
+    <tr>
+      <td><code>MEDIUM</code> Finding</td>
+      <td>$+4.0$</td>
+      <td>$+0.0$</td>
+      <td>$+4.0$</td>
+    </tr>
+    <tr>
+      <td><code>LOW</code> / <code>INFORMATIONAL</code> Finding</td>
+      <td>$+1.0$</td>
+      <td>$+0.0$</td>
+      <td>$+1.0$</td>
+    </tr>
+    <tr>
+      <td>Active Approved Security Exception ($\text{Expiry} \ge \text{Today}$)</td>
+      <td>$+5.0$</td>
+      <td>$+0.0$</td>
+      <td>$+5.0$</td>
+    </tr>
+    <tr>
+      <td>Expired Active Security Exception ($\text{Expiry} < \text{Today}$)</td>
+      <td>$+15.0$</td>
+      <td>$+0.0$</td>
+      <td>$+15.0$</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>5.2 Health Status Bands & Numerical Boundaries</h3>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Health Band</th>
+      <th>Exact Numerical Boundary</th>
+      <th>Operational Meaning & Compliance Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge badge-healthy">HEALTHY</span></td>
+      <td>$[80.0, 100.0]$</td>
+      <td>Control compliant, fresh evidence, current assessment, no major findings.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-degraded">DEGRADED</span></td>
+      <td>$[60.0, 79.9]$</td>
+      <td>Moderate gaps, assessment aging, or minor/moderate findings present.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-at-risk">AT_RISK</span></td>
+      <td>$[40.0, 59.9]$</td>
+      <td>Stale evidence, unassessed control, or open high findings.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-failing">FAILING</span></td>
+      <td>$[0.0, 39.9]$</td>
+      <td>Critical deficiencies, SLA breaches, expired exceptions, or total lack of evidence.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: PHASE 8 HARMONIZATION                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 6: Phase 8 — Multi-Framework Harmonization & Control Rationalization</h2>
+
+<p>
+Located in <code>backend/app/services/harmonization_service.py</code> and specified in <code>PHASE8_ARCHITECTURE.md</code>. Implements the <em>"Assess Once, Comply with Many"</em> cross-regulatory governance engine.
+</p>
+
+<h3>6.1 Rationalized Common Control Inherited Health</h3>
+<p>
+Aggregates Phase 7 CCM health scores across all mapped organization controls:
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Common Control Inherited Health Formula</div>
+  <div class="math-display">
+    \text{InheritedHealth}(CC) = \begin{cases} 
+      100.0 & \text{if no mapped controls exist} \\
+      \text{round}\left( \max\left(0.0, \min\left(100.0, \frac{\sum_{m \in \mathcal{M}(CC)} w_m \cdot \text{CCMScore}(m)}{\sum_{m \in \mathcal{M}(CC)} w_m}\right)\right), 1 \right) & \text{otherwise}
+    \end{cases}
+  </div>
+  <p style="font-size: 9pt;">
+    <strong>Weight Constraints:</strong> Individual mapping weights $w_m$ are bounded by $w_m \ge 0.1$. The denominator is guarded by $\max(0.1, \sum w_m)$ preventing zero division.
+  </p>
+</div>
+
+<h3>6.2 Subcategory Coverage & Effective Health Classification</h3>
+
+<div class="formula-box">
+  <div class="formula-title">Direct vs. Crosswalk Inherited Coverage Rules</div>
+  
+  <h4>1. Direct Coverage Condition:</h4>
+  <div class="math-display">
+    \text{DirectlyCovered}(s) \iff \text{Status}(s) = \text{IMPLEMENTED} \land \text{CCMHealth}(s) \ge 60.0
+  </div>
+  <div class="math-display">
+    \text{EffectiveHealth}_{\text{direct}}(s) = \text{CCMHealth}(s)
+  </div>
+
+  <h4>2. Crosswalk Inherited Coverage Condition (Evaluated if not directly covered):</h4>
+  <p style="font-size: 9pt;">
+    Let $\mathcal{C}(s)$ be the set of crosswalk mappings linking target subcategory $s$ to source subcategory $s_{\text{src}}$ where $\text{Confidence}(cw) \ge 0.80$, $\text{Status}(s_{\text{src}}) = \text{IMPLEMENTED}$, and $\text{CCMHealth}(s_{\text{src}}) \ge 60.0$:
+  </p>
+  <div class="math-display">
+    \text{EffectiveHealth}_{\text{cand}}(cw) = \text{round}\big(\text{CCMHealth}(s_{\text{src}}) \times \text{Confidence}(cw), \, 1\big)
+  </div>
+  
+  <h4>3. Deterministic Multi-Candidate Resolution:</h4>
+  <p style="font-size: 9pt;">
+    If multiple crosswalk candidate paths exist for subcategory $s$, the engine selects the candidate with the highest precedence sorted by:
+  </p>
+  <div class="code-display">
+candidates.sort(key=lambda x: (-x[0], -x[1], x[2]))  # (-effective_health, -confidence, cw.id)
+  </div>
+  <p style="font-size: 9pt;">
+    <strong>Deterministic Tie-Breaker:</strong> 1st: Highest Effective Health &bull; 2nd: Highest Confidence Score &bull; 3rd: Lowest Crosswalk ID ($cw.id$).
+  </p>
+</div>
+
+<h3>6.3 Framework Coverage & Compliance Score</h3>
+
+<div class="formula-box">
+  <div class="formula-title">Framework Posture Master Formulas</div>
+  <div class="math-display">
+    \text{CoveragePercentage}(F) = \text{round}\left( \frac{|S_{\text{direct}}(F) \cup S_{\text{crosswalk}}(F)|}{N_{\text{total\_subcategories}}(F)} \times 100.0, 1 \right)
+  </div>
+  <div class="math-display">
+    \text{ComplianceHealthScore}(F) = \text{round}\left( \max\left(0.0, \min\left(100.0, \frac{\sum_{s \in S_{\text{covered}}(F)} \text{EffectiveHealth}(s)}{N_{\text{total\_subcategories}}(F)}\right)\right), 1 \right)
+  </div>
+  <p style="font-size: 9pt;">
+    <strong>Calculation Versioning:</strong> Every snapshot is permanently tagged with <code>calculation_version = "v1.0"</code> to guarantee complete audit reproducibility across future algorithm revisions.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: PHASE 9 TPRM                                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 7: Phase 9 — Third-Party & Vendor Risk Management (TPRM)</h2>
+
+<p>
+Located in <code>backend/app/services/tprm_service.py</code>. Deterministically models supply-chain and third-party vendor risk.
+</p>
+
+<h3>7.1 Vendor Engagement Risk Engine</h3>
+
+<div class="formula-box">
+  <div class="formula-title">Vendor Engagement Risk Formula</div>
+  <div class="math-display">
+    \text{EngagementRisk} = \text{round}\Big(0.30 \cdot C + 0.30 \cdot D + 0.20 \cdot N + 0.10 \cdot P + 0.10 \cdot H, \, 1\Big)
+  </div>
+  
+  <table class="data-table" style="margin-top: 8px;">
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>Weight</th>
+        <th>Enum Value</th>
+        <th>Point Scale</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td rowspan="4"><strong>Business Criticality ($C$)</strong></td>
+        <td rowspan="4">$30\%$</td>
+        <td><code>CRITICAL</code></td>
+        <td>$100.0$</td>
+      </tr>
+      <tr>
+        <td><code>HIGH</code></td>
+        <td>$75.0$</td>
+      </tr>
+      <tr>
+        <td><code>MEDIUM</code></td>
+        <td>$50.0$</td>
+      </tr>
+      <tr>
+        <td><code>LOW</code></td>
+        <td>$25.0$</td>
+      </tr>
+      <tr>
+        <td rowspan="4"><strong>Data Classification ($D$)</strong></td>
+        <td rowspan="4">$30\%$</td>
+        <td><code>RESTRICTED</code></td>
+        <td>$100.0$</td>
+      </tr>
+      <tr>
+        <td><code>CONFIDENTIAL</code></td>
+        <td>$75.0$</td>
+      </tr>
+      <tr>
+        <td><code>INTERNAL</code></td>
+        <td>$40.0$</td>
+      </tr>
+      <tr>
+        <td><code>PUBLIC</code></td>
+        <td>$10.0$</td>
+      </tr>
+      <tr>
+        <td rowspan="4"><strong>Network Connectivity ($N$)</strong></td>
+        <td rowspan="4">$20\%$</td>
+        <td><code>DIRECT_API_VPN_DB</code></td>
+        <td>$100.0$</td>
+      </tr>
+      <tr>
+        <td><code>CREDENTIALED_PORTAL</code></td>
+        <td>$60.0$</td>
+      </tr>
+      <tr>
+        <td><code>ISOLATED_SAAS</code></td>
+        <td>$30.0$</td>
+      </tr>
+      <tr>
+        <td><code>AIR_GAPPED_OFFLINE</code></td>
+        <td>$0.0$</td>
+      </tr>
+      <tr>
+        <td rowspan="3"><strong>PII / Financial Access ($P$)</strong></td>
+        <td rowspan="3">$10\%$</td>
+        <td><code>DIRECT_PCI_PII_PHI</code></td>
+        <td>$100.0$</td>
+      </tr>
+      <tr>
+        <td><code>AGGREGATED_ANONYMIZED</code></td>
+        <td>$50.0$</td>
+      </tr>
+      <tr>
+        <td><code>NO_PII_ACCESS</code></td>
+        <td>$0.0$</td>
+      </tr>
+      <tr>
+        <td rowspan="4"><strong>Hosting Model ($H$)</strong></td>
+        <td rowspan="4">$10\%$</td>
+        <td><code>VENDOR_PUBLIC_CLOUD</code></td>
+        <td>$100.0$</td>
+      </tr>
+      <tr>
+        <td><code>MULTI_TENANT_SAAS</code></td>
+        <td>$80.0$</td>
+      </tr>
+      <tr>
+        <td><code>DEDICATED_HOSTED</code></td>
+        <td>$40.0$</td>
+      </tr>
+      <tr>
+        <td><code>ON_PREM_CUSTOMER_DATACENTER</code></td>
+        <td>$10.0$</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>7.2 Vendor Inherent Risk & Tier Mapping Engine</h3>
+
+<div class="formula-box">
+  <div class="formula-title">Vendor Inherent Risk & Deterministic Tier Formula</div>
+  <div class="math-display">
+    \text{InherentRisk}(V) = \begin{cases} \max_{e \in \text{ActiveEngagements}(V)} \big(\text{EngagementRisk}(e)\big) & \text{if active engagements exist} \\ 0.0 & \text{otherwise} \end{cases}
+  </div>
+  <div class="math-display">
+    \text{CalculatedTier}(V) = \begin{cases} 
+      \text{TIER\_1\_CRITICAL} & \text{if } \text{InherentRisk} \ge 80.0 \lor \exists e \in \text{ActiveEngagements}: C(e) = \text{CRITICAL} \\
+      \text{TIER\_2\_SIGNIFICANT} & \text{if } 60.0 \le \text{InherentRisk} < 80.0 \\
+      \text{TIER\_3\_MODERATE} & \text{if } 40.0 \le \text{InherentRisk} < 60.0 \\
+      \text{TIER\_4\_LOW} & \text{if } \text{InherentRisk} < 40.0 
+    \end{cases}
+  </div>
+  <p style="font-size: 9pt;">
+    <strong>Critical Escalation Rule:</strong> Any active engagement with Business Criticality = <code>CRITICAL</code> automatically escalates the entire vendor to <strong>TIER_1_CRITICAL</strong> regardless of mathematical score.
+  </p>
+</div>
+
+<h3>7.3 Assessment Scoring Engine</h3>
+
+<div class="formula-box">
+  <div class="formula-title">Vendor Assessment Questionnaire Scoring Formula</div>
+  <div class="math-display">
+    \text{AssessmentScore} = \begin{cases} 100.0 & \text{if all items are NOT\_APPLICABLE or } \sum w_i = 0 \\ \text{round}\left( \frac{\sum_{i \in \text{ApplicableItems}} w_i \cdot R(i)}{\sum_{i \in \text{ApplicableItems}} w_i} \times 100.0, 1 \right) & \text{otherwise} \end{cases}
+  </div>
+  <p style="font-size: 9pt;">
+    <strong>Response Values:</strong> <code>COMPLIANT</code> $= 1.0$ &bull; <code>PARTIALLY_COMPLIANT</code> $= 0.50$ &bull; <code>NON_COMPLIANT</code> $= 0.0$. Items with response <code>NOT_APPLICABLE</code> are excluded from both numerator and denominator.
+  </p>
+</div>
+
+<h3>7.4 Defensible Residual Risk Engine</h3>
+
+<div class="formula-box">
+  <div class="formula-title">Vendor Residual Risk Formula</div>
+  <div class="math-display">
+    \text{RiskFloor} = 0.20 \times \text{InherentRisk}
+  </div>
+  <div class="math-display">
+    \text{BaseResidual} = \text{InherentRisk} \times \left(1.0 - 0.70 \times \frac{\text{AssessmentScore}}{100.0}\right) \quad (\text{or } \text{InherentRisk} \text{ if unassessed})
+  </div>
+  <div class="math-display">
+    \text{AttenuatedRisk} = \max(\text{RiskFloor}, \, \text{BaseResidual})
+  </div>
+  <div class="math-display">
+    \text{ResidualRisk} = \text{round}\Big(\max\big(0.0, \min(100.0, \, \text{AttenuatedRisk} + P_{\text{finding}} + P_{\text{exception}})\big), 1\Big)
+  </div>
+  <p style="font-size: 9pt;">
+    <strong>Penalties:</strong> Non-compliant finding penalty $= \min(N_{\text{findings}} \times 8.0, 30.0)$ &bull; Active third-party security exception $= N_{\text{exceptions}} \times 10.0$.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: CONSOLIDATED THRESHOLD MATRIX                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 8: Consolidated Threshold & Boundary Reference Matrix</h2>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width: 25%;">Domain / Category</th>
+      <th style="width: 25%;">Metric / Threshold Name</th>
+      <th style="width: 25%;">Canonical Boundary / Value</th>
+      <th style="width: 25%;">Operational Effect</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="4"><strong>CCM Health Bands</strong></td>
+      <td>Healthy Band</td>
+      <td>$[80.0, 100.0]$</td>
+      <td>Optimal compliance; zero alerts</td>
+    </tr>
+    <tr>
+      <td>Degraded Band</td>
+      <td>$[60.0, 79.9]$</td>
+      <td>Warning status; review required</td>
+    </tr>
+    <tr>
+      <td>At Risk Band</td>
+      <td>$[40.0, 59.9]$</td>
+      <td>Triggers High severity drift alert</td>
+    </tr>
+    <tr>
+      <td>Failing Band</td>
+      <td>$[0.0, 39.9]$</td>
+      <td>Triggers Critical severity drift alert</td>
+    </tr>
+    <tr>
+      <td rowspan="4"><strong>Vendor Tiers</strong></td>
+      <td>Tier 1 (Critical)</td>
+      <td>$\text{Risk} \ge 80.0 \lor C = \text{CRIT}$</td>
+      <td>Annual audit; continuous telemetry</td>
+    </tr>
+    <tr>
+      <td>Tier 2 (Significant)</td>
+      <td>$60.0 \le \text{Risk} < 80.0$</td>
+      <td>Annual questionnaire; SOC 2 review</td>
+    </tr>
+    <tr>
+      <td>Tier 3 (Moderate)</td>
+      <td>$40.0 \le \text{Risk} < 60.0$</td>
+      <td>Biennial questionnaire assessment</td>
+    </tr>
+    <tr>
+      <td>Tier 4 (Low)</td>
+      <td>$\text{Risk} < 40.0$</td>
+      <td>Basic contractual due diligence</td>
+    </tr>
+    <tr>
+      <td rowspan="4"><strong>Vendor Risk Bands</strong></td>
+      <td>Low Risk Band</td>
+      <td>$[0.0, 39.9]$</td>
+      <td>Standard operating risk</td>
+    </tr>
+    <tr>
+      <td>Moderate Risk Band</td>
+      <td>$[40.0, 59.9]$</td>
+      <td>Elevated third-party exposure</td>
+    </tr>
+    <tr>
+      <td>High Risk Band</td>
+      <td>$[60.0, 79.9]$</td>
+      <td>Significant deficiency; mitigation required</td>
+    </tr>
+    <tr>
+      <td>Critical Risk Band</td>
+      <td>$[80.0, 100.0]$</td>
+      <td>Unacceptable risk; escalation triggered</td>
+    </tr>
+    <tr>
+      <td rowspan="4"><strong>Audit Readiness Bands</strong></td>
+      <td>Ready</td>
+      <td>$[85.0, 100.0]$</td>
+      <td>Eligible for clean auditor opinion</td>
+    </tr>
+    <tr>
+      <td>Substantially Ready</td>
+      <td>$[60.0, 84.9]$</td>
+      <td>Minor remediation required</td>
+    </tr>
+    <tr>
+      <td>Partially Ready</td>
+      <td>$[35.0, 59.9]$</td>
+      <td>Substantial testing gaps</td>
+    </tr>
+    <tr>
+      <td>Not Ready</td>
+      <td>$[0.0, 34.9]$</td>
+      <td>Assurance engagement blocked</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Harmonization Thresholds</strong></td>
+      <td>Crosswalk Confidence</td>
+      <td>$\ge 0.80$ (80.0%)</td>
+      <td>Minimum score for inherited coverage</td>
+    </tr>
+    <tr>
+      <td>Coverage Health Qualification</td>
+      <td>$\text{CCM} \ge 60.0$</td>
+      <td>Minimum score to count as covered</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Timing & Aging Windows</strong></td>
+      <td>Evidence Max Age ($\tau_{\text{ev}}$)</td>
+      <td>$90\text{ days}$</td>
+      <td>Freshness decay begins after 90 days</td>
+    </tr>
+    <tr>
+      <td>Assessment Max Age ($\tau_{\text{assess}}$)</td>
+      <td>$180\text{ days}$</td>
+      <td>Overdue assessment penalty after 180 days</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Finding SLA Windows</strong></td>
+      <td>Critical Finding SLA ($\tau_{\text{sla\_crit}}$)</td>
+      <td>$15\text{ days}$</td>
+      <td>$+10\text{ pt}$ penalty after 15 days</td>
+    </tr>
+    <tr>
+      <td>High Finding SLA ($\tau_{\text{sla\_high}}$)</td>
+      <td>$30\text{ days}$</td>
+      <td>$+5\text{ pt}$ penalty after 30 days</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Risk Floors & Caps</strong></td>
+      <td>Residual Risk Floor</td>
+      <td>$20\%\times \text{InherentRisk}$</td>
+      <td>Unmitigatable baseline risk floor</td>
+    </tr>
+    <tr>
+      <td>CCM Penalty Cap</td>
+      <td>$40.0\text{ points}$</td>
+      <td>Maximum penalty credit deduction</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 9: WORKED EXAMPLES                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 9: Fully Worked Numerical Examples</h2>
+
+<div class="example-card">
+  <h4>Example 1: Perfect CCM Control Baseline (Score: 100.0 / HEALTHY)</h4>
+  <p><strong>Inputs:</strong> Fresh evidence ($20\text{d} \le 90\text{d} \implies E = 100.0$), Implemented status assessed $40\text{d}$ ago ($\le 180\text{d} \implies A = 100.0$), 0 findings ($P_F = 0$), 0 exceptions ($P_E = 0$).</p>
+  <p><strong>Calculation:</strong></p>
+  <div class="math-display">
+    \text{RawScore} = (100.0 \times 0.35) + (100.0 \times 0.25) + (40.0 - \min(40.0, 0.0)) = 35.0 + 25.0 + 40.0 = 100.0
+  </div>
+  <p><strong>Result:</strong> $\mathbf{100.0}$ &bull; <span class="badge badge-healthy">HEALTHY</span></p>
+</div>
+
+<div class="example-card">
+  <h4>Example 2: CCM Control with Stale Evidence (135 Days Old)</h4>
+  <p><strong>Inputs:</strong> Evidence age $\Delta_{\text{ev}} = 135\text{d}$ ($\text{overage} = 135 - 90 = 45\text{d}$), Currency $A = 100.0$, Penalties $P_F = 0, P_E = 0$.</p>
+  <p><strong>Calculation:</strong></p>
+  <div class="math-display">
+    E = \text{round}\left( \left(1.0 - \frac{45}{90}\right) \times 100.0, 1 \right) = 50.0
+  </div>
+  <div class="math-display">
+    \text{RawScore} = (50.0 \times 0.35) + (100.0 \times 0.25) + (40.0 - 0.0) = 17.5 + 25.0 + 40.0 = 82.5
+  </div>
+  <p><strong>Result:</strong> $\mathbf{82.5}$ &bull; <span class="badge badge-healthy">HEALTHY</span></p>
+</div>
+
+<div class="example-card">
+  <h4>Example 3: CCM Control with SLA-Breached Critical Finding</h4>
+  <p><strong>Inputs:</strong> Fresh evidence $E = 100.0$, Current assessment $A = 100.0$, One Critical finding aged $20\text{ days}$ ($> 15\text{d} \text{ SLA} \implies P_F = 20.0 + 10.0 = 30.0$).</p>
+  <p><strong>Calculation:</strong></p>
+  <div class="math-display">
+    \text{RawScore} = (100.0 \times 0.35) + (100.0 \times 0.25) + (40.0 - \min(40.0, 30.0)) = 35.0 + 25.0 + 10.0 = 70.0
+  </div>
+  <p><strong>Result:</strong> $\mathbf{70.0}$ &bull; <span class="badge badge-degraded">DEGRADED</span></p>
+</div>
+
+<div class="example-card">
+  <h4>Example 4: CCM Control with Expired Active Exception and Critical Finding</h4>
+  <p><strong>Inputs:</strong> Evidence $E = 100.0$, Currency $A = 100.0$, Critical finding $P_F = 30.0$, Expired Exception $P_E = 15.0$ (Total penalty $= 45.0$).</p>
+  <p><strong>Calculation:</strong></p>
+  <div class="math-display">
+    \text{PenaltyDeduction} = \min(40.0, 30.0 + 15.0) = \min(40.0, 45.0) = 40.0
+  </div>
+  <div class="math-display">
+    \text{RawScore} = 35.0 + 25.0 + (40.0 - 40.0) = 60.0
+  </div>
+  <p><strong>Result:</strong> $\mathbf{60.0}$ &bull; <span class="badge badge-degraded">DEGRADED</span> (Boundary Value)</p>
+</div>
+
+<div class="example-card">
+  <h4>Example 5: Weighted Common Control Inherited Health</h4>
+  <p><strong>Inputs:</strong> Common Control mapped to Control 1 (CCM: $90.0$, Weight: $2.0$) and Control 2 (CCM: $60.0$, Weight: $1.0$).</p>
+  <p><strong>Calculation:</strong></p>
+  <div class="math-display">
+    \text{WeightedSum} = (2.0 \times 90.0) + (1.0 \times 60.0) = 180.0 + 60.0 = 240.0, \quad \text{TotalWeight} = 3.0
+  </div>
+  <div class="math-display">
+    \text{InheritedHealth} = \text{round}\left(\frac{240.0}{3.0}, 1\right) = 80.0
+  </div>
+  <p><strong>Result:</strong> $\mathbf{80.0}$ &bull; <span class="badge badge-healthy">HEALTHY</span></p>
+</div>
+
+<div class="example-card">
+  <h4>Example 6: Inherited Framework Coverage & Multi-Candidate Selection</h4>
+  <p><strong>Inputs:</strong> Target subcategory $s$ has no direct control. Two crosswalks: CW1 ($\text{source CCM} = 90.0, \text{confidence} = 0.90$), CW2 ($\text{source CCM} = 100.0, \text{confidence} = 0.80$).</p>
+  <p><strong>Candidate Evaluation:</strong></p>
+  <ul>
+    <li>CW1: $\text{EffectiveHealth} = \text{round}(90.0 \times 0.90, 1) = 81.0$</li>
+    <li>CW2: $\text{EffectiveHealth} = \text{round}(100.0 \times 0.80, 1) = 80.0$</li>
+  </ul>
+  <p><strong>Selection:</strong> CW1 selected ($81.0 > 80.0$). Subcategory $s$ is covered with $\text{EffectiveHealth} = \mathbf{81.0}$.</p>
+</div>
+
+<div class="example-card">
+  <h4>Example 7: Vendor Engagement Risk & Tier Escalation</h4>
+  <p><strong>Inputs:</strong> Engagement: Criticality = <code>HIGH</code> ($75$), Data = <code>RESTRICTED</code> ($100$), Network = <code>DIRECT_API_VPN_DB</code> ($100$), PII = <code>DIRECT_PCI_PII_PHI</code> ($100$), Hosting = <code>MULTI_TENANT_SAAS</code> ($80$).</p>
+  <p><strong>Calculation:</strong></p>
+  <div class="math-display">
+    \text{Risk} = (0.30 \times 75) + (0.30 \times 100) + (0.20 \times 100) + (0.10 \times 100) + (0.10 \times 80) = 22.5 + 30.0 + 20.0 + 10.0 + 8.0 = 90.5
+  </div>
+  <p><strong>Result:</strong> Inherent Risk = $\mathbf{90.5}$ &bull; <span class="badge badge-failing">TIER_1_CRITICAL</span> ($90.5 \ge 80.0$)</p>
+</div>
+
+<div class="example-card">
+  <h4>Example 8: Vendor Assessment Questionnaire Scoring</h4>
+  <p><strong>Inputs:</strong> Item 1 (Weight: 2.0, <code>COMPLIANT</code> $= 1.0$), Item 2 (Weight: 1.0, <code>PARTIALLY_COMPLIANT</code> $= 0.50$), Item 3 (Weight: 3.0, <code>NOT_APPLICABLE</code>).</p>
+  <p><strong>Calculation:</strong> Item 3 is excluded. Applicable Weight $= 2.0 + 1.0 = 3.0$.</p>
+  <div class="math-display">
+    \text{AssessmentScore} = \text{round}\left( \frac{(2.0 \times 1.0) + (1.0 \times 0.50)}{3.0} \times 100.0, 1 \right) = \text{round}\left(\frac{2.5}{3.0} \times 100.0, 1\right) = 83.3\%
+  </div>
+  <p><strong>Result:</strong> $\mathbf{83.3\%}$</p>
+</div>
+
+<div class="example-card">
+  <h4>Example 9: Vendor Residual Risk with Attenuation, Floor & Penalties</h4>
+  <p><strong>Inputs:</strong> $\text{InherentRisk} = 90.5$, $\text{AssessmentScore} = 83.3\%$, 1 finding ($P_{\text{find}} = 8.0$), 0 exceptions ($P_{\text{exc}} = 0$).</p>
+  <p><strong>Step-by-Step Calculation:</strong></p>
+  <div class="math-display">
+    \text{RiskFloor} = 0.20 \times 90.5 = 18.1
+  </div>
+  <div class="math-display">
+    \text{BaseResidual} = 90.5 \times \left(1.0 - 0.70 \times \frac{83.3}{100.0}\right) = 90.5 \times (1.0 - 0.5831) = 90.5 \times 0.4169 = 37.73
+  </div>
+  <div class="math-display">
+    \text{AttenuatedRisk} = \max(18.1, 37.73) = 37.73
+  </div>
+  <div class="math-display">
+    \text{ResidualRisk} = \text{round}(37.73 + 8.0, 1) = 45.7
+  </div>
+  <p><strong>Result:</strong> Residual Risk = $\mathbf{45.7}$ &bull; <span class="badge badge-at-risk">MODERATE</span> ($40.0 \le 45.7 < 60.0$)</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 10: FORMULA DEPENDENCY LINEAGE                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 10: Formula Dependency Lineage & Telemetry Propagation</h2>
+
+<p>
+ControlSphere's deterministic calculations flow through a unidirectional, strictly typed telemetry pipeline where lower-level operational states feed higher-level executive indexes:
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Telemetry Propagation Graph</div>
+  <div class="code-display">
+[Phase 3: Evidence Items] ────────┐
+(Age, Status: ACCEPTED)           │
+                                  ▼
+[Phase 2: Org Controls] ───► [Phase 7: Continuous Control Monitoring] ◄─── [Phase 4: Findings]
+(Status: IMPLEMENTED)        (Evidence Freshness: E * 0.35)                (Open Severities, SLA)
+                             (Assessment Currency: A * 0.25)               
+                             (Penalty Credit: 40 - min(40, PF + PE)) ◄─── [Phase 5: Exceptions]
+                                  │                                         (Approved, Expired)
+                                  ▼
+                  [Phase 8: Harmonization Engine]
+                  ├──► Rationalized Common Control Health (Weighted Sum)
+                  └──► Multi-Framework Compliance Posture & Coverage %
+                                  │
+                                  ▼
+                    [Phase 9: TPRM Governance]
+                    ├──► Inherent Risk & Tier (Max Engagement Risk)
+                    └──► Residual Risk = clamp(max(Floor, Base) + P_finding + P_exception)
+  </div>
+</div>
+
+<h3>Telemetry Separation vs. Reuse Rules</h3>
+<ul>
+  <li><strong>Reused Telemetry</strong>: Phase 8 Harmonization directly consumes Phase 7 CCM snapshots. Phase 9 TPRM links to Phase 3 Evidence items and Phase 4 Findings without duplicating file storage or finding models.</li>
+  <li><strong>Independent Scoring Modules</strong>: Phase 6 Audit Readiness operates on its own dedicated assurance formula ($0.40\text{Proc} + 0.30\text{Evd} - P_{\text{audit}}$) tailored for external auditors, while Phase 7 CCM computes continuous internal operational health.</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 11: SPECIFICATION VS IMPLEMENTATION NOTES                           -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Section 11: Specification vs. Implementation Notes</h2>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width: 20%;">Feature Area</th>
+      <th style="width: 25%;">Canonical Specification</th>
+      <th style="width: 25%;">Production Implementation</th>
+      <th style="width: 30%;">Audit Assessment & Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>CCM Master Formula</strong></td>
+      <td>$E\times 0.35 + A\times 0.25 + (40 - \min(40, P_F + P_E))$</td>
+      <td><code>MonitoringService._evaluate_single_control</code></td>
+      <td><strong>100% Exact Match</strong>: Formulas, decay slopes, and penalty caps are identical.</td>
+    </tr>
+    <tr>
+      <td><strong>Common Control Zero Mapping</strong></td>
+      <td>Evaluates to 100.0 / HEALTHY</td>
+      <td><code>HarmonizationService.recalculate_common_control_health</code></td>
+      <td><strong>100% Exact Match</strong>: Unmapped common controls default safely to 100.0.</td>
+    </tr>
+    <tr>
+      <td><strong>Assessment Transition Pipeline</strong></td>
+      <td>$\text{DRAFT} \rightarrow \text{SUBMITTED} \rightarrow \text{IN\_REVIEW}$</td>
+      <td><code>endpoints/tprm.py</code> + <code>start-review</code></td>
+      <td><strong>Audited & Hardened</strong>: Explicit two-step submission and review verified.</td>
+    </tr>
+    <tr>
+      <td><strong>Residual Risk Floor</strong></td>
+      <td>$\text{Floor} = 0.20 \times \text{InherentRisk}$</td>
+      <td><code>TPRMService.calculate_vendor_residual_risk</code></td>
+      <td><strong>100% Exact Match</strong>: Implements defensible $20\%$ non-zero risk floor.</td>
+    </tr>
+    <tr>
+      <td><strong>Finding SLA Penalties</strong></td>
+      <td>Critical: 15d (+10), High: 30d (+5)</td>
+      <td><code>MonitoringService</code> config defaults</td>
+      <td><strong>100% Exact Match</strong>: SLA breach surcharges correctly applied in CCM.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 12: SOURCE CODE & TEST DIRECTORY                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 12: Source Code & Test Reference Directory</h2>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Engine / Formula</th>
+      <th>Primary Service File</th>
+      <th>Primary ORM Model</th>
+      <th>Primary Pytest Test File</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Control Compliance Score</strong></td>
+      <td><code>app/services/control_service.py</code></td>
+      <td><code>OrganizationControl</code></td>
+      <td><code>tests/test_controls.py</code></td>
+    </tr>
+    <tr>
+      <td><strong>Evidence Coverage %</strong></td>
+      <td><code>app/services/evidence_service.py</code></td>
+      <td><code>EvidenceItem</code>, <code>EvidenceRequirement</code></td>
+      <td><code>tests/test_evidence_assurance_metrics.py</code></td>
+    </tr>
+    <tr>
+      <td><strong>Risk Matrix & Appetite</strong></td>
+      <td><code>app/core/risk_engine.py</code></td>
+      <td><code>Finding</code>, <code>Risk</code></td>
+      <td><code>tests/test_risks.py</code>, <code>tests/test_findings.py</code></td>
+    </tr>
+    <tr>
+      <td><strong>Audit Readiness Engine</strong></td>
+      <td><code>app/services/audit_engagement_service.py</code></td>
+      <td><code>Audit</code>, <code>AuditProcedure</code></td>
+      <td><code>tests/test_audit_procedures.py</code></td>
+    </tr>
+    <tr>
+      <td><strong>CCM Continuous Health</strong></td>
+      <td><code>app/services/monitoring_service.py</code></td>
+      <td><code>ControlHealthSnapshot</code></td>
+      <td><code>tests/test_monitoring_engine.py</code>, <code>tests/test_monitoring_mathematical_precision.py</code></td>
+    </tr>
+    <tr>
+      <td><strong>Harmonization & Crosswalks</strong></td>
+      <td><code>app/services/harmonization_service.py</code></td>
+      <td><code>RationalizedCommonControl</code>, <code>FrameworkCrosswalkMapping</code></td>
+      <td><code>tests/test_harmonization_engine.py</code></td>
+    </tr>
+    <tr>
+      <td><strong>TPRM Risk & Tier Engine</strong></td>
+      <td><code>app/services/tprm_service.py</code></td>
+      <td><code>Vendor</code>, <code>VendorEngagement</code>, <code>VendorAssessment</code></td>
+      <td><code>tests/test_tprm_engine.py</code>, <code>tests/test_tprm_domain.py</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 13: FORMULA QUICK REFERENCE                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>Section 13: Formula Quick Reference (Engineering Cheat Sheet)</h2>
+
+<div class="formula-box">
+  <div class="formula-title">1. Master CCM Health Score (Phase 7)</div>
+  <div class="math-display">
+    \text{HealthScore} = \text{round}\Big(\text{clamp}\big((E \times 0.35) + (A \times 0.25) + (40.0 - \min(40.0, P_F + P_E)), \, 0.0, \, 100.0\big), 1\Big)
+  </div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">2. Harmonized Framework Compliance Health (Phase 8)</div>
+  <div class="math-display">
+    \text{ComplianceScore}(F) = \text{round}\left(\frac{\sum_{s \in S_{\text{covered}}} \text{EffectiveHealth}(s)}{N_F}, 1\right), \quad \text{CoveragePct}(F) = \text{round}\left(\frac{|S_{\text{covered}}|}{N_F} \times 100.0, 1\right)
+  </div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">3. Vendor Inherent Risk & Tiering (Phase 9)</div>
+  <div class="math-display">
+    \text{EngagementRisk} = \text{round}(0.30C + 0.30D + 0.20N + 0.10P + 0.10H, 1), \quad \text{InherentRisk} = \max_{e \in \text{Active}}(\text{EngagementRisk}(e))
+  </div>
+  <div class="math-display">
+    \text{Tier 1} \ge 80.0 \lor C = \text{CRITICAL} \quad \Big| \quad \text{Tier 2}: [60, 79.9] \quad \Big| \quad \text{Tier 3}: [40, 59.9] \quad \Big| \quad \text{Tier 4} < 40
+  </div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">4. Vendor Residual Risk (Phase 9)</div>
+  <div class="math-display">
+    \text{ResidualRisk} = \text{clamp}\Big(\max\big(0.20 \cdot I, \, I \cdot (1.0 - 0.70 \cdot \text{Score}/100.0)\big) + P_{\text{find}} + P_{\text{exc}}, \, 0.0, \, 100.0\Big)
+  </div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">5. Audit Readiness Master Score (Phase 6)</div>
+  <div class="math-display">
+    \text{ReadinessScore} = \text{round}\Big(\text{clamp}\big((\text{Score}_{\text{proc}} \times 0.40) + (\text{Score}_{\text{evd}} \times 0.30) - P_{\text{audit}}, \, 0.0, \, 100.0\big), 1\Big)
+  </div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">6. Risk Matrix & Risk Reduction % (Phases 4 & 5)</div>
+  <div class="math-display">
+    \text{RiskScore} = \text{Impact} \times \text{Likelihood} \in [1, 25], \quad \text{ReductionPct} = \text{round}\left(\frac{I_{\text{total}} - R_{\text{total}}}{I_{\text{total}}} \times 100.0, 1\right)
+  </div>
+</div>
+
+<div style="margin-top: 30px; text-align: center; font-size: 9pt; color: #64748b;">
+  &bull; ControlSphere Enterprise GRC Platform &bull; End of Mathematical Reference &bull;
+</div>
+
+</body>
+</html>
+"""
+
+def generate_pdf():
+    workspace_root = r"E:\PROJECT WORKSPACE 2\ControlSphere"
+    docs_dir = os.path.join(workspace_root, "docs")
+    os.makedirs(docs_dir, exist_ok=True)
+
+    html_file = os.path.join(docs_dir, "ControlSphere_Complete_Formula_Reference_Phases_1-9.html")
+    pdf_file = os.path.join(docs_dir, "ControlSphere_Complete_Formula_Reference_Phases_1-9.pdf")
+
+    html_content = build_html_content()
+    with open(html_file, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    print(f"HTML reference generated at: {html_file}")
+
+    edge_path = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    if not os.path.exists(edge_path):
+        print(f"Error: Microsoft Edge not found at {edge_path}")
+        sys.exit(1)
+
+    cmd = [
+        edge_path,
+        "--headless",
+        "--disable-gpu",
+        "--run-all-compositor-stages-before-draw",
+        "--no-pdf-header-footer",
+        f"--print-to-pdf={pdf_file}",
+        html_file,
+    ]
+
+    print(f"Executing: {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
+
+    if os.path.exists(pdf_file) and os.path.getsize(pdf_file) > 0:
+        print(f"SUCCESS: PDF generated successfully! Size: {os.path.getsize(pdf_file)} bytes")
+    else:
+        print("Error: PDF was not generated.")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    generate_pdf()

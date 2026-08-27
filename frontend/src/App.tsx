@@ -27,6 +27,9 @@ import { ContinuousMonitoringPage } from './pages/ContinuousMonitoringPage';
 import { HarmonizationPage } from './pages/HarmonizationPage';
 import { FrameworkPosturePage } from './pages/FrameworkPosturePage';
 import { CommonControlDetailPage } from './pages/CommonControlDetailPage';
+import { VendorsPage } from './pages/VendorsPage';
+import { VendorDetailPage } from './pages/VendorDetailPage';
+import { VendorAssessmentDetailPage } from './pages/VendorAssessmentDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -83,6 +86,11 @@ export const App: React.FC = () => {
               {/* Phase 6: Audit Management & Assurance Readiness */}
               <Route path="/audits" element={<AuditsPage />} />
               <Route path="/audits/:id" element={<AuditDetailPage />} />
+
+              {/* Phase 9: Third-Party & Vendor Risk Management (TPRM) */}
+              <Route path="/vendors" element={<VendorsPage />} />
+              <Route path="/vendors/:id" element={<VendorDetailPage />} />
+              <Route path="/vendors/assessments/:assessmentId" element={<VendorAssessmentDetailPage />} />
 
               <Route
                 path="/ai-analyst"

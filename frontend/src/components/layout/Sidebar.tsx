@@ -18,6 +18,7 @@ import {
   FileWarning,
   ShieldAlert,
   Split,
+  Building2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -54,6 +55,12 @@ export const Sidebar: React.FC = () => {
         { name: 'Frameworks', path: '/frameworks', icon: ShieldCheck, tag: 'Phase 2' },
         { name: 'Controls Library', path: '/controls', icon: Shield, tag: 'Phase 2' },
         { name: 'Assessments', path: '/assessments', icon: FileCheck2, tag: 'Phase 4' },
+      ],
+    },
+    {
+      group: 'Third-Party & Vendor Risk',
+      items: [
+        { name: 'Vendor Risk (TPRM)', path: '/vendors', icon: Building2, tag: 'Phase 9' },
       ],
     },
     {

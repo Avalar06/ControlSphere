@@ -1080,3 +1080,299 @@ export interface HarmonizationEvaluationResponse {
   snapshots_created: number;
   evaluated_at: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 9: Third-Party & Vendor Risk Management (TPRM) Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type VendorStatus =
+  | 'PROSPECT'
+  | 'ONBOARDING'
+  | 'ACTIVE'
+  | 'UNDER_REVIEW'
+  | 'SUSPENDED'
+  | 'OFFBOARDED';
+
+export type VendorTier =
+  | 'TIER_1_CRITICAL'
+  | 'TIER_2_SIGNIFICANT'
+  | 'TIER_3_MODERATE'
+  | 'TIER_4_LOW';
+
+export type VendorRiskBand = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+
+export type BusinessCriticality = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+export type DataClassification = 'RESTRICTED' | 'CONFIDENTIAL' | 'INTERNAL' | 'PUBLIC';
+
+export type NetworkConnectivity =
+  | 'DIRECT_API_VPN_DB'
+  | 'CREDENTIALED_PORTAL'
+  | 'ISOLATED_SAAS'
+  | 'AIR_GAPPED_OFFLINE';
+
+export type PiiFinancialAccess =
+  | 'DIRECT_PCI_PII_PHI'
+  | 'AGGREGATED_ANONYMIZED'
+  | 'NO_PII_ACCESS';
+
+export type HostingModel =
+  | 'VENDOR_PUBLIC_CLOUD'
+  | 'MULTI_TENANT_SAAS'
+  | 'DEDICATED_HOSTED'
+  | 'ON_PREM_CUSTOMER_DATACENTER';
+
+export type EngagementStatus = 'ACTIVE' | 'PENDING' | 'TERMINATED';
+
+export type VendorAssessmentType =
+  | 'INITIAL'
+  | 'ANNUAL_REASSESSMENT'
+  | 'INCIDENT_TRIGGERED'
+  | 'ENGAGEMENT_SPECIFIC';
+
+export type VendorAssessmentStatus =
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'IN_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'SUPERSEDED';
+
+export type VendorResponseStatus =
+  | 'COMPLIANT'
+  | 'PARTIALLY_COMPLIANT'
+  | 'NON_COMPLIANT'
+  | 'NOT_APPLICABLE';
+
+export type VendorDocumentType =
+  | 'SOC2_TYPE_II'
+  | 'ISO_27001_CERT'
+  | 'PCI_AOC'
+  | 'PRIVACY_POLICY'
+  | 'PEN_TEST_REPORT'
+  | 'BUSINESS_CONTINUITY_PLAN'
+  | 'SECURITY_QUESTIONNAIRE'
+  | 'OTHER';
+
+export interface Vendor {
+  id: number;
+  organization_id: number;
+  vendor_code: string;
+  legal_name: string;
+  trade_name?: string;
+  business_owner_id?: number;
+  vendor_status: VendorStatus;
+  calculated_tier: VendorTier;
+  override_tier?: VendorTier;
+  tier_override_reason?: string;
+  tier_overridden_by_id?: number;
+  tier_overridden_at?: string;
+  calculated_inherent_risk: number;
+  residual_risk_score: number;
+  risk_band: VendorRiskBand;
+  effective_tier: VendorTier;
+  created_at: string;
+  updated_at: string;
+  business_owner?: User;
+  tier_overridden_by?: User;
+  engagements?: VendorEngagement[];
+  assessments?: VendorAssessment[];
+  evidence_links?: VendorEvidenceLink[];
+}
+
+export interface VendorCreate {
+  vendor_code: string;
+  legal_name: string;
+  trade_name?: string;
+  business_owner_id?: number;
+}
+
+export interface VendorUpdate {
+  legal_name?: string;
+  trade_name?: string;
+  business_owner_id?: number;
+  vendor_status?: VendorStatus;
+}
+
+export interface VendorTierOverride {
+  override_tier: VendorTier;
+  reason: string;
+}
+
+export interface VendorEngagement {
+  id: number;
+  organization_id: number;
+  vendor_id: number;
+  engagement_code: string;
+  engagement_name: string;
+  description?: string;
+  status: EngagementStatus;
+  criticality: BusinessCriticality;
+  data_classification: DataClassification;
+  hosting_model: HostingModel;
+  network_connectivity: NetworkConnectivity;
+  pii_access: PiiFinancialAccess;
+  calculated_risk_score: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorEngagementCreate {
+  engagement_code: string;
+  engagement_name: string;
+  description?: string;
+  criticality: BusinessCriticality;
+  data_classification: DataClassification;
+  hosting_model: HostingModel;
+  network_connectivity: NetworkConnectivity;
+  pii_access: PiiFinancialAccess;
+}
+
+export interface VendorEngagementUpdate {
+  engagement_name?: string;
+  description?: string;
+  status?: EngagementStatus;
+  criticality?: BusinessCriticality;
+  data_classification?: DataClassification;
+  hosting_model?: HostingModel;
+  network_connectivity?: NetworkConnectivity;
+  pii_access?: PiiFinancialAccess;
+}
+
+export interface VendorAssessmentItem {
+  id: number;
+  organization_id: number;
+  assessment_id: number;
+  rationalized_common_control_id?: number;
+  question_key: string;
+  question_text: string;
+  response_status: VendorResponseStatus;
+  weight: number;
+  vendor_response_text?: string;
+  assessor_notes?: string;
+  findings_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorAssessmentItemCreate {
+  rationalized_common_control_id?: number;
+  question_key: string;
+  question_text: string;
+  response_status?: VendorResponseStatus;
+  weight?: number;
+  vendor_response_text?: string;
+  assessor_notes?: string;
+}
+
+export interface VendorAssessmentItemUpdate {
+  response_status?: VendorResponseStatus;
+  vendor_response_text?: string;
+  assessor_notes?: string;
+}
+
+export interface VendorAssessment {
+  id: number;
+  organization_id: number;
+  vendor_id: number;
+  engagement_id?: number;
+  assessment_code: string;
+  title: string;
+  assessment_type: VendorAssessmentType;
+  status: VendorAssessmentStatus;
+  assessor_id?: number;
+  reviewer_id?: number;
+  valid_until?: string;
+  calculated_score: number;
+  rejection_reason?: string;
+  review_notes?: string;
+  submitted_at?: string;
+  reviewed_at?: string;
+  created_at: string;
+  updated_at: string;
+  assessor?: User;
+  reviewer?: User;
+  items?: VendorAssessmentItem[];
+}
+
+export interface VendorAssessmentCreate {
+  engagement_id?: number;
+  assessment_code: string;
+  title: string;
+  assessment_type: VendorAssessmentType;
+  valid_until?: string;
+  items?: VendorAssessmentItemCreate[];
+}
+
+export interface VendorAssessmentUpdate {
+  title?: string;
+  valid_until?: string;
+}
+
+export interface VendorAssessmentReview {
+  review_notes?: string;
+  rejection_reason?: string;
+}
+
+export interface VendorEvidenceLink {
+  id: number;
+  organization_id: number;
+  vendor_id: number;
+  evidence_id: number;
+  document_type: VendorDocumentType;
+  effective_date?: string;
+  expiration_date?: string;
+  is_verified: boolean;
+  verified_by_id?: number;
+  verified_at?: string;
+  created_at: string;
+  evidence?: EvidenceItem;
+  verified_by?: User;
+}
+
+export interface VendorEvidenceLinkCreate {
+  evidence_id: number;
+  document_type: VendorDocumentType;
+  effective_date?: string;
+  expiration_date?: string;
+}
+
+export interface VendorInherentRiskBreakdown {
+  inherent_risk_score: number;
+  calculated_tier: VendorTier;
+  effective_tier: VendorTier;
+  highest_criticality_engagement_code?: string;
+  active_engagements_count: number;
+}
+
+export interface VendorResidualRiskBreakdown {
+  inherent_risk_score: number;
+  latest_assessment_score?: number;
+  risk_floor: number;
+  base_residual_risk: number;
+  finding_penalties: number;
+  exception_penalties: number;
+  residual_risk_score: number;
+  risk_band: VendorRiskBand;
+}
+
+export interface VendorRiskPostureResponse {
+  vendor_id: number;
+  vendor_code: string;
+  legal_name: string;
+  status: VendorStatus;
+  inherent: VendorInherentRiskBreakdown;
+  residual: VendorResidualRiskBreakdown;
+  engagements: VendorEngagement[];
+  latest_approved_assessment?: VendorAssessment;
+  evidence_links: VendorEvidenceLink[];
+}
+
+export interface VendorOverviewResponse {
+  total_vendors: number;
+  average_residual_risk: number;
+  high_or_critical_risk_vendors: number;
+  tier_distribution: Record<string, number>;
+  status_distribution: Record<string, number>;
+  risk_band_distribution: Record<string, number>;
+}
