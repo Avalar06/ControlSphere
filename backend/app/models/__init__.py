@@ -145,6 +145,14 @@ from app.models.quant_risk import (
     AppetiteStatusEnum,
     AppetiteBreachStateEnum,
 )
+from app.models.resilience import (
+    BusinessProcess,
+    BusinessImpactAnalysis,
+    ProcessDependency,
+    BiaStatusEnum,
+    CriticalityTierEnum,
+    DependencyTypeEnum,
+)
 
 __all__ = [
     "Base",
@@ -267,4 +275,10 @@ __all__ = [
     "ThreatActorCategoryEnum",
     "AppetiteStatusEnum",
     "AppetiteBreachStateEnum",
+    "BusinessProcess",
+    "BusinessImpactAnalysis",
+    "ProcessDependency",
+    "BiaStatusEnum",
+    "CriticalityTierEnum",
+    "DependencyTypeEnum",
 ]

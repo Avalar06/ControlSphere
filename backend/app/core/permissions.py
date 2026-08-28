@@ -87,6 +87,11 @@ class Permission(str, enum.Enum):
     QUANTRISK_EXECUTE = "quantrisk:execute"
     QUANTRISK_APPROVE = "quantrisk:approve"
 
+    # Phase 13: Operational Resilience & Business Impact Analysis Permissions
+    RESILIENCE_READ = "resilience:read"
+    RESILIENCE_MANAGE = "resilience:manage"
+    RESILIENCE_APPROVE = "resilience:approve"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -134,6 +139,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.QUANTRISK_READ,
         Permission.QUANTRISK_MANAGE,
         Permission.QUANTRISK_EXECUTE,
+        Permission.RESILIENCE_READ,
+        Permission.RESILIENCE_MANAGE,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -170,6 +177,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.QUANTRISK_READ,
         Permission.QUANTRISK_MANAGE,
         Permission.QUANTRISK_EXECUTE,
+        Permission.RESILIENCE_READ,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -195,6 +203,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.VENDOR_READ,
         Permission.INCIDENT_READ,
         Permission.QUANTRISK_READ,
+        Permission.RESILIENCE_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -234,6 +243,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.QUANTRISK_MANAGE,
         Permission.QUANTRISK_EXECUTE,
         Permission.QUANTRISK_APPROVE,
+        Permission.RESILIENCE_READ,
+        Permission.RESILIENCE_MANAGE,
+        Permission.RESILIENCE_APPROVE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -251,6 +263,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.VENDOR_READ,
         Permission.INCIDENT_READ,
         Permission.QUANTRISK_READ,
+        Permission.RESILIENCE_READ,
     },
 }
 

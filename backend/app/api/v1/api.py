@@ -20,6 +20,7 @@ from app.api.v1.endpoints import (
     incidents,
     remediations,
     quant_risk,
+    resilience,
 )
 
 api_router = APIRouter()
@@ -44,3 +45,4 @@ api_router.include_router(tprm.router, prefix="/vendors", tags=["Third-Party & V
 api_router.include_router(incidents.router, prefix="/incidents", tags=["Security Incident Management & Breach Governance"])
 api_router.include_router(remediations.router, prefix="/remediations", tags=["Governed Remediation & Corrective Actions"])
 api_router.include_router(quant_risk.router, prefix="/quant-risk", tags=["Cyber Risk Quantification & Loss Modeling (QUANTUM-GRC)"])
+api_router.include_router(resilience.router, prefix="/resilience", tags=["Operational Resilience & Business Impact Analysis (RESILIENCE-GRC)"])
