@@ -36,6 +36,8 @@ import { RemediationsPage } from './pages/RemediationsPage';
 import { RemediationDetailPage } from './pages/RemediationDetailPage';
 import { QuantRiskPage } from './pages/QuantRiskPage';
 import { QuantScenarioDetailPage } from './pages/QuantScenarioDetailPage';
+import { ResiliencePage } from './pages/ResiliencePage';
+import { BusinessProcessDetailPage } from './pages/BusinessProcessDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -109,6 +111,10 @@ export const App: React.FC = () => {
               {/* Phase 12: Cyber Risk Quantification & Loss Modeling (QUANTUM-GRC) */}
               <Route path="/quant-risk" element={<QuantRiskPage />} />
               <Route path="/quant-risk/scenarios/:id" element={<QuantScenarioDetailPage />} />
+
+              {/* Phase 13: Operational Resilience & Business Impact Analysis (RESILIENCE-GRC) */}
+              <Route path="/resilience" element={<ResiliencePage />} />
+              <Route path="/resilience/processes/:id" element={<BusinessProcessDetailPage />} />
 
               <Route
                 path="/ai-analyst"

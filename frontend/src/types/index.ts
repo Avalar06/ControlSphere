@@ -2074,3 +2074,99 @@ export interface QuantOverviewResponse {
   threat_category_distribution: Record<string, number>;
   top_risk_scenarios: QuantitativeRiskScenario[];
 }
+
+// ─── Phase 13: Operational Resilience & Business Impact Analysis (RESILIENCE-GRC)
+
+export type CriticalityTier = 'TIER_1' | 'TIER_2' | 'TIER_3' | 'TIER_4';
+
+export type BiaStatus = 'DRAFT' | 'ACTIVE' | 'SUPERSEDED' | 'ARCHIVED';
+
+export type DependencyType = 'VENDOR' | 'CONTROL';
+
+export interface BusinessProcessBase {
+  name: string;
+  description?: string | null;
+  criticality_tier: CriticalityTier;
+}
+
+export interface BusinessProcessCreate extends BusinessProcessBase {}
+
+export interface BusinessProcessUpdate {
+  name?: string;
+  description?: string | null;
+  criticality_tier?: CriticalityTier;
+}
+
+export interface ProcessDependency {
+  id: number;
+  organization_id: number;
+  process_id: number;
+  dependency_type: DependencyType;
+  dependency_id: number;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface ProcessDependencyCreate {
+  process_id: number;
+  dependency_type: DependencyType;
+  dependency_id: number;
+  notes?: string | null;
+}
+
+export interface BusinessImpactAnalysisBase {
+  rto_hours: number;
+  rpo_hours: number;
+  mtd_hours: number;
+  hourly_downtime_cost: number;
+  fixed_outage_cost: number;
+  notes?: string | null;
+}
+
+export interface BusinessImpactAnalysisCreate extends BusinessImpactAnalysisBase {
+  process_id: number;
+}
+
+export interface BusinessImpactAnalysisApproveRequest {
+  notes?: string | null;
+}
+
+export interface BusinessImpactAnalysis extends BusinessImpactAnalysisBase {
+  id: number;
+  organization_id: number;
+  process_id: number;
+  status: BiaStatus;
+  version: number;
+  requested_by_id: number;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  requested_by?: User;
+  approved_by?: User;
+}
+
+export interface BusinessProcess extends BusinessProcessBase {
+  id: number;
+  organization_id: number;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+  owner?: User;
+  active_bia?: BusinessImpactAnalysis | null;
+  dependencies?: ProcessDependency[];
+}
+
+export interface OutageCostCalculationRequest {
+  duration_hours: number;
+  hourly_downtime_cost: number;
+  fixed_outage_cost?: number;
+}
+
+export interface OutageCostCalculationResult {
+  duration_hours: number;
+  fixed_outage_cost: number;
+  hourly_downtime_cost: number;
+  variable_outage_cost: number;
+  total_projected_loss: number;
+}
