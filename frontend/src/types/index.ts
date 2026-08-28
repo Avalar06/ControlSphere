@@ -1868,3 +1868,209 @@ export interface RemediationOverviewResponse {
   source_distribution: Record<string, number>;
   sla_distribution: Record<string, number>;
 }
+
+// ─── Phase 12: Cyber Risk Quantification & Loss Modeling (QUANTUM-GRC) ──────
+
+export type ScenarioStatus = 'DRAFT' | 'ACTIVE' | 'FROZEN' | 'ARCHIVED';
+
+export type ThreatActorCategory =
+  | 'CYBERCRIMINAL'
+  | 'NATION_STATE'
+  | 'INSIDER'
+  | 'HACKTIVIST'
+  | 'ACCIDENTAL';
+
+export type AppetiteStatus = 'DRAFT' | 'APPROVED' | 'SUPERSEDED';
+
+export type AppetiteBreachState =
+  | 'WITHIN_APPETITE'
+  | 'EXCEEDS_ALE'
+  | 'EXCEEDS_VAR'
+  | 'EXCEEDS_BOTH';
+
+export interface QuantitativeRiskScenario {
+  id: number;
+  organization_id: number;
+  scenario_code: string;
+  title: string;
+  description: string;
+  status: ScenarioStatus;
+  threat_actor_category: ThreatActorCategory;
+
+  // Upstream Linkages
+  risk_id?: number;
+  organization_control_id?: number;
+  vendor_id?: number;
+
+  // Three-Point Threat & Loss Inputs
+  tef_min: number;
+  tef_mode: number;
+  tef_max: number;
+  tcap: number;
+
+  pl_min: number;
+  pl_mode: number;
+  pl_max: number;
+
+  sl_min: number;
+  sl_mode: number;
+  sl_max: number;
+  slop: number;
+
+  // Server-Authoritative Telemetry
+  control_strength: number;
+  vulnerability_factor: number;
+  loss_event_frequency: number;
+  single_loss_expectancy: number;
+  annualized_loss_expectancy: number;
+  var_95_parametric?: number;
+  var_99_parametric?: number;
+  var_95_empirical?: number;
+  var_99_empirical?: number;
+
+  // Governance & Immutability
+  is_immutable: boolean;
+  is_ccm_stale: boolean;
+  calculation_version: string;
+  input_snapshot_hash?: string;
+  calculated_at?: string;
+
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+  created_by?: User;
+}
+
+export interface QuantitativeRiskScenarioCreate {
+  scenario_code: string;
+  title: string;
+  description: string;
+  threat_actor_category?: ThreatActorCategory;
+  risk_id?: number;
+  organization_control_id?: number;
+  vendor_id?: number;
+  tef_min?: number;
+  tef_mode?: number;
+  tef_max?: number;
+  tcap?: number;
+  pl_min?: number;
+  pl_mode?: number;
+  pl_max?: number;
+  sl_min?: number;
+  sl_mode?: number;
+  sl_max?: number;
+  slop?: number;
+}
+
+export interface QuantitativeRiskScenarioUpdate {
+  title?: string;
+  description?: string;
+  threat_actor_category?: ThreatActorCategory;
+  risk_id?: number;
+  organization_control_id?: number;
+  vendor_id?: number;
+  tef_min?: number;
+  tef_mode?: number;
+  tef_max?: number;
+  tcap?: number;
+  pl_min?: number;
+  pl_mode?: number;
+  pl_max?: number;
+  sl_min?: number;
+  sl_mode?: number;
+  sl_max?: number;
+  slop?: number;
+}
+
+export interface QuantitativeSimulationRequest {
+  trial_count?: number;
+  simulation_seed?: number;
+}
+
+export interface QuantitativeSimulationRun {
+  id: number;
+  organization_id: number;
+  scenario_id: number;
+  trial_count: number;
+  simulation_seed: number;
+  algorithm_version: string;
+
+  mean_loss: number;
+  variance_loss: number;
+  std_dev_loss: number;
+
+  percentile_10: number;
+  percentile_50: number;
+  percentile_90: number;
+  percentile_95: number;
+  percentile_99: number;
+
+  simulated_by_id: number;
+  simulated_at: string;
+  simulated_by?: User;
+}
+
+export interface RosiAnalysisCreate {
+  remediation_plan_id: number;
+  remediation_cost: number;
+  projected_control_strength_delta?: number;
+}
+
+export interface RosiAnalysis {
+  id: number;
+  organization_id: number;
+  scenario_id: number;
+  remediation_plan_id: number;
+
+  remediation_cost: number;
+  current_ale: number;
+  projected_ale: number;
+  risk_reduction_ale: number;
+  net_economic_benefit: number;
+  rosi_percentage: number;
+
+  created_by_id: number;
+  created_at: string;
+  created_by?: User;
+}
+
+export interface FinancialRiskAppetiteCreate {
+  ale_limit: number;
+  var_95_limit: number;
+  notes?: string;
+}
+
+export interface FinancialRiskAppetiteApproveRequest {
+  notes?: string;
+}
+
+export interface FinancialRiskAppetite {
+  id: number;
+  organization_id: number;
+  version: number;
+  ale_limit: number;
+  var_95_limit: number;
+  status: AppetiteStatus;
+  notes?: string;
+
+  requested_by_id: number;
+  approved_by_id?: number;
+  created_at: string;
+  approved_at?: string;
+
+  requested_by?: User;
+  approved_by?: User;
+}
+
+export interface QuantOverviewResponse {
+  total_scenarios: number;
+  active_scenarios: number;
+  frozen_scenarios: number;
+  portfolio_ale: number;
+  portfolio_var_95: number;
+  appetite_status: AppetiteBreachState;
+  ale_limit?: number;
+  var_95_limit?: number;
+  threat_category_distribution: Record<string, number>;
+  top_risk_scenarios: QuantitativeRiskScenario[];
+}

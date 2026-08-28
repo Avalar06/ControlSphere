@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { twMerge } from 'tailwind-merge';
 
 export const Table: React.FC<{ children: React.ReactNode; className?: string }> = ({
@@ -44,11 +44,12 @@ export const TableHeaderCell: React.FC<{ children: React.ReactNode; className?: 
   <th className={twMerge('px-4 py-3 font-medium', className)}>{children}</th>
 );
 
-export const TableCell: React.FC<{ children: React.ReactNode; className?: string }> = ({
-  children,
-  className,
-}) => (
-  <td className={twMerge('px-4 py-3 font-normal text-slate-300', className)}>
+export const TableCell: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+  colSpan?: number;
+}> = ({ children, className, colSpan }) => (
+  <td colSpan={colSpan} className={twMerge('px-4 py-3 font-normal text-slate-300', className)}>
     {children}
   </td>
 );
