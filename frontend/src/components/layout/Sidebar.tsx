@@ -24,6 +24,7 @@ import {
   Calculator,
   Layers,
   Crosshair,
+  Bot,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -99,6 +100,7 @@ export const Sidebar: React.FC = () => {
     {
       group: 'AI Governance',
       items: [
+        { name: 'AI Governance (AI-GRC)', path: '/ai-governance', icon: Bot, tag: 'Phase 15' },
         { name: 'AI GRC Analyst', path: '/ai-analyst', icon: Sparkles, tag: 'Phase 9' },
       ],
     },

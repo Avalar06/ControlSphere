@@ -2330,3 +2330,198 @@ export interface ExposureSummaryResponse {
   severity_distribution: Record<string, number>;
   status_distribution: Record<string, number>;
 }
+
+// ─── Phase 15: AI-GRC Domain Types ──────────────────────────────────────────
+
+export type AISystemType =
+  | 'LLM_APPLICATION'
+  | 'AGENTIC_WORKFLOW'
+  | 'EMBEDDED_ML'
+  | 'COMPUTER_VISION'
+  | 'RECOMMENDER'
+  | 'PREDICTIVE_ANALYTICS';
+
+export type AILifecycleState =
+  | 'DEVELOPMENT'
+  | 'VALIDATION'
+  | 'ETHICAL_REVIEW'
+  | 'APPROVED_STAGING'
+  | 'PRODUCTION'
+  | 'DECOMMISSIONED'
+  | 'REJECTED';
+
+export type AIRegulatoryTier =
+  | 'PROHIBITED'
+  | 'HIGH_RISK'
+  | 'GPAI_SYSTEMIC_RISK'
+  | 'LIMITED_RISK'
+  | 'MINIMAL_RISK';
+
+export type AIAutonomyLevel =
+  | 'NO_AUTONOMY'
+  | 'HUMAN_IN_THE_LOOP'
+  | 'HUMAN_ON_THE_LOOP'
+  | 'FULL_AUTONOMY';
+
+export type AIDataSensitivity =
+  | 'PUBLIC'
+  | 'INTERNAL'
+  | 'CONFIDENTIAL'
+  | 'RESTRICTED_PII_PHI';
+
+export type AIHostingType =
+  | 'CLOUD_THIRD_PARTY'
+  | 'ON_PREMISE_SELF_HOSTED'
+  | 'HYBRID_VPC'
+  | 'EDGE_DEVICE';
+
+export type AIApprovalStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'WITHDRAWN';
+
+export interface AIModelCardBase {
+  version: string;
+  intended_use: string;
+  out_of_scope_uses?: string | null;
+  bias_mitigation_notes?: string | null;
+  training_data_provenance?: string | null;
+  synthetic_data_percentage: number;
+  hallucination_rate_percent: number;
+  prompt_injection_resistance_score: number;
+  toxicity_filter_efficiency_score: number;
+  benchmark_eval_dataset?: string | null;
+  benchmark_score?: number | null;
+}
+
+export interface AIModelCardCreate extends AIModelCardBase {}
+
+export interface AIModelCard extends AIModelCardBase {
+  id: number;
+  organization_id: number;
+  ai_system_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIDeploymentApprovalCreate {
+  target_environment: string;
+  risk_acceptance_justification: string;
+  human_oversight_measures: string;
+}
+
+export interface AIDeploymentApprovalReviewRequest {
+  decision: 'APPROVED' | 'REJECTED';
+  reviewer_notes?: string | null;
+}
+
+export interface AIDeploymentApproval {
+  id: number;
+  organization_id: number;
+  ai_system_id: number;
+  requested_by_id: number;
+  reviewed_by_id?: number | null;
+  target_environment: string;
+  approval_status: AIApprovalStatus;
+  risk_acceptance_justification: string;
+  human_oversight_measures: string;
+  reviewer_notes?: string | null;
+  created_at: string;
+  reviewed_at?: string | null;
+  requested_by?: User | null;
+  reviewed_by?: User | null;
+}
+
+export interface AISystemBase {
+  system_code: string;
+  name: string;
+  description?: string | null;
+  system_type: AISystemType;
+  regulatory_tier: AIRegulatoryTier;
+  autonomy_level: AIAutonomyLevel;
+  data_sensitivity: AIDataSensitivity;
+  hosting_type: AIHostingType;
+  foundation_model_name?: string | null;
+  model_version?: string | null;
+  training_data_cutoff?: string | null;
+  parameters_billion?: number | null;
+  context_window_tokens?: number | null;
+  compute_flops_exponent?: number | null;
+  business_process_id?: number | null;
+  vendor_id?: number | null;
+  remediation_plan_id?: number | null;
+}
+
+export interface AISystemCreate extends AISystemBase {}
+
+export interface AISystemUpdate {
+  name?: string;
+  description?: string | null;
+  system_type?: AISystemType;
+  regulatory_tier?: AIRegulatoryTier;
+  autonomy_level?: AIAutonomyLevel;
+  data_sensitivity?: AIDataSensitivity;
+  hosting_type?: AIHostingType;
+  foundation_model_name?: string | null;
+  model_version?: string | null;
+  training_data_cutoff?: string | null;
+  parameters_billion?: number | null;
+  context_window_tokens?: number | null;
+  compute_flops_exponent?: number | null;
+  business_process_id?: number | null;
+  vendor_id?: number | null;
+  remediation_plan_id?: number | null;
+}
+
+export interface AISystemStatusUpdate {
+  lifecycle_state: AILifecycleState;
+  notes?: string | null;
+}
+
+export interface AISystem extends AISystemBase {
+  id: number;
+  organization_id: number;
+  lifecycle_state: AILifecycleState;
+  algorithmic_risk_index: number;
+  eu_compliance_score: number;
+  is_prohibited_practice: boolean;
+  requires_conformity_assessment: boolean;
+  owner_id: number;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  owner?: User | null;
+  approved_by?: User | null;
+  model_cards?: AIModelCard[];
+  deployment_approvals?: AIDeploymentApproval[];
+}
+
+export interface AIIndexCalculateRequest {
+  regulatory_tier: AIRegulatoryTier;
+  autonomy_level: AIAutonomyLevel;
+  data_sensitivity: AIDataSensitivity;
+  process_tier?: string | null;
+  hallucination_rate_percent?: number;
+  prompt_injection_resistance_score?: number;
+}
+
+export interface AIIndexCalculateResponse {
+  base_risk: number;
+  autonomy_multiplier: number;
+  process_tier_multiplier: number;
+  safety_penalty: number;
+  algorithmic_risk_index: number;
+}
+
+export interface AIPostureSummaryResponse {
+  total_ai_systems: number;
+  high_risk_systems: number;
+  prohibited_systems: number;
+  production_systems: number;
+  pending_approvals_count: number;
+  average_algorithmic_risk_index: number;
+  tier_distribution: Record<string, number>;
+  lifecycle_distribution: Record<string, number>;
+}

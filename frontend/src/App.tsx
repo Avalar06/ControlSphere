@@ -40,6 +40,8 @@ import { ResiliencePage } from './pages/ResiliencePage';
 import { BusinessProcessDetailPage } from './pages/BusinessProcessDetailPage';
 import { ExposurePage } from './pages/ExposurePage';
 import { ExposureDetailPage } from './pages/ExposureDetailPage';
+import { AIGovernancePage } from './pages/AIGovernancePage';
+import { AISystemDetailPage } from './pages/AISystemDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -121,6 +123,11 @@ export const App: React.FC = () => {
               {/* Phase 14: Continuous Threat Exposure & Vulnerability Governance (EXPOSURE-GRC) */}
               <Route path="/exposure" element={<ExposurePage />} />
               <Route path="/exposure/:id" element={<ExposureDetailPage />} />
+
+              {/* Phase 15: Continuous Artificial Intelligence Governance & Algorithmic Risk Management (AI-GRC) */}
+              <Route path="/ai-governance" element={<AIGovernancePage />} />
+              <Route path="/ai-governance/systems/:id" element={<AISystemDetailPage />} />
+              <Route path="/ai-governance/:id" element={<AISystemDetailPage />} />
 
               <Route
                 path="/ai-analyst"
