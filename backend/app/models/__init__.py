@@ -153,6 +153,16 @@ from app.models.resilience import (
     CriticalityTierEnum,
     DependencyTypeEnum,
 )
+from app.models.exposure import (
+    VulnerabilityExposure,
+    ExposureAssetLink,
+    ExposureException,
+    ExposureSeverityEnum,
+    ExposureStatusEnum,
+    AssetTypeEnum,
+    EnvironmentEnum,
+    ExceptionApprovalStatusEnum,
+)
 
 __all__ = [
     "Base",
@@ -281,4 +291,12 @@ __all__ = [
     "BiaStatusEnum",
     "CriticalityTierEnum",
     "DependencyTypeEnum",
+    "VulnerabilityExposure",
+    "ExposureAssetLink",
+    "ExposureException",
+    "ExposureSeverityEnum",
+    "ExposureStatusEnum",
+    "AssetTypeEnum",
+    "EnvironmentEnum",
+    "ExceptionApprovalStatusEnum",
 ]

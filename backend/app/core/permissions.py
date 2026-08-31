@@ -92,6 +92,12 @@ class Permission(str, enum.Enum):
     RESILIENCE_MANAGE = "resilience:manage"
     RESILIENCE_APPROVE = "resilience:approve"
 
+    # Phase 14: Continuous Threat Exposure & Vulnerability Governance Permissions
+    EXPOSURE_READ = "exposure:read"
+    EXPOSURE_MANAGE = "exposure:manage"
+    EXPOSURE_ASSESS = "exposure:assess"
+    EXPOSURE_APPROVE = "exposure:approve"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -141,6 +147,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.QUANTRISK_EXECUTE,
         Permission.RESILIENCE_READ,
         Permission.RESILIENCE_MANAGE,
+        Permission.EXPOSURE_READ,
+        Permission.EXPOSURE_MANAGE,
+        Permission.EXPOSURE_ASSESS,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -178,6 +187,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.QUANTRISK_MANAGE,
         Permission.QUANTRISK_EXECUTE,
         Permission.RESILIENCE_READ,
+        Permission.EXPOSURE_READ,
+        Permission.EXPOSURE_MANAGE,
+        Permission.EXPOSURE_ASSESS,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -204,6 +216,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.INCIDENT_READ,
         Permission.QUANTRISK_READ,
         Permission.RESILIENCE_READ,
+        Permission.EXPOSURE_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -246,6 +259,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.RESILIENCE_READ,
         Permission.RESILIENCE_MANAGE,
         Permission.RESILIENCE_APPROVE,
+        Permission.EXPOSURE_READ,
+        Permission.EXPOSURE_MANAGE,
+        Permission.EXPOSURE_ASSESS,
+        Permission.EXPOSURE_APPROVE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -264,6 +281,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.INCIDENT_READ,
         Permission.QUANTRISK_READ,
         Permission.RESILIENCE_READ,
+        Permission.EXPOSURE_READ,
     },
 }
 
