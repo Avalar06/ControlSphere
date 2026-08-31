@@ -22,6 +22,7 @@ from app.api.v1.endpoints import (
     quant_risk,
     resilience,
     exposure,
+    ai_governance,
 )
 
 api_router = APIRouter()
@@ -48,3 +49,4 @@ api_router.include_router(remediations.router, prefix="/remediations", tags=["Go
 api_router.include_router(quant_risk.router, prefix="/quant-risk", tags=["Cyber Risk Quantification & Loss Modeling (QUANTUM-GRC)"])
 api_router.include_router(resilience.router, prefix="/resilience", tags=["Operational Resilience & Business Impact Analysis (RESILIENCE-GRC)"])
 api_router.include_router(exposure.router, prefix="/exposures", tags=["Threat Exposure & Vulnerability Governance (EXPOSURE-GRC)"])
+api_router.include_router(ai_governance.router, prefix="/ai-governance", tags=["Artificial Intelligence Governance & Algorithmic Risk (AI-GRC)"])

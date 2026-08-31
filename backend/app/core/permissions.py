@@ -200,7 +200,6 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXPOSURE_MANAGE,
         Permission.EXPOSURE_ASSESS,
         Permission.AI_READ,
-        Permission.AI_MANAGE,
         Permission.AI_ASSESS,
     },
     RoleEnum.AUDITOR: {

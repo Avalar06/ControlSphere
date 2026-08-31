@@ -840,6 +840,40 @@ class AIGovernanceService:
         return approval
 
     @classmethod
+    def get_model_card(cls, db: Session, organization_id: int, card_id: int) -> AIModelCard:
+        card = (
+            db.query(AIModelCard)
+            .filter(
+                AIModelCard.id == card_id,
+                AIModelCard.organization_id == organization_id,
+            )
+            .first()
+        )
+        if not card:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model card #{card_id} not found in this organization.",
+            )
+        return card
+
+    @classmethod
+    def get_deployment_approval(cls, db: Session, organization_id: int, approval_id: int) -> AIDeploymentApproval:
+        approval = (
+            db.query(AIDeploymentApproval)
+            .filter(
+                AIDeploymentApproval.id == approval_id,
+                AIDeploymentApproval.organization_id == organization_id,
+            )
+            .first()
+        )
+        if not approval:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Deployment approval request #{approval_id} not found in this organization.",
+            )
+        return approval
+
+    @classmethod
     def list_deployment_approvals(
         cls,
         db: Session,
