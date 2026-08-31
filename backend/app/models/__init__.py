@@ -163,6 +163,18 @@ from app.models.exposure import (
     EnvironmentEnum,
     ExceptionApprovalStatusEnum,
 )
+from app.models.ai_governance import (
+    AISystem,
+    AIModelCard,
+    AIDeploymentApproval,
+    AISystemTypeEnum,
+    AILifecycleStateEnum,
+    AIRegulatoryTierEnum,
+    AIAutonomyLevelEnum,
+    AIDataSensitivityEnum,
+    AIHostingTypeEnum,
+    AIApprovalStatusEnum,
+)
 
 __all__ = [
     "Base",
@@ -299,4 +311,14 @@ __all__ = [
     "AssetTypeEnum",
     "EnvironmentEnum",
     "ExceptionApprovalStatusEnum",
+    "AISystem",
+    "AIModelCard",
+    "AIDeploymentApproval",
+    "AISystemTypeEnum",
+    "AILifecycleStateEnum",
+    "AIRegulatoryTierEnum",
+    "AIAutonomyLevelEnum",
+    "AIDataSensitivityEnum",
+    "AIHostingTypeEnum",
+    "AIApprovalStatusEnum",
 ]

@@ -98,6 +98,12 @@ class Permission(str, enum.Enum):
     EXPOSURE_ASSESS = "exposure:assess"
     EXPOSURE_APPROVE = "exposure:approve"
 
+    # Phase 15: AI-GRC — Artificial Intelligence Governance & Algorithmic Risk Permissions
+    AI_READ = "ai:read"
+    AI_MANAGE = "ai:manage"
+    AI_ASSESS = "ai:assess"
+    AI_APPROVE = "ai:approve"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -150,6 +156,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXPOSURE_READ,
         Permission.EXPOSURE_MANAGE,
         Permission.EXPOSURE_ASSESS,
+        Permission.AI_READ,
+        Permission.AI_MANAGE,
+        Permission.AI_ASSESS,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -190,6 +199,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXPOSURE_READ,
         Permission.EXPOSURE_MANAGE,
         Permission.EXPOSURE_ASSESS,
+        Permission.AI_READ,
+        Permission.AI_MANAGE,
+        Permission.AI_ASSESS,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -217,6 +229,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.QUANTRISK_READ,
         Permission.RESILIENCE_READ,
         Permission.EXPOSURE_READ,
+        Permission.AI_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -263,6 +276,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXPOSURE_MANAGE,
         Permission.EXPOSURE_ASSESS,
         Permission.EXPOSURE_APPROVE,
+        Permission.AI_READ,
+        Permission.AI_MANAGE,
+        Permission.AI_ASSESS,
+        Permission.AI_APPROVE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -282,6 +299,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.QUANTRISK_READ,
         Permission.RESILIENCE_READ,
         Permission.EXPOSURE_READ,
+        Permission.AI_READ,
     },
 }
 
