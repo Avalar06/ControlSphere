@@ -2170,3 +2170,163 @@ export interface OutageCostCalculationResult {
   variable_outage_cost: number;
   total_projected_loss: number;
 }
+
+// ─── Phase 14: EXPOSURE-GRC Types ─────────────────────────────────────────────
+
+export type ExposureSeverity =
+  | 'CRITICAL'
+  | 'HIGH'
+  | 'MEDIUM'
+  | 'LOW'
+  | 'INFORMATIONAL';
+
+export type ExposureStatus =
+  | 'OPEN'
+  | 'UNDER_INVESTIGATION'
+  | 'REMEDIATING'
+  | 'EXCEPTION_REQUESTED'
+  | 'EXCEPTION_APPROVED'
+  | 'EXCEPTION_REJECTED'
+  | 'RESOLVED';
+
+export type AssetType =
+  | 'SERVER'
+  | 'DATABASE'
+  | 'CLOUD_SERVICE'
+  | 'NETWORK_DEVICE'
+  | 'APPLICATION';
+
+export type Environment = 'PRODUCTION' | 'STAGING' | 'DEVELOPMENT';
+
+export type ExceptionApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+
+export interface ExposureAssetLinkBase {
+  asset_identifier: string;
+  asset_type: AssetType;
+  environment: Environment;
+  process_id?: number | null;
+  vendor_id?: number | null;
+  control_id?: number | null;
+  notes?: string | null;
+}
+
+export interface ExposureAssetLinkCreate extends ExposureAssetLinkBase {}
+
+export interface ExposureAssetLink extends ExposureAssetLinkBase {
+  id: number;
+  organization_id: number;
+  exposure_id: number;
+  created_at: string;
+  process_name?: string | null;
+  process_tier?: CriticalityTier | null;
+  vendor_name?: string | null;
+  control_title?: string | null;
+}
+
+export interface ExposureExceptionBase {
+  requested_sla_due: string;
+  justification: string;
+  compensating_controls?: string | null;
+}
+
+export interface ExposureExceptionCreate extends ExposureExceptionBase {}
+
+export interface ExposureExceptionReviewRequest {
+  decision: 'APPROVED' | 'REJECTED';
+  review_notes?: string | null;
+}
+
+export interface ExposureException extends ExposureExceptionBase {
+  id: number;
+  organization_id: number;
+  exposure_id: number;
+  requested_by_id: number;
+  approved_by_id?: number | null;
+  status: ExceptionApprovalStatus;
+  original_sla_due: string;
+  requested_sla_due: string;
+  justification: string;
+  compensating_controls?: string | null;
+  review_notes?: string | null;
+  created_at: string;
+  reviewed_at?: string | null;
+  requested_by?: User | null;
+  approved_by?: User | null;
+}
+
+export interface VulnerabilityExposureBase {
+  cve_id: string;
+  cwe_id?: string | null;
+  title: string;
+  description?: string | null;
+  cvss_score: number;
+  cvss_vector?: string | null;
+  epss_score: number;
+  cisa_kev: boolean;
+  severity: ExposureSeverity;
+}
+
+export interface VulnerabilityExposureCreate extends VulnerabilityExposureBase {
+  discovered_at?: string | null;
+  remediation_sla_due?: string | null;
+}
+
+export interface VulnerabilityExposureUpdate {
+  title?: string;
+  description?: string | null;
+  cwe_id?: string | null;
+  cvss_score?: number;
+  cvss_vector?: string | null;
+  epss_score?: number;
+  cisa_kev?: boolean;
+  severity?: ExposureSeverity;
+}
+
+export interface VulnerabilityExposureStatusUpdate {
+  status: ExposureStatus;
+  notes?: string | null;
+}
+
+export interface VulnerabilityExposure extends VulnerabilityExposureBase {
+  id: number;
+  organization_id: number;
+  status: ExposureStatus;
+  exposure_index: number;
+  remediation_sla_due: string;
+  remediation_plan_id?: number | null;
+  discovered_at: string;
+  resolved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  asset_links?: ExposureAssetLink[];
+  exceptions?: ExposureException[];
+}
+
+export interface ExposureIndexCalculateRequest {
+  cvss_score: number;
+  epss_score: number;
+  cisa_kev: boolean;
+  highest_process_tier?: CriticalityTier | null;
+}
+
+export interface ExposureIndexCalculateResponse {
+  cvss_score: number;
+  epss_score: number;
+  cisa_kev: boolean;
+  base_score: number;
+  blast_radius_multiplier: number;
+  exposure_index: number;
+}
+
+export interface ExposureSummaryResponse {
+  total_exposures: number;
+  critical_exposures: number;
+  high_exposures: number;
+  cisa_kev_count: number;
+  active_exceptions_count: number;
+  sla_breached_count: number;
+  sla_breach_rate_percent: number;
+  average_exposure_index: number;
+  severity_distribution: Record<string, number>;
+  status_distribution: Record<string, number>;
+}

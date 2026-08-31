@@ -23,6 +23,7 @@ import {
   Target,
   Calculator,
   Layers,
+  Crosshair,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -68,8 +69,9 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      group: 'Security & Breach Governance',
+      group: 'Security & Exposure Governance',
       items: [
+        { name: 'Threat Exposure (CVE)', path: '/exposure', icon: Crosshair, tag: 'Phase 14' },
         { name: 'Incident Response', path: '/incidents', icon: Flame, tag: 'Phase 10' },
       ],
     },

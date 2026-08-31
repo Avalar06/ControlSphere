@@ -38,6 +38,8 @@ import { QuantRiskPage } from './pages/QuantRiskPage';
 import { QuantScenarioDetailPage } from './pages/QuantScenarioDetailPage';
 import { ResiliencePage } from './pages/ResiliencePage';
 import { BusinessProcessDetailPage } from './pages/BusinessProcessDetailPage';
+import { ExposurePage } from './pages/ExposurePage';
+import { ExposureDetailPage } from './pages/ExposureDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -115,6 +117,10 @@ export const App: React.FC = () => {
               {/* Phase 13: Operational Resilience & Business Impact Analysis (RESILIENCE-GRC) */}
               <Route path="/resilience" element={<ResiliencePage />} />
               <Route path="/resilience/processes/:id" element={<BusinessProcessDetailPage />} />
+
+              {/* Phase 14: Continuous Threat Exposure & Vulnerability Governance (EXPOSURE-GRC) */}
+              <Route path="/exposure" element={<ExposurePage />} />
+              <Route path="/exposure/:id" element={<ExposureDetailPage />} />
 
               <Route
                 path="/ai-analyst"
