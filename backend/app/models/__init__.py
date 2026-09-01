@@ -175,6 +175,20 @@ from app.models.ai_governance import (
     AIHostingTypeEnum,
     AIApprovalStatusEnum,
 )
+from app.models.privacy import (
+    DataAsset,
+    ProcessingActivity,
+    DPIAAssessment,
+    DataTransferAssessment,
+    DataSensitivityLevel,
+    ProcessingLegalBasis,
+    DataSubjectCategory,
+    ProcessingLifecycleState,
+    TransferMechanism,
+    JurisdictionRiskTier,
+    DPIARiskBand,
+    PrivacyApprovalStatus,
+)
 
 __all__ = [
     "Base",
@@ -321,4 +335,16 @@ __all__ = [
     "AIDataSensitivityEnum",
     "AIHostingTypeEnum",
     "AIApprovalStatusEnum",
+    "DataAsset",
+    "ProcessingActivity",
+    "DPIAAssessment",
+    "DataTransferAssessment",
+    "DataSensitivityLevel",
+    "ProcessingLegalBasis",
+    "DataSubjectCategory",
+    "ProcessingLifecycleState",
+    "TransferMechanism",
+    "JurisdictionRiskTier",
+    "DPIARiskBand",
+    "PrivacyApprovalStatus",
 ]

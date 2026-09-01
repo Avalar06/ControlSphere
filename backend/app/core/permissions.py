@@ -104,6 +104,12 @@ class Permission(str, enum.Enum):
     AI_ASSESS = "ai:assess"
     AI_APPROVE = "ai:approve"
 
+    # Phase 16: PRIVACY-GRC — Continuous Privacy Governance & Data Protection Permissions
+    PRIVACY_READ = "privacy:read"
+    PRIVACY_MANAGE = "privacy:manage"
+    PRIVACY_ASSESS = "privacy:assess"
+    PRIVACY_APPROVE = "privacy:approve"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -159,6 +165,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AI_READ,
         Permission.AI_MANAGE,
         Permission.AI_ASSESS,
+        Permission.PRIVACY_READ,
+        Permission.PRIVACY_MANAGE,
+        Permission.PRIVACY_ASSESS,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -201,6 +210,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXPOSURE_ASSESS,
         Permission.AI_READ,
         Permission.AI_ASSESS,
+        Permission.PRIVACY_READ,
+        Permission.PRIVACY_ASSESS,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -229,6 +240,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.RESILIENCE_READ,
         Permission.EXPOSURE_READ,
         Permission.AI_READ,
+        Permission.PRIVACY_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -279,6 +291,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AI_MANAGE,
         Permission.AI_ASSESS,
         Permission.AI_APPROVE,
+        Permission.PRIVACY_READ,
+        Permission.PRIVACY_MANAGE,
+        Permission.PRIVACY_ASSESS,
+        Permission.PRIVACY_APPROVE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -299,6 +315,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.RESILIENCE_READ,
         Permission.EXPOSURE_READ,
         Permission.AI_READ,
+        Permission.PRIVACY_READ,
     },
 }
 

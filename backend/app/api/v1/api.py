@@ -23,6 +23,7 @@ from app.api.v1.endpoints import (
     resilience,
     exposure,
     ai_governance,
+    privacy,
 )
 
 api_router = APIRouter()
@@ -50,3 +51,4 @@ api_router.include_router(quant_risk.router, prefix="/quant-risk", tags=["Cyber 
 api_router.include_router(resilience.router, prefix="/resilience", tags=["Operational Resilience & Business Impact Analysis (RESILIENCE-GRC)"])
 api_router.include_router(exposure.router, prefix="/exposures", tags=["Threat Exposure & Vulnerability Governance (EXPOSURE-GRC)"])
 api_router.include_router(ai_governance.router, prefix="/ai-governance", tags=["Artificial Intelligence Governance & Algorithmic Risk (AI-GRC)"])
+api_router.include_router(privacy.router, prefix="/privacy", tags=["Privacy Governance & Data Protection (PRIVACY-GRC)"])
