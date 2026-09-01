@@ -42,6 +42,9 @@ import { ExposurePage } from './pages/ExposurePage';
 import { ExposureDetailPage } from './pages/ExposureDetailPage';
 import { AIGovernancePage } from './pages/AIGovernancePage';
 import { AISystemDetailPage } from './pages/AISystemDetailPage';
+import { PrivacyGovernancePage } from './pages/PrivacyGovernancePage';
+import { PrivacyProcessingDetailPage } from './pages/PrivacyProcessingDetailPage';
+import { PrivacyAssetDetailPage } from './pages/PrivacyAssetDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -128,6 +131,11 @@ export const App: React.FC = () => {
               <Route path="/ai-governance" element={<AIGovernancePage />} />
               <Route path="/ai-governance/systems/:id" element={<AISystemDetailPage />} />
               <Route path="/ai-governance/:id" element={<AISystemDetailPage />} />
+
+              {/* Phase 16: Continuous Privacy Governance & RoPA Inventory (PRIVACY-GRC) */}
+              <Route path="/privacy" element={<PrivacyGovernancePage />} />
+              <Route path="/privacy/processing/:id" element={<PrivacyProcessingDetailPage />} />
+              <Route path="/privacy/assets/:id" element={<PrivacyAssetDetailPage />} />
 
               <Route
                 path="/ai-analyst"

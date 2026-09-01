@@ -2525,3 +2525,310 @@ export interface AIPostureSummaryResponse {
   tier_distribution: Record<string, number>;
   lifecycle_distribution: Record<string, number>;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 16: Continuous Privacy Governance & RoPA Inventory (PRIVACY-GRC)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type DataSensitivityLevel =
+  | 'PUBLIC'
+  | 'INTERNAL'
+  | 'CONFIDENTIAL'
+  | 'RESTRICTED_PII'
+  | 'SPECIAL_CATEGORY';
+
+export type ProcessingLegalBasis =
+  | 'CONSENT'
+  | 'CONTRACT_PERFORMANCE'
+  | 'LEGAL_OBLIGATION'
+  | 'VITAL_INTERESTS'
+  | 'PUBLIC_TASK'
+  | 'LEGITIMATE_INTERESTS';
+
+export type ProcessingLifecycleState =
+  | 'DRAFT'
+  | 'DPO_REVIEW'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'ARCHIVED'
+  | 'RETIRED';
+
+export type TransferMechanism =
+  | 'NONE_INTRA_EEA'
+  | 'ADEQUACY_DECISION'
+  | 'STANDARD_CONTRACTUAL_CLAUSES_SCC'
+  | 'BINDING_CORPORATE_RULES_BCR'
+  | 'DEROGATION_EXPLICIT_CONSENT'
+  | 'NO_SAFEGUARDS_PROHIBITED';
+
+export type JurisdictionRiskTier =
+  | 'ADEQUATE_EEA_EQUIVALENT'
+  | 'MODERATE_SAFEGUARDS_REQUIRED'
+  | 'HIGH_RISK_SURVEILLANCE'
+  | 'RESTRICTED_EMBARGOED';
+
+export type DPIARiskBand =
+  | 'LOW'
+  | 'MODERATE'
+  | 'HIGH'
+  | 'VERY_HIGH'
+  | 'CRITICAL';
+
+export type PrivacyApprovalStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED';
+
+// ─── 1. Data Assets Contracts ──────────────────────────────────────────────────
+
+export interface DataAssetBase {
+  asset_code: string;
+  name: string;
+  description?: string | null;
+  data_sensitivity_level: DataSensitivityLevel;
+  data_volume_range: string;
+  storage_type: string;
+  hosting_jurisdiction: string;
+  is_encrypted_at_rest: boolean;
+  is_encrypted_in_transit: boolean;
+  is_pseudonymized: boolean;
+  retention_period_months?: number | null;
+  business_process_id?: number | null;
+  ai_system_id?: number | null;
+  vendor_id?: number | null;
+}
+
+export interface DataAssetCreate extends DataAssetBase {}
+
+export interface DataAssetUpdate {
+  name?: string;
+  description?: string | null;
+  data_sensitivity_level?: DataSensitivityLevel;
+  data_volume_range?: string;
+  storage_type?: string;
+  hosting_jurisdiction?: string;
+  is_encrypted_at_rest?: boolean;
+  is_encrypted_in_transit?: boolean;
+  is_pseudonymized?: boolean;
+  retention_period_months?: number | null;
+  business_process_id?: number | null;
+  ai_system_id?: number | null;
+  vendor_id?: number | null;
+}
+
+export interface DataAsset extends DataAssetBase {
+  id: number;
+  organization_id: number;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+  owner?: User | null;
+}
+
+// ─── 2. Processing Activities (RoPA) Contracts ────────────────────────────────
+
+export interface ProcessingActivityBase {
+  activity_code: string;
+  name: string;
+  purpose_description: string;
+  legal_basis: ProcessingLegalBasis;
+  data_subject_categories: string;
+  personal_data_categories: string;
+  is_special_category_data: boolean;
+  is_automated_decision_making: boolean;
+  is_large_scale_monitoring: boolean;
+  is_vulnerable_subjects: boolean;
+  is_cross_border_transfer: boolean;
+  transfer_mechanism: TransferMechanism;
+  destination_country?: string | null;
+  security_measures_summary?: string | null;
+  data_controller_name?: string | null;
+  business_process_id?: number | null;
+  ai_system_id?: number | null;
+  vendor_id?: number | null;
+}
+
+export interface ProcessingActivityCreate extends ProcessingActivityBase {}
+
+export interface ProcessingActivityUpdate {
+  name?: string;
+  purpose_description?: string;
+  legal_basis?: ProcessingLegalBasis;
+  data_subject_categories?: string;
+  personal_data_categories?: string;
+  is_special_category_data?: boolean;
+  is_automated_decision_making?: boolean;
+  is_large_scale_monitoring?: boolean;
+  is_vulnerable_subjects?: boolean;
+  is_cross_border_transfer?: boolean;
+  transfer_mechanism?: TransferMechanism;
+  destination_country?: string | null;
+  security_measures_summary?: string | null;
+  data_controller_name?: string | null;
+  business_process_id?: number | null;
+  ai_system_id?: number | null;
+  vendor_id?: number | null;
+}
+
+export interface ProcessingActivityStatusUpdate {
+  lifecycle_state: ProcessingLifecycleState;
+  notes?: string | null;
+}
+
+export interface ProcessingActivity extends ProcessingActivityBase {
+  id: number;
+  organization_id: number;
+  lifecycle_state: ProcessingLifecycleState;
+  dpo_approval_status: PrivacyApprovalStatus;
+  owner_id: number;
+  approved_by_dpo_id?: number | null;
+  approved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  owner?: User | null;
+  approved_by_dpo?: User | null;
+  dpia_assessments?: DPIAAssessment[];
+  transfer_assessments?: DataTransferAssessment[];
+}
+
+// ─── 3. DPIA Assessment Contracts ─────────────────────────────────────────────
+
+export interface DPIABase {
+  assessment_code: string;
+  processing_activity_id: number;
+  necessity_proportionality_score: number;
+  data_subject_rights_score: number;
+  safeguards_mitigation_score: number;
+  automated_decision_making_risk: boolean;
+  large_scale_monitoring_risk: boolean;
+  vulnerable_subjects_risk: boolean;
+  prior_consultation_required: boolean;
+  remediation_plan_id?: number | null;
+}
+
+export interface DPIACreate extends DPIABase {}
+
+export interface DPIAUpdate {
+  necessity_proportionality_score?: number;
+  data_subject_rights_score?: number;
+  safeguards_mitigation_score?: number;
+  automated_decision_making_risk?: boolean;
+  large_scale_monitoring_risk?: boolean;
+  vulnerable_subjects_risk?: boolean;
+  prior_consultation_required?: boolean;
+  remediation_plan_id?: number | null;
+}
+
+export interface DPIAReviewRequest {
+  decision: PrivacyApprovalStatus;
+  recommendation_notes: string;
+}
+
+export interface DPIAAssessment extends DPIABase {
+  id: number;
+  organization_id: number;
+  inherent_risk_score: number;
+  residual_risk_score: number;
+  risk_band: DPIARiskBand;
+  dpo_consultation_status: PrivacyApprovalStatus;
+  dpo_recommendation_notes?: string | null;
+  dpo_reviewed_by_id?: number | null;
+  dpo_reviewed_at?: string | null;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+  created_by?: User | null;
+  dpo_reviewed_by?: User | null;
+}
+
+// ─── 4. Data Transfer Assessment Contracts ────────────────────────────────────
+
+export interface DataTransferBase {
+  transfer_code: string;
+  processing_activity_id: number;
+  source_country: string;
+  destination_country: string;
+  destination_jurisdiction_tier: JurisdictionRiskTier;
+  transfer_mechanism: TransferMechanism;
+  supplementary_safeguards_description?: string | null;
+  supplementary_measures_score: number;
+  government_access_risk_score: number;
+  legal_remedies_score: number;
+  audit_notes?: string | null;
+}
+
+export interface DataTransferCreate extends DataTransferBase {}
+
+export interface DataTransferUpdate {
+  destination_country?: string;
+  destination_jurisdiction_tier?: JurisdictionRiskTier;
+  transfer_mechanism?: TransferMechanism;
+  supplementary_safeguards_description?: string | null;
+  supplementary_measures_score?: number;
+  government_access_risk_score?: number;
+  legal_remedies_score?: number;
+  audit_notes?: string | null;
+}
+
+export interface DataTransferReviewRequest {
+  decision: PrivacyApprovalStatus;
+  reviewer_notes: string;
+}
+
+export interface DataTransferAssessment extends DataTransferBase {
+  id: number;
+  organization_id: number;
+  transfer_risk_index: number;
+  approval_status: PrivacyApprovalStatus;
+  requested_by_id: number;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  requested_by?: User | null;
+  approved_by?: User | null;
+}
+
+// ─── 5. Posture & Calculation Preview Contracts ───────────────────────────────
+
+export interface PrivacyPostureSummaryResponse {
+  total_data_assets: number;
+  total_processing_activities: number;
+  active_ropa_count: number;
+  high_risk_processing_count: number;
+  cross_border_transfers_count: number;
+  pending_dpia_approvals: number;
+  pending_transfer_approvals: number;
+  average_residual_risk_score: number;
+  risk_band_distribution: Record<string, number>;
+  legal_basis_distribution: Record<string, number>;
+  sensitivity_distribution: Record<string, number>;
+}
+
+export interface DPIACalculatePreviewRequest {
+  sensitivity_level?: DataSensitivityLevel;
+  volume_tier?: string;
+  is_special_category?: boolean;
+  automated_decision_making_risk?: boolean;
+  large_scale_monitoring_risk?: boolean;
+  vulnerable_subjects_risk?: boolean;
+  safeguards_mitigation_score?: number;
+  has_threat_exposure?: boolean;
+}
+
+export interface DPIACalculatePreviewResponse {
+  inherent_risk_score: number;
+  residual_risk_score: number;
+  risk_band: DPIARiskBand;
+  prior_consultation_required: boolean;
+}
+
+export interface DataTransferCalculatePreviewRequest {
+  destination_jurisdiction_tier?: JurisdictionRiskTier;
+  transfer_mechanism?: TransferMechanism;
+  supplementary_measures_score?: number;
+}
+
+export interface DataTransferCalculatePreviewResponse {
+  transfer_risk_index: number;
+}
