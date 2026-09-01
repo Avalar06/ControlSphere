@@ -110,6 +110,12 @@ class Permission(str, enum.Enum):
     PRIVACY_ASSESS = "privacy:assess"
     PRIVACY_APPROVE = "privacy:approve"
 
+    # Phase 17: SUPPLYCHAIN-GRC — Software Supply Chain Risk & SBOM Governance Permissions
+    SUPPLYCHAIN_READ = "supplychain:read"
+    SUPPLYCHAIN_MANAGE = "supplychain:manage"
+    SUPPLYCHAIN_ASSESS = "supplychain:assess"
+    SUPPLYCHAIN_APPROVE = "supplychain:approve"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -168,6 +174,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.PRIVACY_READ,
         Permission.PRIVACY_MANAGE,
         Permission.PRIVACY_ASSESS,
+        Permission.SUPPLYCHAIN_READ,
+        Permission.SUPPLYCHAIN_MANAGE,
+        Permission.SUPPLYCHAIN_ASSESS,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -212,6 +221,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AI_ASSESS,
         Permission.PRIVACY_READ,
         Permission.PRIVACY_ASSESS,
+        Permission.SUPPLYCHAIN_READ,
+        Permission.SUPPLYCHAIN_ASSESS,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -241,6 +252,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXPOSURE_READ,
         Permission.AI_READ,
         Permission.PRIVACY_READ,
+        Permission.SUPPLYCHAIN_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -295,6 +307,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.PRIVACY_MANAGE,
         Permission.PRIVACY_ASSESS,
         Permission.PRIVACY_APPROVE,
+        Permission.SUPPLYCHAIN_READ,
+        Permission.SUPPLYCHAIN_MANAGE,
+        Permission.SUPPLYCHAIN_ASSESS,
+        Permission.SUPPLYCHAIN_APPROVE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -316,6 +332,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXPOSURE_READ,
         Permission.AI_READ,
         Permission.PRIVACY_READ,
+        Permission.SUPPLYCHAIN_READ,
     },
 }
 

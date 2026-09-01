@@ -189,6 +189,23 @@ from app.models.privacy import (
     DPIARiskBand,
     PrivacyApprovalStatus,
 )
+from app.models.supply_chain import (
+    SoftwareProduct,
+    SBOMDocument,
+    SoftwareComponent,
+    ComponentVulnerabilityLink,
+    LicenseCompliancePolicy,
+    SupplyChainExemption,
+    SoftwareProductTypeEnum,
+    ProductCriticalityTierEnum,
+    ProductLifecycleStateEnum,
+    SBOMFormatStandardEnum,
+    SBOMStatusEnum,
+    ComponentEcosystemEnum,
+    LicenseCategoryEnum,
+    ExemptionApprovalStatusEnum,
+    SupplyChainRiskBandEnum,
+)
 
 __all__ = [
     "Base",
@@ -347,4 +364,19 @@ __all__ = [
     "JurisdictionRiskTier",
     "DPIARiskBand",
     "PrivacyApprovalStatus",
+    "SoftwareProduct",
+    "SBOMDocument",
+    "SoftwareComponent",
+    "ComponentVulnerabilityLink",
+    "LicenseCompliancePolicy",
+    "SupplyChainExemption",
+    "SoftwareProductTypeEnum",
+    "ProductCriticalityTierEnum",
+    "ProductLifecycleStateEnum",
+    "SBOMFormatStandardEnum",
+    "SBOMStatusEnum",
+    "ComponentEcosystemEnum",
+    "LicenseCategoryEnum",
+    "ExemptionApprovalStatusEnum",
+    "SupplyChainRiskBandEnum",
 ]
