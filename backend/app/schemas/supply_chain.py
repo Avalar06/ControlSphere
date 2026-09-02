@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.supply_chain import (
     ComponentEcosystemEnum,
@@ -233,6 +233,14 @@ class ComponentCalculatePreviewRequest(BaseModel):
     license_category: LicenseCategoryEnum = LicenseCategoryEnum.PERMISSIVE
     is_exempted: bool = False
 
+    @field_validator("cvss_scores")
+    @classmethod
+    def validate_cvss_scores(cls, v: List[float]) -> List[float]:
+        for s in v:
+            if s < 0.0 or s > 10.0:
+                raise ValueError("Each CVSS score must be between 0.0 and 10.0")
+        return v
+
 
 class ComponentCalculatePreviewResponse(BaseModel):
     vulnerability_score: float
@@ -244,6 +252,14 @@ class ComponentCalculatePreviewResponse(BaseModel):
 
 class ProductCalculatePreviewRequest(BaseModel):
     component_risk_indices: List[float] = Field(default_factory=list, description="List of CRI scores (0.0 - 100.0)")
+
+    @field_validator("component_risk_indices")
+    @classmethod
+    def validate_cri_scores(cls, v: List[float]) -> List[float]:
+        for s in v:
+            if s < 0.0 or s > 100.0:
+                raise ValueError("Each Component Risk Index must be between 0.0 and 100.0")
+        return v
 
 
 class ProductCalculatePreviewResponse(BaseModel):

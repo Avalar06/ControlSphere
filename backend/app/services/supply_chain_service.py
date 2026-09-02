@@ -956,3 +956,44 @@ class SupplyChainService:
             license_category_distribution=lic_dist,
             risk_band_distribution=risk_dist,
         )
+
+    # ─── 9. Live Calculation Previews ─────────────────────────────────────────
+
+    @classmethod
+    def calculate_component_preview(
+        cls, payload: ComponentCalculatePreviewRequest
+    ) -> ComponentCalculatePreviewResponse:
+        vscore = cls.calculate_vulnerability_score(
+            payload.cvss_scores, payload.is_any_exploitable
+        )
+        depth_mult = cls.calculate_depth_penalty(payload.dependency_depth)
+        lrisk = cls.calculate_license_risk_points(payload.license_category)
+        cri = cls.calculate_component_risk_index(
+            vscore, lrisk, depth_mult, payload.is_exempted
+        )
+        risk_band = cls.get_risk_band(cri)
+        return ComponentCalculatePreviewResponse(
+            vulnerability_score=vscore,
+            depth_penalty_multiplier=depth_mult,
+            license_risk_points=lrisk,
+            component_risk_index=cri,
+            risk_band=risk_band,
+        )
+
+    @classmethod
+    def calculate_product_preview(
+        cls, payload: ProductCalculatePreviewRequest
+    ) -> ProductCalculatePreviewResponse:
+        cri_list = payload.component_risk_indices
+        scei = cls.calculate_supply_chain_exposure_index(cri_list)
+        max_cri = max(cri_list) if cri_list else 0.0
+        avg_cri = (sum(cri_list) / len(cri_list)) if cri_list else 0.0
+        critical_count = sum(1 for c in cri_list if c >= 75.0)
+        risk_band = cls.get_risk_band(scei)
+        return ProductCalculatePreviewResponse(
+            supply_chain_exposure_index=scei,
+            max_component_risk=round(max_cri, 2),
+            average_component_risk=round(avg_cri, 2),
+            critical_components_count=critical_count,
+            risk_band=risk_band,
+        )

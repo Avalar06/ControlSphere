@@ -174,6 +174,20 @@ class SoftwareProduct(Base):
         "SupplyChainExemption", back_populates="software_product", cascade="all, delete-orphan"
     )
 
+    @property
+    def risk_band(self) -> SupplyChainRiskBandEnum:
+        score = float(self.supply_chain_exposure_index or 0.0)
+        if score < 25.0:
+            return SupplyChainRiskBandEnum.LOW
+        elif score < 50.0:
+            return SupplyChainRiskBandEnum.MODERATE
+        elif score < 75.0:
+            return SupplyChainRiskBandEnum.HIGH
+        elif score < 90.0:
+            return SupplyChainRiskBandEnum.VERY_HIGH
+        else:
+            return SupplyChainRiskBandEnum.CRITICAL
+
     __table_args__ = (
         UniqueConstraint("organization_id", "product_code", name="uq_software_product_code_per_org"),
         CheckConstraint("supply_chain_exposure_index >= 0.0 AND supply_chain_exposure_index <= 100.0", name="chk_product_scei_range"),
@@ -299,6 +313,20 @@ class SoftwareComponent(Base):
     exemptions = relationship(
         "SupplyChainExemption", back_populates="component", cascade="all, delete-orphan"
     )
+
+    @property
+    def risk_band(self) -> SupplyChainRiskBandEnum:
+        score = float(self.component_risk_index or 0.0)
+        if score < 25.0:
+            return SupplyChainRiskBandEnum.LOW
+        elif score < 50.0:
+            return SupplyChainRiskBandEnum.MODERATE
+        elif score < 75.0:
+            return SupplyChainRiskBandEnum.HIGH
+        elif score < 90.0:
+            return SupplyChainRiskBandEnum.VERY_HIGH
+        else:
+            return SupplyChainRiskBandEnum.CRITICAL
 
     __table_args__ = (
         CheckConstraint("dependency_depth >= 1", name="chk_component_depth_positive"),
