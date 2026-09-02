@@ -26,6 +26,7 @@ import {
   Crosshair,
   Bot,
   Lock,
+  Package,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -68,6 +69,7 @@ export const Sidebar: React.FC = () => {
       group: 'Third-Party & Vendor Risk',
       items: [
         { name: 'Vendor Risk (TPRM)', path: '/vendors', icon: Building2, tag: 'Phase 9' },
+        { name: 'Supply Chain (SBOM)', path: '/supply-chain', icon: Package, tag: 'Phase 17' },
       ],
     },
     {

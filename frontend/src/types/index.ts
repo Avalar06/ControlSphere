@@ -2832,3 +2832,288 @@ export interface DataTransferCalculatePreviewRequest {
 export interface DataTransferCalculatePreviewResponse {
   transfer_risk_index: number;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 17: Software Supply Chain & SBOM Governance (SUPPLYCHAIN-GRC)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type SoftwareProductType =
+  | 'INTERNAL_APPLICATION'
+  | 'MICROSERVICE'
+  | 'COTS_SOFTWARE'
+  | 'OPEN_SOURCE_LIBRARY'
+  | 'EMBEDDED_FIRMWARE'
+  | 'CLOUD_SERVICE';
+
+export type ProductLifecycleState =
+  | 'DRAFT'
+  | 'ACTIVE'
+  | 'DEPRECATED'
+  | 'RETIRED';
+
+export type SupplyChainRiskBand =
+  | 'LOW'
+  | 'MODERATE'
+  | 'HIGH'
+  | 'CRITICAL';
+
+export type SBOMFormat =
+  | 'CYCLONEDX_JSON'
+  | 'SPDX_JSON'
+  | 'SWID_XML'
+  | 'CUSTOM_JSON';
+
+export type SBOMStatus =
+  | 'ACTIVE'
+  | 'SUPERSEDED'
+  | 'ARCHIVED';
+
+export type PackageEcosystem =
+  | 'NPM'
+  | 'PYPI'
+  | 'MAVEN'
+  | 'GO'
+  | 'CARGO'
+  | 'NUGET'
+  | 'RUBYGEMS'
+  | 'COMPOSER'
+  | 'DEBIAN'
+  | 'ALPINE'
+  | 'DOCKER'
+  | 'GENERIC';
+
+export type LicenseRiskCategory =
+  | 'PERMISSIVE'
+  | 'WEAK_COPYLEFT'
+  | 'STRONG_COPYLEFT'
+  | 'PROHIBITED'
+  | 'UNCLASSIFIED';
+
+export type SupplyChainApprovalStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'REVOKED';
+
+// ─── 1. Software Products ─────────────────────────────────────────────────────
+
+export interface SoftwareProductBase {
+  product_code: string;
+  name: string;
+  description?: string | null;
+  product_type: SoftwareProductType;
+  criticality_tier: BusinessCriticality;
+  version_tag: string;
+  repository_url?: string | null;
+  build_pipeline_url?: string | null;
+  business_process_id?: number | null;
+  ai_system_id?: number | null;
+  vendor_id?: number | null;
+  remediation_plan_id?: number | null;
+}
+
+export interface SoftwareProductCreate extends SoftwareProductBase {}
+
+export interface SoftwareProductUpdate {
+  name?: string;
+  description?: string | null;
+  criticality_tier?: BusinessCriticality;
+  version_tag?: string;
+  repository_url?: string | null;
+  build_pipeline_url?: string | null;
+  business_process_id?: number | null;
+  ai_system_id?: number | null;
+  vendor_id?: number | null;
+  remediation_plan_id?: number | null;
+}
+
+export interface SoftwareProductStatusUpdate {
+  status: ProductLifecycleState;
+  notes?: string | null;
+}
+
+export interface SoftwareProduct extends SoftwareProductBase {
+  id: number;
+  organization_id: number;
+  lifecycle_state: ProductLifecycleState;
+  owner_id: number;
+  supply_chain_exposure_index: number;
+  risk_band: SupplyChainRiskBand;
+  created_at: string;
+  updated_at: string;
+  owner?: User | null;
+  sboms?: SBOMDocument[];
+}
+
+// ─── 2. SBOM Documents ────────────────────────────────────────────────────────
+
+export interface SBOMDocumentBase {
+  sbom_code: string;
+  format: SBOMFormat;
+  spec_version: string;
+  author_name?: string | null;
+  tool_name?: string | null;
+  sha256_hash: string;
+  raw_payload?: Record<string, any> | null;
+}
+
+export interface SBOMDocumentCreate extends SBOMDocumentBase {}
+
+export interface SBOMDocument extends SBOMDocumentBase {
+  id: number;
+  organization_id: number;
+  software_product_id: number;
+  status: SBOMStatus;
+  ingested_by_id: number;
+  total_components_count: number;
+  vulnerable_components_count: number;
+  prohibited_licenses_count: number;
+  created_at: string;
+  updated_at: string;
+  ingested_by?: User | null;
+  components?: SoftwareComponent[];
+}
+
+// ─── 3. Software Components ───────────────────────────────────────────────────
+
+export interface SoftwareComponentBase {
+  purl?: string | null;
+  name: string;
+  version: string;
+  ecosystem: PackageEcosystem;
+  declared_license?: string | null;
+  license_category: LicenseRiskCategory;
+  is_direct_dependency: boolean;
+  dependency_depth: number;
+  is_license_prohibited: boolean;
+  supplier_name?: string | null;
+}
+
+export interface SoftwareComponentCreate extends SoftwareComponentBase {}
+
+export interface SoftwareComponent extends SoftwareComponentBase {
+  id: number;
+  organization_id: number;
+  sbom_document_id: number;
+  inherent_vulnerability_score: number;
+  component_risk_index: number;
+  risk_band: SupplyChainRiskBand;
+  vulnerabilities_count: number;
+  is_exempted: boolean;
+  created_at: string;
+  updated_at: string;
+  vulnerability_links?: ComponentVulnerabilityLink[];
+}
+
+// ─── 4. Component Vulnerability Links ──────────────────────────────────────────
+
+export interface ComponentVulnerabilityLinkBase {
+  vulnerability_id: number;
+  is_exploitable_in_context: boolean;
+  reachability_status?: string | null;
+  fix_available: boolean;
+  analysis_notes?: string | null;
+}
+
+export interface ComponentVulnerabilityLinkCreate extends ComponentVulnerabilityLinkBase {}
+
+export interface ComponentVulnerabilityLink extends ComponentVulnerabilityLinkBase {
+  id: number;
+  organization_id: number;
+  component_id: number;
+  linked_by_id: number;
+  created_at: string;
+  linked_by?: User | null;
+  vulnerability?: VulnerabilityExposure | null;
+}
+
+// ─── 5. License Policies & Exemptions ──────────────────────────────────────────
+
+export interface LicenseCompliancePolicyBase {
+  license_name: string;
+  spdx_identifier?: string | null;
+  risk_category: LicenseRiskCategory;
+  is_strictly_prohibited: boolean;
+  justification_required: boolean;
+}
+
+export interface LicenseCompliancePolicyCreate extends LicenseCompliancePolicyBase {}
+
+export interface LicenseCompliancePolicy extends LicenseCompliancePolicyBase {
+  id: number;
+  organization_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplyChainExemptionBase {
+  exemption_code: string;
+  reason: string;
+  compensating_controls: string;
+  expires_at?: string | null;
+  component_id?: number | null;
+  software_product_id?: number | null;
+}
+
+export interface SupplyChainExemptionCreate extends SupplyChainExemptionBase {}
+
+export interface SupplyChainExemptionReview {
+  decision: SupplyChainApprovalStatus;
+  reviewer_notes: string;
+}
+
+export interface SupplyChainExemption extends SupplyChainExemptionBase {
+  id: number;
+  organization_id: number;
+  approval_status: SupplyChainApprovalStatus;
+  requested_by_id: number;
+  reviewed_by_id?: number | null;
+  reviewed_at?: string | null;
+  reviewer_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  requested_by?: User | null;
+  reviewed_by?: User | null;
+}
+
+// ─── 6. Preview & Posture Telemetry ───────────────────────────────────────────
+
+export interface ComponentCalculatePreviewRequest {
+  cvss_scores?: number[];
+  exploitability_flags?: boolean[];
+  epss_scores?: number[];
+  is_cisa_kev?: boolean;
+  license_risk?: LicenseRiskCategory;
+  dependency_depth?: number;
+  is_exempted?: boolean;
+}
+
+export interface ComponentCalculatePreviewResponse {
+  inherent_vulnerability_score: number;
+  depth_multiplier: number;
+  license_penalty: number;
+  component_risk_index: number;
+  risk_band: SupplyChainRiskBand;
+}
+
+export interface ProductCalculatePreviewRequest {
+  component_risk_indices?: number[];
+}
+
+export interface ProductCalculatePreviewResponse {
+  supply_chain_exposure_index: number;
+  risk_band: SupplyChainRiskBand;
+}
+
+export interface SupplyChainPostureSummaryResponse {
+  total_products: number;
+  active_products_count: number;
+  total_components_cataloged: number;
+  vulnerable_components_count: number;
+  prohibited_license_violations: number;
+  pending_exemptions_count: number;
+  average_exposure_index: number;
+  risk_band_distribution: Record<string, number>;
+  product_type_distribution: Record<string, number>;
+  ecosystem_distribution: Record<string, number>;
+}

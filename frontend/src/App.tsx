@@ -45,6 +45,9 @@ import { AISystemDetailPage } from './pages/AISystemDetailPage';
 import { PrivacyGovernancePage } from './pages/PrivacyGovernancePage';
 import { PrivacyProcessingDetailPage } from './pages/PrivacyProcessingDetailPage';
 import { PrivacyAssetDetailPage } from './pages/PrivacyAssetDetailPage';
+import { SupplyChainGovernancePage } from './pages/SupplyChainGovernancePage';
+import { SoftwareProductDetailPage } from './pages/SoftwareProductDetailPage';
+import { SBOMDetailPage } from './pages/SBOMDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -136,6 +139,11 @@ export const App: React.FC = () => {
               <Route path="/privacy" element={<PrivacyGovernancePage />} />
               <Route path="/privacy/processing/:id" element={<PrivacyProcessingDetailPage />} />
               <Route path="/privacy/assets/:id" element={<PrivacyAssetDetailPage />} />
+
+              {/* Phase 17: Software Supply Chain & SBOM Governance (SUPPLYCHAIN-GRC) */}
+              <Route path="/supply-chain" element={<SupplyChainGovernancePage />} />
+              <Route path="/supply-chain/products/:id" element={<SoftwareProductDetailPage />} />
+              <Route path="/supply-chain/sboms/:id" element={<SBOMDetailPage />} />
 
               <Route
                 path="/ai-analyst"
