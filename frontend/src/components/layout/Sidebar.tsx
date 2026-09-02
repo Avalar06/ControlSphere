@@ -27,6 +27,8 @@ import {
   Bot,
   Lock,
   Package,
+  Cloud,
+  KeyRound,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -75,6 +77,8 @@ export const Sidebar: React.FC = () => {
     {
       group: 'Security & Exposure Governance',
       items: [
+        { name: 'Cloud Security (CSPM)', path: '/cloud-security', icon: Cloud, tag: 'Phase 18' },
+        { name: 'Identity Governance (IGA)', path: '/identity-governance', icon: KeyRound, tag: 'Phase 19' },
         { name: 'Threat Exposure (CVE)', path: '/exposure', icon: Crosshair, tag: 'Phase 14' },
         { name: 'Incident Response', path: '/incidents', icon: Flame, tag: 'Phase 10' },
       ],

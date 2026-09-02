@@ -116,6 +116,18 @@ class Permission(str, enum.Enum):
     SUPPLYCHAIN_ASSESS = "supplychain:assess"
     SUPPLYCHAIN_APPROVE = "supplychain:approve"
 
+    # Phase 18: CLOUDSEC-GRC — Cloud Security Posture Management (CSPM) Permissions
+    CLOUDSEC_READ = "cloudsec:read"
+    CLOUDSEC_MANAGE = "cloudsec:manage"
+    CLOUDSEC_ASSESS = "cloudsec:assess"
+    CLOUDSEC_APPROVE = "cloudsec:approve"
+
+    # Phase 19: IDENTITY-GRC — Identity Governance & Administration (IGA) Permissions
+    IDENTITY_READ = "identity:read"
+    IDENTITY_MANAGE = "identity:manage"
+    IDENTITY_ASSESS = "identity:assess"
+    IDENTITY_APPROVE = "identity:approve"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -177,6 +189,12 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.SUPPLYCHAIN_READ,
         Permission.SUPPLYCHAIN_MANAGE,
         Permission.SUPPLYCHAIN_ASSESS,
+        Permission.CLOUDSEC_READ,
+        Permission.CLOUDSEC_MANAGE,
+        Permission.CLOUDSEC_ASSESS,
+        Permission.IDENTITY_READ,
+        Permission.IDENTITY_MANAGE,
+        Permission.IDENTITY_ASSESS,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -223,6 +241,12 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.PRIVACY_ASSESS,
         Permission.SUPPLYCHAIN_READ,
         Permission.SUPPLYCHAIN_ASSESS,
+        Permission.CLOUDSEC_READ,
+        Permission.CLOUDSEC_MANAGE,
+        Permission.CLOUDSEC_ASSESS,
+        Permission.IDENTITY_READ,
+        Permission.IDENTITY_MANAGE,
+        Permission.IDENTITY_ASSESS,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -253,6 +277,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AI_READ,
         Permission.PRIVACY_READ,
         Permission.SUPPLYCHAIN_READ,
+        Permission.CLOUDSEC_READ,
+        Permission.IDENTITY_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -311,6 +337,14 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.SUPPLYCHAIN_MANAGE,
         Permission.SUPPLYCHAIN_ASSESS,
         Permission.SUPPLYCHAIN_APPROVE,
+        Permission.CLOUDSEC_READ,
+        Permission.CLOUDSEC_MANAGE,
+        Permission.CLOUDSEC_ASSESS,
+        Permission.CLOUDSEC_APPROVE,
+        Permission.IDENTITY_READ,
+        Permission.IDENTITY_MANAGE,
+        Permission.IDENTITY_ASSESS,
+        Permission.IDENTITY_APPROVE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -333,6 +367,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AI_READ,
         Permission.PRIVACY_READ,
         Permission.SUPPLYCHAIN_READ,
+        Permission.CLOUDSEC_READ,
+        Permission.IDENTITY_READ,
     },
 }
 

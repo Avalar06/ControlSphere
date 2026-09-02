@@ -3117,3 +3117,498 @@ export interface SupplyChainPostureSummaryResponse {
   product_type_distribution: Record<string, number>;
   ecosystem_distribution: Record<string, number>;
 }
+
+// ============================================================================
+// PHASE 18: CLOUDSEC-GRC — CLOUD SECURITY POSTURE MANAGEMENT (CSPM)
+// ============================================================================
+
+export type CloudProvider = 'AWS' | 'AZURE' | 'GCP' | 'OCI' | 'ALIBABA';
+
+export type CloudAssetType =
+  | 'S3_BUCKET'
+  | 'IAM_ROLE'
+  | 'EC2_INSTANCE'
+  | 'KUBERNETES_CLUSTER'
+  | 'RDS_DATABASE'
+  | 'KEY_VAULT'
+  | 'SECURITY_GROUP'
+  | 'SERVERLESS_FUNCTION'
+  | 'CONTAINER_REGISTRY'
+  | 'VIRTUAL_NETWORK';
+
+export type CloudEnvironment = 'PRODUCTION' | 'STAGING' | 'DEVELOPMENT' | 'SANDBOX';
+export type CloudCriticality = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type CloudPostureStatus = 'COMPLIANT' | 'NON_COMPLIANT' | 'DEVIATED' | 'UNASSESSED';
+export type CloudLifecycleState = 'ACTIVE' | 'PROVISIONING' | 'MAINTENANCE' | 'DECOMMISSIONED';
+
+export type BenchmarkFramework =
+  | 'CIS_AWS_FOUNDATIONS'
+  | 'CIS_AZURE_FOUNDATIONS'
+  | 'CIS_GCP_FOUNDATIONS'
+  | 'NIST_SP_800_53_CLOUD'
+  | 'SOC2_CLOUD_SECURITY';
+
+export type RuleSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type EvaluationStatus = 'PASSED' | 'FAILED' | 'SUPPRESSED' | 'REMEDIATED';
+export type DriftSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type DriftStatus = 'DETECTED' | 'ACCEPTED_CHANGE' | 'REMEDIATING' | 'REVERTED';
+export type DataAccessScope = 'FULL_DATASTORE' | 'RESTRICTED_READ' | 'METADATA_ONLY';
+export type BlastRadiusBand = 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
+
+export interface CloudAssetBase {
+  asset_code: string;
+  provider: CloudProvider;
+  account_id: string;
+  region: string;
+  resource_type: CloudAssetType;
+  resource_arn: string;
+  resource_name: string;
+  environment: CloudEnvironment;
+  criticality: CloudCriticality;
+  is_internet_facing: boolean;
+  encryption_enabled: boolean;
+  software_product_id?: number | null;
+  remediation_plan_id?: number | null;
+  tags?: string | null;
+  configuration_metadata?: string | null;
+}
+
+export interface CloudAssetCreate extends CloudAssetBase {}
+
+export interface CloudAssetUpdate {
+  resource_name?: string;
+  environment?: CloudEnvironment;
+  criticality?: CloudCriticality;
+  is_internet_facing?: boolean;
+  encryption_enabled?: boolean;
+  software_product_id?: number | null;
+  remediation_plan_id?: number | null;
+  tags?: string | null;
+  configuration_metadata?: string | null;
+}
+
+export interface CloudAssetStatusUpdate {
+  lifecycle_state: CloudLifecycleState;
+  notes?: string;
+}
+
+export interface CloudAsset extends CloudAssetBase {
+  id: number;
+  organization_id: number;
+  posture_status: CloudPostureStatus;
+  posture_score: number;
+  blast_radius_score: number;
+  lifecycle_state: CloudLifecycleState;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CloudBenchmarkRuleBase {
+  rule_code: string;
+  title: string;
+  description: string;
+  section: string;
+  severity: RuleSeverity;
+  rationale?: string | null;
+  remediation_guidance?: string | null;
+  control_id?: number | null;
+}
+
+export interface CloudBenchmarkRuleCreate extends CloudBenchmarkRuleBase {
+  benchmark_id: number;
+}
+
+export interface CloudBenchmarkRule extends CloudBenchmarkRuleBase {
+  id: number;
+  benchmark_id: number;
+  created_at: string;
+}
+
+export interface CloudSecurityBenchmarkBase {
+  benchmark_code: string;
+  name: string;
+  version: string;
+  framework: BenchmarkFramework;
+  provider: CloudProvider;
+  description?: string | null;
+  is_active: boolean;
+}
+
+export interface CloudSecurityBenchmarkCreate extends CloudSecurityBenchmarkBase {}
+
+export interface CloudSecurityBenchmark extends CloudSecurityBenchmarkBase {
+  id: number;
+  total_rules_count: number;
+  rules: CloudBenchmarkRule[];
+  created_at: string;
+}
+
+export interface CloudSecurityFindingCreate {
+  finding_code: string;
+  cloud_asset_id: number;
+  rule_id: number;
+  evaluation_status: EvaluationStatus;
+  severity: RuleSeverity;
+  actual_value?: string | null;
+  expected_value?: string | null;
+  remediation_plan_id?: number | null;
+}
+
+export interface CloudSecurityFinding {
+  id: number;
+  organization_id: number;
+  finding_code: string;
+  cloud_asset_id: number;
+  rule_id: number;
+  evaluation_status: EvaluationStatus;
+  severity: RuleSeverity;
+  risk_score: number;
+  actual_value?: string | null;
+  expected_value?: string | null;
+  remediation_plan_id?: number | null;
+  evaluated_at: string;
+  resolved_at?: string | null;
+}
+
+export interface CloudConfigurationDriftCreate {
+  drift_code: string;
+  cloud_asset_id: number;
+  attribute_path: string;
+  baseline_value: string;
+  drifted_value: string;
+  drift_severity: DriftSeverity;
+}
+
+export interface CloudConfigurationDrift {
+  id: number;
+  organization_id: number;
+  drift_code: string;
+  cloud_asset_id: number;
+  attribute_path: string;
+  baseline_value: string;
+  drifted_value: string;
+  drift_severity: DriftSeverity;
+  drift_score: number;
+  status: DriftStatus;
+  detected_at: string;
+  resolved_at?: string | null;
+}
+
+export interface CloudIAMBlastRadiusCreate {
+  analysis_code: string;
+  cloud_asset_id: number;
+  iam_principal_arn: string;
+  effective_permissions_count: number;
+  admin_privilege_granted: boolean;
+  cross_account_access: boolean;
+  data_access_scope: DataAccessScope;
+}
+
+export interface CloudIAMBlastRadiusPreviewRequest {
+  effective_permissions_count: number;
+  admin_privilege_granted: boolean;
+  cross_account_access: boolean;
+  data_access_scope: DataAccessScope;
+}
+
+export interface CloudIAMBlastRadiusPreviewResponse {
+  blast_radius_index: number;
+  risk_band: BlastRadiusBand;
+  breakdown: Record<string, number>;
+}
+
+export interface CloudIAMBlastRadius {
+  id: number;
+  organization_id: number;
+  analysis_code: string;
+  cloud_asset_id: number;
+  iam_principal_arn: string;
+  effective_permissions_count: number;
+  admin_privilege_granted: boolean;
+  cross_account_access: boolean;
+  data_access_scope: DataAccessScope;
+  blast_radius_index: number;
+  risk_band: BlastRadiusBand;
+  analyzed_at: string;
+}
+
+export interface CloudPostureSummaryResponse {
+  total_cloud_assets: number;
+  compliant_assets_count: number;
+  non_compliant_assets_count: number;
+  deviated_assets_count: number;
+  total_open_findings: number;
+  critical_findings_count: number;
+  active_drifts_count: number;
+  average_posture_score: number;
+  average_blast_radius_score: number;
+  provider_distribution: Record<string, number>;
+  environment_distribution: Record<string, number>;
+}
+
+// ============================================================================
+// PHASE 19: IDENTITY-GRC — IDENTITY GOVERNANCE & ADMINISTRATION (IGA)
+// ============================================================================
+
+export type IdentityType =
+  | 'WORKFORCE_EMPLOYEE'
+  | 'CONTRACTOR'
+  | 'SERVICE_ACCOUNT'
+  | 'MACHINE_WORKLOAD'
+  | 'EXTERNAL_PARTNER';
+
+export type EmploymentStatus = 'ACTIVE' | 'LEAVE' | 'TERMINATED' | 'SUSPENDED';
+export type IdentityRiskBand = 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
+export type SystemType =
+  | 'ACTIVE_DIRECTORY'
+  | 'OKTA'
+  | 'AWS_IAM'
+  | 'AZURE_RBAC'
+  | 'DATABASE_ROLE'
+  | 'SAAS_APPLICATION';
+
+export type AssignmentType = 'DIRECT' | 'ROLE_INHERITED' | 'JIT_ELEVATION';
+export type CampaignType =
+  | 'PERIODIC_USER_ACCESS_REVIEW'
+  | 'PRIVILEGED_ACCESS_CERTIFICATION'
+  | 'SOD_CONFLICT_REVIEW'
+  | 'TERMINATION_AUDIT';
+
+export type CampaignStatus = 'DRAFT' | 'ACTIVE' | 'IN_REVIEW' | 'FINALIZED' | 'CANCELLED';
+export type CertificationDecision = 'PENDING' | 'CERTIFIED' | 'REVOKED' | 'EXCEPTION_APPROVED';
+export type JITApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'REVOKED';
+export type TrustLevel = 'HIGH_TRUST' | 'CONDITIONAL_TRUST' | 'LOW_TRUST' | 'UNTRUSTED';
+export type SoDPolicySeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM';
+export type SoDViolationStatus = 'ACTIVE_VIOLATION' | 'EXCEPTION_GRANTED' | 'REMEDIATED';
+
+export interface GovernedIdentityBase {
+  identity_code: string;
+  email: string;
+  full_name: string;
+  identity_type: IdentityType;
+  department?: string | null;
+  employment_status: EmploymentStatus;
+  is_privileged: boolean;
+  mfa_enabled: boolean;
+  cloud_asset_id?: number | null;
+  user_id?: number | null;
+}
+
+export interface GovernedIdentityCreate extends GovernedIdentityBase {}
+
+export interface GovernedIdentityUpdate {
+  full_name?: string;
+  department?: string | null;
+  employment_status?: EmploymentStatus;
+  is_privileged?: boolean;
+  mfa_enabled?: boolean;
+  cloud_asset_id?: number | null;
+  user_id?: number | null;
+}
+
+export interface GovernedIdentity extends GovernedIdentityBase {
+  id: number;
+  organization_id: number;
+  risk_score: number;
+  risk_band: IdentityRiskBand;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IdentityEntitlementBase {
+  entitlement_code: string;
+  name: string;
+  system_type: SystemType;
+  resource_name: string;
+  permission_scope: string;
+  is_privileged: boolean;
+  is_high_risk: boolean;
+  risk_weight: number;
+  description?: string | null;
+}
+
+export interface IdentityEntitlementCreate extends IdentityEntitlementBase {}
+
+export interface IdentityEntitlement extends IdentityEntitlementBase {
+  id: number;
+  organization_id: number;
+  created_at: string;
+}
+
+export interface EntitlementAssignmentCreate {
+  entitlement_id: number;
+  assignment_type?: AssignmentType;
+  expires_at?: string | null;
+}
+
+export interface EntitlementAssignment {
+  id: number;
+  organization_id: number;
+  identity_id: number;
+  entitlement_id: number;
+  assigned_at: string;
+  expires_at?: string | null;
+  assignment_type: AssignmentType;
+  is_active: boolean;
+  entitlement?: IdentityEntitlement;
+}
+
+export interface AccessCertificationCampaignCreate {
+  campaign_code: string;
+  title: string;
+  description?: string | null;
+  campaign_type?: CampaignType;
+  deadline: string;
+}
+
+export interface AccessCertificationCampaign {
+  id: number;
+  organization_id: number;
+  campaign_code: string;
+  title: string;
+  description?: string | null;
+  campaign_type: CampaignType;
+  status: CampaignStatus;
+  total_items_count: number;
+  certified_items_count: number;
+  revoked_items_count: number;
+  deadline: string;
+  finalized_at?: string | null;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccessCertificationItemReview {
+  decision: CertificationDecision;
+  decision_justification?: string | null;
+  remediation_plan_id?: number | null;
+}
+
+export interface AccessCertificationItem {
+  id: number;
+  organization_id: number;
+  campaign_id: number;
+  identity_id: number;
+  entitlement_id: number;
+  decision: CertificationDecision;
+  decision_justification?: string | null;
+  reviewer_id?: number | null;
+  reviewed_at?: string | null;
+  is_sod_violation: boolean;
+  remediation_plan_id?: number | null;
+  identity?: GovernedIdentity;
+  entitlement?: IdentityEntitlement;
+}
+
+export interface JITAccessRequestCreate {
+  request_code: string;
+  identity_id: number;
+  entitlement_id: number;
+  requested_duration_minutes: number;
+  business_justification: string;
+}
+
+export interface JITAccessReviewRequest {
+  approved: boolean;
+  notes?: string;
+}
+
+export interface JITAccessRequest {
+  id: number;
+  organization_id: number;
+  request_code: string;
+  identity_id: number;
+  entitlement_id: number;
+  requested_duration_minutes: number;
+  business_justification: string;
+  approval_status: JITApprovalStatus;
+  requested_by_id: number;
+  approved_by_id?: number | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ZeroTrustAssessmentCreate {
+  assessment_code: string;
+  device_health_score: number;
+  auth_strength_score: number;
+  context_risk_score: number;
+  behavioral_anomaly_score: number;
+}
+
+export interface ZeroTrustPreviewRequest {
+  device_health_score: number;
+  auth_strength_score: number;
+  context_risk_score: number;
+  behavioral_anomaly_score: number;
+}
+
+export interface ZeroTrustPreviewResponse {
+  zero_trust_assurance_score: number;
+  trust_level: TrustLevel;
+  breakdown: Record<string, number>;
+}
+
+export interface ZeroTrustAssessment {
+  id: number;
+  organization_id: number;
+  assessment_code: string;
+  identity_id: number;
+  device_health_score: number;
+  auth_strength_score: number;
+  context_risk_score: number;
+  behavioral_anomaly_score: number;
+  zero_trust_assurance_score: number;
+  trust_level: TrustLevel;
+  evaluated_at: string;
+}
+
+export interface SoDConflictPolicyCreate {
+  policy_code: string;
+  name: string;
+  entitlement_a_id: number;
+  entitlement_b_id: number;
+  severity?: SoDPolicySeverity;
+  description?: string | null;
+}
+
+export interface SoDConflictPolicy {
+  id: number;
+  organization_id: number;
+  policy_code: string;
+  name: string;
+  entitlement_a_id: number;
+  entitlement_b_id: number;
+  severity: SoDPolicySeverity;
+  description?: string | null;
+  created_at: string;
+}
+
+export interface SoDConflictViolation {
+  id: number;
+  organization_id: number;
+  identity_id: number;
+  policy_id: number;
+  status: SoDViolationStatus;
+  remediation_plan_id?: number | null;
+  detected_at: string;
+  resolved_at?: string | null;
+  policy?: SoDConflictPolicy;
+}
+
+export interface IdentityPostureSummaryResponse {
+  total_identities: number;
+  privileged_identities_count: number;
+  high_risk_identities_count: number;
+  active_sod_violations_count: number;
+  pending_certifications_count: number;
+  pending_jit_requests_count: number;
+  average_identity_risk_score: number;
+  average_zero_trust_score: number;
+  identity_type_distribution: Record<string, number>;
+  system_entitlement_distribution: Record<string, number>;
+}

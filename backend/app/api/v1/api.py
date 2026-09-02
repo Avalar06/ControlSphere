@@ -25,6 +25,8 @@ from app.api.v1.endpoints import (
     ai_governance,
     privacy,
     supply_chain,
+    cloudsec,
+    identity_governance,
 )
 
 api_router = APIRouter()
@@ -54,3 +56,5 @@ api_router.include_router(exposure.router, prefix="/exposures", tags=["Threat Ex
 api_router.include_router(ai_governance.router, prefix="/ai-governance", tags=["Artificial Intelligence Governance & Algorithmic Risk (AI-GRC)"])
 api_router.include_router(privacy.router, prefix="/privacy", tags=["Privacy Governance & Data Protection (PRIVACY-GRC)"])
 api_router.include_router(supply_chain.router, prefix="/supply-chain", tags=["Software Supply Chain & SBOM Governance (SUPPLYCHAIN-GRC)"])
+api_router.include_router(cloudsec.router, prefix="/cloud-security", tags=["Cloud Security Posture Management (CLOUDSEC-GRC)"])
+api_router.include_router(identity_governance.router, prefix="/identity-governance", tags=["Identity Governance & Administration (IDENTITY-GRC)"])

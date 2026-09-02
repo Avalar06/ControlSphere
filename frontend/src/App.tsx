@@ -48,6 +48,11 @@ import { PrivacyAssetDetailPage } from './pages/PrivacyAssetDetailPage';
 import { SupplyChainGovernancePage } from './pages/SupplyChainGovernancePage';
 import { SoftwareProductDetailPage } from './pages/SoftwareProductDetailPage';
 import { SBOMDetailPage } from './pages/SBOMDetailPage';
+import { CloudSecurityPage } from './pages/CloudSecurityPage';
+import { CloudAssetDetailPage } from './pages/CloudAssetDetailPage';
+import { IdentityGovernancePage } from './pages/IdentityGovernancePage';
+import { IdentityDetailPage } from './pages/IdentityDetailPage';
+import { CertificationCampaignDetailPage } from './pages/CertificationCampaignDetailPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -144,6 +149,15 @@ export const App: React.FC = () => {
               <Route path="/supply-chain" element={<SupplyChainGovernancePage />} />
               <Route path="/supply-chain/products/:id" element={<SoftwareProductDetailPage />} />
               <Route path="/supply-chain/sboms/:id" element={<SBOMDetailPage />} />
+
+              {/* Phase 18: Continuous Cloud Security Posture Management (CLOUDSEC-GRC) */}
+              <Route path="/cloud-security" element={<CloudSecurityPage />} />
+              <Route path="/cloud-security/assets/:id" element={<CloudAssetDetailPage />} />
+
+              {/* Phase 19: Identity Governance & Administration (IDENTITY-GRC) */}
+              <Route path="/identity-governance" element={<IdentityGovernancePage />} />
+              <Route path="/identity-governance/identities/:id" element={<IdentityDetailPage />} />
+              <Route path="/identity-governance/campaigns/:id" element={<CertificationCampaignDetailPage />} />
 
               <Route
                 path="/ai-analyst"
