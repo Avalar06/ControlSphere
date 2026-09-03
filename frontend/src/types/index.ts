@@ -3612,3 +3612,609 @@ export interface IdentityPostureSummaryResponse {
   identity_type_distribution: Record<string, number>;
   system_entitlement_distribution: Record<string, number>;
 }
+
+// ── Phase 20 Executive Governance & Board Telemetry (EXECUTIVE-GRC) ───────────
+
+export type DossierType =
+  | 'BOARD_SUMMARY'
+  | 'REGULATORY_SUBMISSION'
+  | 'ANNUAL_COMPLIANCE'
+  | 'FORENSIC_AUDIT'
+  | 'CYBER_INSURANCE';
+
+export type DossierStatus = 'DRAFT' | 'COMPILED' | 'UNDER_REVIEW' | 'FINALIZED';
+
+export type BriefingStatus = 'DRAFT' | 'SUBMITTED_FOR_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUPERSEDED';
+
+export type ExportFormat = 'PDF' | 'JSON' | 'CSV';
+
+export type ArtifactType = 'DOSSIER_PACKAGE' | 'EXECUTIVE_BRIEFING' | 'POSTURE_SNAPSHOT';
+
+export interface DomainPostureItem {
+  domain_key: string;
+  domain_name: string;
+  score: number;
+  weight: number;
+  status: string;
+  summary: Record<string, any>;
+}
+
+export interface TopRiskItem {
+  id: number;
+  title: string;
+  risk_category: string;
+  inherent_score: number;
+  residual_score?: number | null;
+  appetite_status: string;
+}
+
+export interface CriticalFindingItem {
+  id: number;
+  title: string;
+  severity: string;
+  status: string;
+  due_date?: string | null;
+  owner_name?: string | null;
+}
+
+export interface ExecutiveTelemetryResponse {
+  overall_posture_score: number;
+  inherent_risk_index: number;
+  residual_risk_index: number;
+  risk_reduction_percentage: number;
+  financial_exposure_ale: number;
+  var_95_exposure: number;
+  financial_appetite_utilization_pct: number;
+  audit_readiness_index: number;
+  remediation_sla_health_score: number;
+  framework_compliance_summary: Record<string, any>;
+  domain_posture_breakdown: Record<string, { name: string; score: number; weight: number }>;
+  top_risks: TopRiskItem[];
+  critical_findings: CriticalFindingItem[];
+  calculated_at: string;
+}
+
+export interface ExecutiveTrendDataPoint {
+  timestamp: string;
+  overall_posture_score: number;
+  inherent_risk_index: number;
+  residual_risk_index: number;
+  financial_exposure_ale: number;
+  audit_readiness_index: number;
+  remediation_sla_health_score: number;
+}
+
+export interface ExecutiveTrendsResponse {
+  window_days: number;
+  data_points: ExecutiveTrendDataPoint[];
+}
+
+export interface ExecutiveSnapshotCreate {
+  snapshot_code: string;
+  notes?: string;
+}
+
+export interface ExecutiveSnapshot {
+  id: number;
+  organization_id: number;
+  snapshot_code: string;
+  calculated_at: string;
+  overall_posture_score: number;
+  inherent_risk_index: number;
+  residual_risk_index: number;
+  financial_exposure_ale: number;
+  var_95_exposure: number;
+  audit_readiness_index: number;
+  remediation_sla_health_score: number;
+  framework_compliance_summary: Record<string, any>;
+  domain_posture_breakdown: Record<string, { name: string; score: number; weight: number }>;
+  top_risks_snapshot: any[];
+  critical_findings_snapshot: any[];
+  source_manifest: Record<string, any>;
+  data_hash_sha256: string;
+  created_by_id: number;
+  created_at: string;
+}
+
+export interface ExecutiveDossierCreate {
+  dossier_code: string;
+  title: string;
+  description?: string;
+  dossier_type?: DossierType;
+  scope_framework_ids?: number[];
+  snapshot_id?: number | null;
+  executive_summary?: string;
+  regulatory_commentary?: string;
+}
+
+export interface ExecutiveDossierUpdate {
+  title?: string;
+  description?: string;
+  scope_framework_ids?: number[];
+  snapshot_id?: number | null;
+  executive_summary?: string;
+  regulatory_commentary?: string;
+}
+
+export interface ExecutiveDossier {
+  id: number;
+  organization_id: number;
+  dossier_code: string;
+  title: string;
+  description?: string | null;
+  dossier_type: DossierType;
+  status: DossierStatus;
+  scope_framework_ids: number[];
+  snapshot_id?: number | null;
+  executive_summary?: string | null;
+  regulatory_commentary?: string | null;
+  compiled_sections?: Record<string, any> | null;
+  compiled_at?: string | null;
+  compiled_by_id?: number | null;
+  finalized_at?: string | null;
+  finalized_by_id?: number | null;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExecutiveBriefingCreate {
+  briefing_code: string;
+  title: string;
+  reporting_period_start: string;
+  reporting_period_end: string;
+  snapshot_id: number;
+  executive_summary: string;
+  key_achievements?: string[];
+  emerging_risks?: string[];
+  strategic_recommendations?: string;
+}
+
+export interface ExecutiveBriefingReview {
+  approved: boolean;
+  review_notes?: string;
+}
+
+export interface ExecutiveBriefing {
+  id: number;
+  organization_id: number;
+  briefing_code: string;
+  title: string;
+  reporting_period_start: string;
+  reporting_period_end: string;
+  status: BriefingStatus;
+  snapshot_id: number;
+  executive_summary: string;
+  key_achievements: string[];
+  emerging_risks: string[];
+  strategic_recommendations?: string | null;
+  period_over_period_deltas: Record<string, any>;
+  generated_by_id: number;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  review_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExecutiveExportArtifact {
+  id: number;
+  organization_id: number;
+  export_code: string;
+  export_format: ExportFormat;
+  artifact_type: ArtifactType;
+  dossier_id?: number | null;
+  briefing_id?: number | null;
+  snapshot_id?: number | null;
+  storage_key: string;
+  original_filename: string;
+  mime_type: string;
+  file_size_bytes: number;
+  sha256_checksum: string;
+  generated_by_id: number;
+  generated_at: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 21: Regulatory-GRC Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type RegulatoryAuthorityType = 'GOVERNMENT' | 'STANDARDS_BODY' | 'INDUSTRY_REGULATOR' | 'LEGAL_COURT' | 'INTERNATIONAL_AGENCY';
+export type RegulatoryTrustTier = 'OFFICIAL' | 'STANDARD' | 'ADVISORY';
+export type RegulatoryEnforceability = 'MANDATORY' | 'VOLUNTARY_STANDARD';
+export type RegulatoryMandateStatus = 'DRAFT' | 'ACTIVE' | 'SUPERSEDED' | 'ARCHIVED';
+export type RegulatoryApplicability = 'APPLICABLE' | 'EXEMPT' | 'UNDER_EVALUATION';
+export type RegulatoryComplianceStatus = 'COMPLIANT' | 'PARTIALLY_COMPLIANT' | 'NON_COMPLIANT' | 'NEEDS_REVIEW';
+export type RegulatoryChangeType = 'NEW_MANDATE' | 'AMENDMENT' | 'GUIDANCE_UPDATE' | 'ENFORCEMENT_DATE_SHIFT' | 'REPEAL';
+export type RegulatoryChangeSeverity = 'CRITICAL' | 'MAJOR' | 'MINOR' | 'ADMINISTRATIVE';
+export type RegulatoryChangeStatus = 'STAGED' | 'VALIDATED' | 'UNDER_REVIEW' | 'REVIEWED' | 'APPROVED' | 'ACTIVE' | 'DISMISSED';
+export type RegulatoryImpactLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFORMATIONAL';
+export type RegulatoryImpactStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+
+export interface RegulatorySource {
+  id: number;
+  organization_id: number;
+  source_code: string;
+  name: string;
+  authority_type: RegulatoryAuthorityType;
+  jurisdiction: string;
+  website_url?: string | null;
+  trust_tier: RegulatoryTrustTier;
+  description?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RegulatorySourceCreate {
+  source_code: string;
+  name: string;
+  authority_type: RegulatoryAuthorityType;
+  jurisdiction: string;
+  website_url?: string;
+  trust_tier?: RegulatoryTrustTier;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface RegulatoryMandate {
+  id: number;
+  organization_id: number;
+  source_id: number;
+  mandate_code: string;
+  title: string;
+  short_name: string;
+  legal_citation?: string | null;
+  jurisdiction: string;
+  enforceability_level: RegulatoryEnforceability;
+  status: RegulatoryMandateStatus;
+  framework_id?: number | null;
+  description?: string | null;
+  effective_date?: string | null;
+  sunset_date?: string | null;
+  created_by_id?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RegulatoryMandateCreate {
+  source_id: number;
+  mandate_code: string;
+  title: string;
+  short_name: string;
+  legal_citation?: string;
+  jurisdiction: string;
+  enforceability_level?: RegulatoryEnforceability;
+  status?: RegulatoryMandateStatus;
+  framework_id?: number;
+  description?: string;
+  effective_date?: string;
+  sunset_date?: string;
+}
+
+export interface RegulatoryObligation {
+  id: number;
+  organization_id: number;
+  mandate_id: number;
+  version_id?: number | null;
+  obligation_code: string;
+  title: string;
+  description: string;
+  article_reference?: string | null;
+  applicability: RegulatoryApplicability;
+  organization_control_id?: number | null;
+  compliance_status: RegulatoryComplianceStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RegulatoryObligationCreate {
+  mandate_id: number;
+  version_id?: number;
+  obligation_code: string;
+  title: string;
+  description: string;
+  article_reference?: string;
+  applicability?: RegulatoryApplicability;
+  organization_control_id?: number;
+  compliance_status?: RegulatoryComplianceStatus;
+}
+
+export interface RegulatoryChangeEvent {
+  id: number;
+  organization_id: number;
+  mandate_id: number;
+  change_code: string;
+  title: string;
+  change_type: RegulatoryChangeType;
+  severity: RegulatoryChangeSeverity;
+  status: RegulatoryChangeStatus;
+  official_publication_date: string;
+  enforcement_date?: string | null;
+  source_url?: string | null;
+  content_hash_sha256: string;
+  raw_summary: string;
+  review_notes?: string | null;
+  dismissal_reason?: string | null;
+  created_by_id: number;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RegulatoryChangeEventCreate {
+  mandate_id: number;
+  change_code: string;
+  title: string;
+  change_type?: RegulatoryChangeType;
+  severity?: RegulatoryChangeSeverity;
+  official_publication_date: string;
+  enforcement_date?: string;
+  source_url?: string;
+  raw_summary: string;
+}
+
+export interface RegulatoryChangeReviewRequest {
+  impact_level: RegulatoryImpactLevel;
+  impacted_control_ids?: number[];
+  impacted_policy_ids?: number[];
+  gap_analysis_summary: string;
+  action_plan?: string;
+  review_notes?: string;
+}
+
+export interface RegulatoryChangeApproveRequest {
+  review_notes?: string;
+}
+
+export interface RegulatoryChangeDismissRequest {
+  dismissal_reason: string;
+}
+
+export interface RegulatoryImpactAssessment {
+  id: number;
+  organization_id: number;
+  change_event_id: number;
+  assessment_code: string;
+  title: string;
+  impact_level: RegulatoryImpactLevel;
+  status: RegulatoryImpactStatus;
+  impacted_control_ids?: string | null;
+  impacted_policy_ids?: string | null;
+  gap_analysis_summary: string;
+  action_plan?: string | null;
+  created_by_id: number;
+  reviewed_by_id?: number | null;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 22: Integration-GRC Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type IntegrationProviderType = 'AWS' | 'AZURE' | 'GCP' | 'GITHUB' | 'GOOGLE' | 'JIRA' | 'OKTA' | 'SERVICENOW' | 'CUSTOM_REST';
+export type IntegrationAuthType = 'API_KEY' | 'BEARER_TOKEN' | 'BASIC_AUTH' | 'OAUTH2' | 'STS_ROLE' | 'MUTUAL_TLS';
+export type IntegrationConnectionStatus = 'ACTIVE' | 'INACTIVE' | 'ERROR' | 'UNAUTHENTICATED';
+export type EvidenceCollectorType = 'AWS_IAM_MFA' | 'AWS_S3_ENCRYPTION' | 'AWS_CLOUDTRAIL_ACTIVE' | 'GITHUB_BRANCH_PROTECTION' | 'GITHUB_CODE_SCANNING' | 'AZURE_USER_MFA' | 'JIRA_INCIDENT_SLA' | 'CUSTOM_SCRIPT';
+export type CollectionRunStatus = 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'PARTIAL_FAILURE' | 'FAILED';
+export type CollectionValidationStatus = 'RAW' | 'SYNTAX_VALIDATED' | 'SCHEMA_CONFORMANT' | 'VALIDATION_FAILED';
+
+export interface IntegrationProvider {
+  id: number;
+  provider_type: IntegrationProviderType;
+  name: string;
+  description?: string | null;
+  auth_type: IntegrationAuthType;
+  supported_scopes: string[];
+  allowed_domains: string[];
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntegrationConnection {
+  id: number;
+  organization_id: number;
+  provider_id: number;
+  connection_code: string;
+  name: string;
+  status: IntegrationConnectionStatus;
+  base_url?: string | null;
+  granted_scopes: string[];
+  last_health_check_at?: string | null;
+  last_health_status?: string | null;
+  last_error_message?: string | null;
+  is_credential_configured: boolean;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntegrationConnectionCreate {
+  provider_id: number;
+  connection_code: string;
+  name: string;
+  base_url?: string;
+  granted_scopes: string[];
+}
+
+export interface IntegrationCredentialCreate {
+  auth_type: IntegrationAuthType;
+  credentials: Record<string, string>;
+}
+
+export interface IntegrationCredentialResponse {
+  key_id: string;
+  auth_type: IntegrationAuthType;
+  version: number;
+  is_configured: boolean;
+  rotated_at?: string | null;
+  created_at: string;
+}
+
+export interface EvidenceCollectionJob {
+  id: number;
+  organization_id: number;
+  connection_id: number;
+  organization_control_id: number;
+  evidence_requirement_id?: number | null;
+  job_code: string;
+  title: string;
+  collector_type: EvidenceCollectorType;
+  collection_parameters?: Record<string, any> | null;
+  frequency_hours: number;
+  is_enabled: boolean;
+  max_payload_bytes: number;
+  last_run_at?: string | null;
+  last_run_status?: string | null;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvidenceCollectionJobCreate {
+  connection_id: number;
+  organization_control_id: number;
+  evidence_requirement_id?: number;
+  job_code: string;
+  title: string;
+  collector_type: EvidenceCollectorType;
+  collection_parameters?: Record<string, any>;
+  frequency_hours?: number;
+  is_enabled?: boolean;
+  max_payload_bytes?: number;
+}
+
+export interface EvidenceCollectionRun {
+  id: number;
+  organization_id: number;
+  job_id: number;
+  connection_id: number;
+  evidence_item_id?: number | null;
+  run_code: string;
+  status: CollectionRunStatus;
+  started_at: string;
+  completed_at?: string | null;
+  source_system: string;
+  source_identifier: string;
+  source_version?: string | null;
+  observed_at: string;
+  records_collected_count: number;
+  payload_sha256: string;
+  validation_status: CollectionValidationStatus;
+  error_code?: string | null;
+  error_message?: string | null;
+  provenance_manifest?: Record<string, any> | null;
+  triggered_by_id: number;
+  created_at: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 23: Continuous-GRC Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ComplianceDriftVector =
+  | 'CCM_HEALTH_DEGRADATION'
+  | 'INTEGRATION_PIPELINE_FAILURE'
+  | 'REGULATORY_CHANGE_EXPOSURE'
+  | 'FINDING_SLA_BREACH'
+  | 'HARMONIZED_FRAMEWORK_GAP';
+
+export type ComplianceDriftSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type ComplianceDriftStatus = 'OPEN' | 'ACKNOWLEDGED' | 'REMEDIATION_TRIGGERED' | 'RESOLVED' | 'SUPPRESSED';
+
+export interface ContinuousComplianceProfile {
+  id: number;
+  organization_id: number;
+  profile_name: string;
+  is_enabled: boolean;
+  evaluation_cadence_hours: number;
+  drift_critical_threshold: number;
+  drift_high_threshold: number;
+  min_control_health_score: number;
+  max_evidence_age_days: number;
+  max_open_finding_sla_breach_count: number;
+  auto_trigger_capa_on_critical_drift: boolean;
+  last_evaluated_at?: string | null;
+  created_by_id?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContinuousComplianceProfileUpdate {
+  profile_name?: string;
+  is_enabled?: boolean;
+  evaluation_cadence_hours?: number;
+  drift_critical_threshold?: number;
+  drift_high_threshold?: number;
+  min_control_health_score?: number;
+  max_evidence_age_days?: number;
+  max_open_finding_sla_breach_count?: number;
+  auto_trigger_capa_on_critical_drift?: boolean;
+}
+
+export interface ComplianceDriftRecord {
+  id: number;
+  organization_id: number;
+  organization_control_id?: number | null;
+  remediation_plan_id?: number | null;
+  drift_code: string;
+  drift_vector: ComplianceDriftVector;
+  severity: ComplianceDriftSeverity;
+  status: ComplianceDriftStatus;
+  title: string;
+  description: string;
+  root_cause_metric?: string | null;
+  baseline_value?: number | null;
+  observed_value?: number | null;
+  detected_at: string;
+  resolved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UnifiedAssurancePosture {
+  overall_assurance_score: number;
+  controls_assurance_score: number;
+  evidence_pipeline_score: number;
+  regulatory_compliance_score: number;
+  remediation_sla_score: number;
+  cloud_identity_posture_score: number;
+  harmonized_frameworks_score: number;
+  active_drift_count: number;
+  critical_drift_count: number;
+  pillar_breakdown: Record<string, { score: number; weight: number; status: string }>;
+  framework_compliance_breakdown: Record<string, { compliance_rate: number; status: string }>;
+  last_evaluated_at: string;
+  calculation_version: string;
+}
+
+export interface ContinuousAssuranceSnapshotCreate {
+  snapshot_code: string;
+}
+
+export interface ContinuousAssuranceSnapshot {
+  id: number;
+  organization_id: number;
+  snapshot_code: string;
+  captured_at: string;
+  overall_assurance_score: number;
+  controls_assurance_score: number;
+  evidence_pipeline_score: number;
+  regulatory_compliance_score: number;
+  remediation_sla_score: number;
+  cloud_identity_posture_score: number;
+  harmonized_frameworks_score: number;
+  active_drift_count: number;
+  critical_drift_count: number;
+  pillar_breakdown: Record<string, any>;
+  framework_compliance_breakdown: Record<string, any>;
+  data_hash_sha256: string;
+  calculation_version: string;
+  created_by_id: number;
+  created_at: string;
+}

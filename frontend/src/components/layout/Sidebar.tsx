@@ -29,6 +29,11 @@ import {
   Package,
   Cloud,
   KeyRound,
+  Award,
+  FileCheck,
+  FileText,
+  Scale,
+  Link2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -55,6 +60,24 @@ export const Sidebar: React.FC = () => {
       group: 'Core',
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      ],
+    },
+    {
+      group: 'Executive & Board Governance',
+      items: [
+        { name: 'Board Telemetry', path: '/executive', icon: Award, tag: 'Phase 20' },
+        { name: 'Regulatory Dossiers', path: '/executive/dossiers', icon: FileCheck, tag: 'Phase 20' },
+        { name: 'Executive Briefings', path: '/executive/briefings', icon: FileText, tag: 'Phase 20' },
+        { name: 'Posture Snapshots', path: '/executive/snapshots', icon: ShieldCheck, tag: 'Phase 20' },
+      ],
+    },
+    {
+      group: 'Continuous & Regulatory GRC',
+      items: [
+        { name: 'Continuous Assurance', path: '/compliance/continuous', icon: Activity, tag: 'Phase 23' },
+        { name: 'Regulatory Intelligence', path: '/compliance/regulatory', icon: Scale, tag: 'Phase 21' },
+        { name: 'Integration Center', path: '/compliance/integrations', icon: Link2, tag: 'Phase 22' },
+        { name: 'Collection Pipelines', path: '/compliance/collection-jobs', icon: FileCheck2, tag: 'Phase 22' },
       ],
     },
     {

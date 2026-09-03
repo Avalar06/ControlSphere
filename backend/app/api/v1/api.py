@@ -27,6 +27,10 @@ from app.api.v1.endpoints import (
     supply_chain,
     cloudsec,
     identity_governance,
+    executive,
+    regulatory,
+    integrations,
+    continuous_compliance,
 )
 
 api_router = APIRouter()
@@ -58,3 +62,7 @@ api_router.include_router(privacy.router, prefix="/privacy", tags=["Privacy Gove
 api_router.include_router(supply_chain.router, prefix="/supply-chain", tags=["Software Supply Chain & SBOM Governance (SUPPLYCHAIN-GRC)"])
 api_router.include_router(cloudsec.router, prefix="/cloud-security", tags=["Cloud Security Posture Management (CLOUDSEC-GRC)"])
 api_router.include_router(identity_governance.router, prefix="/identity-governance", tags=["Identity Governance & Administration (IDENTITY-GRC)"])
+api_router.include_router(executive.router, prefix="/executive", tags=["Executive Governance & Board Telemetry (EXECUTIVE-GRC)"])
+api_router.include_router(regulatory.router, prefix="/regulatory", tags=["Regulatory Intelligence & Mandate Compliance (REGULATORY-GRC)"])
+api_router.include_router(integrations.router, prefix="/integrations", tags=["Automated Evidence Collection & Enterprise Integrations (INTEGRATION-GRC)"])
+api_router.include_router(continuous_compliance.router, prefix="/continuous-compliance", tags=["Continuous Compliance & Unified Assurance (CONTINUOUS-GRC)"])

@@ -128,6 +128,27 @@ class Permission(str, enum.Enum):
     IDENTITY_ASSESS = "identity:assess"
     IDENTITY_APPROVE = "identity:approve"
 
+    # Phase 20: EXECUTIVE-GRC — Executive Governance & Board Telemetry Permissions
+    EXECUTIVE_READ = "executive:read"
+    EXECUTIVE_MANAGE = "executive:manage"
+    EXECUTIVE_EXPORT = "executive:export"
+    EXECUTIVE_APPROVE = "executive:approve"
+
+    # Phase 21: REGULATORY-GRC — Governed Regulatory Intelligence & Mandate Compliance Permissions
+    REGULATORY_READ = "regulatory:read"
+    REGULATORY_MANAGE = "regulatory:manage"
+    REGULATORY_APPROVE = "regulatory:approve"
+
+    # Phase 22: INTEGRATION-GRC — Automated Evidence Collection & Enterprise Integrations Permissions
+    INTEGRATION_READ = "integration:read"
+    INTEGRATION_MANAGE = "integration:manage"
+    INTEGRATION_EXECUTE = "integration:execute"
+
+    # Phase 23: CONTINUOUS-GRC — Continuous Compliance & Unified Assurance Permissions
+    CONTINUOUS_READ = "continuous:read"
+    CONTINUOUS_MANAGE = "continuous:manage"
+    CONTINUOUS_TRIGGER = "continuous:trigger"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -195,6 +216,15 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.IDENTITY_READ,
         Permission.IDENTITY_MANAGE,
         Permission.IDENTITY_ASSESS,
+        Permission.EXECUTIVE_READ,
+        Permission.EXECUTIVE_MANAGE,
+        Permission.EXECUTIVE_EXPORT,
+        Permission.REGULATORY_READ,
+        Permission.REGULATORY_MANAGE,
+        Permission.INTEGRATION_READ,
+        Permission.INTEGRATION_EXECUTE,
+        Permission.CONTINUOUS_READ,
+        Permission.CONTINUOUS_TRIGGER,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -247,6 +277,13 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.IDENTITY_READ,
         Permission.IDENTITY_MANAGE,
         Permission.IDENTITY_ASSESS,
+        Permission.EXECUTIVE_READ,
+        Permission.EXECUTIVE_MANAGE,
+        Permission.EXECUTIVE_EXPORT,
+        Permission.REGULATORY_READ,
+        Permission.INTEGRATION_READ,
+        Permission.INTEGRATION_EXECUTE,
+        Permission.CONTINUOUS_READ,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -279,6 +316,11 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.SUPPLYCHAIN_READ,
         Permission.CLOUDSEC_READ,
         Permission.IDENTITY_READ,
+        Permission.EXECUTIVE_READ,
+        Permission.EXECUTIVE_EXPORT,
+        Permission.REGULATORY_READ,
+        Permission.INTEGRATION_READ,
+        Permission.CONTINUOUS_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -345,6 +387,19 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.IDENTITY_MANAGE,
         Permission.IDENTITY_ASSESS,
         Permission.IDENTITY_APPROVE,
+        Permission.EXECUTIVE_READ,
+        Permission.EXECUTIVE_MANAGE,
+        Permission.EXECUTIVE_EXPORT,
+        Permission.EXECUTIVE_APPROVE,
+        Permission.REGULATORY_READ,
+        Permission.REGULATORY_MANAGE,
+        Permission.REGULATORY_APPROVE,
+        Permission.INTEGRATION_READ,
+        Permission.INTEGRATION_MANAGE,
+        Permission.INTEGRATION_EXECUTE,
+        Permission.CONTINUOUS_READ,
+        Permission.CONTINUOUS_MANAGE,
+        Permission.CONTINUOUS_TRIGGER,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -369,6 +424,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.SUPPLYCHAIN_READ,
         Permission.CLOUDSEC_READ,
         Permission.IDENTITY_READ,
+        Permission.EXECUTIVE_READ,
+        Permission.REGULATORY_READ,
+        Permission.CONTINUOUS_READ,
     },
 }
 

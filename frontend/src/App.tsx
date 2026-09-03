@@ -53,6 +53,16 @@ import { CloudAssetDetailPage } from './pages/CloudAssetDetailPage';
 import { IdentityGovernancePage } from './pages/IdentityGovernancePage';
 import { IdentityDetailPage } from './pages/IdentityDetailPage';
 import { CertificationCampaignDetailPage } from './pages/CertificationCampaignDetailPage';
+import { ExecutiveDashboardPage } from './pages/executive/ExecutiveDashboardPage';
+import { RegulatoryDossiersPage } from './pages/executive/RegulatoryDossiersPage';
+import { DossierDetailPage } from './pages/executive/DossierDetailPage';
+import { ExecutiveBriefingsPage } from './pages/executive/ExecutiveBriefingsPage';
+import { BriefingDetailPage } from './pages/executive/BriefingDetailPage';
+import { ExecutiveSnapshotsPage } from './pages/executive/ExecutiveSnapshotsPage';
+import { ContinuousComplianceDashboardPage } from './pages/ContinuousComplianceDashboardPage';
+import { RegulatoryIntelligencePage } from './pages/RegulatoryIntelligencePage';
+import { IntegrationCenterPage } from './pages/IntegrationCenterPage';
+import { EvidenceCollectionJobsPage } from './pages/EvidenceCollectionJobsPage';
 import { PlaceholderModulePage } from './pages/PlaceholderModulePage';
 
 const queryClient = new QueryClient({
@@ -158,6 +168,24 @@ export const App: React.FC = () => {
               <Route path="/identity-governance" element={<IdentityGovernancePage />} />
               <Route path="/identity-governance/identities/:id" element={<IdentityDetailPage />} />
               <Route path="/identity-governance/campaigns/:id" element={<CertificationCampaignDetailPage />} />
+
+              {/* Phase 20: Executive Governance & Board Telemetry (EXECUTIVE-GRC) */}
+              <Route path="/executive" element={<ExecutiveDashboardPage />} />
+              <Route path="/executive/dossiers" element={<RegulatoryDossiersPage />} />
+              <Route path="/executive/dossiers/:id" element={<DossierDetailPage />} />
+              <Route path="/executive/briefings" element={<ExecutiveBriefingsPage />} />
+              <Route path="/executive/briefings/:id" element={<BriefingDetailPage />} />
+              <Route path="/executive/snapshots" element={<ExecutiveSnapshotsPage />} />
+
+              {/* Phase 21: Regulatory Intelligence & Mandate Governance (REGULATORY-GRC) */}
+              <Route path="/compliance/regulatory" element={<RegulatoryIntelligencePage />} />
+
+              {/* Phase 22: Automated Evidence Collection & Enterprise Integrations (INTEGRATION-GRC) */}
+              <Route path="/compliance/integrations" element={<IntegrationCenterPage />} />
+              <Route path="/compliance/collection-jobs" element={<EvidenceCollectionJobsPage />} />
+
+              {/* Phase 23: Continuous Compliance & Unified Assurance (CONTINUOUS-GRC) */}
+              <Route path="/compliance/continuous" element={<ContinuousComplianceDashboardPage />} />
 
               <Route
                 path="/ai-analyst"
