@@ -260,4 +260,115 @@ export const auditService = {
     });
     return res.data;
   },
+
+  // ── Batch 1: PBC Request Management ────────────────────────────────────────
+  listPBCRequests: async (
+    auditId: number,
+    params?: { procedure_id?: number; assigned_to_id?: number; status?: string }
+  ) => {
+    const res = await api.get(`/api/v1/audits/${auditId}/pbc-requests`, { params });
+    return res.data;
+  },
+
+  createPBCRequest: async (auditId: number, payload: any) => {
+    const res = await api.post(`/api/v1/audits/${auditId}/pbc-requests`, payload);
+    return res.data;
+  },
+
+  fulfillPBCRequest: async (auditId: number, pbcId: number, payload: any) => {
+    const res = await api.post(`/api/v1/audits/${auditId}/pbc-requests/${pbcId}/fulfill`, payload);
+    return res.data;
+  },
+
+  reviewPBCRequest: async (auditId: number, pbcId: number, payload: any) => {
+    const res = await api.post(`/api/v1/audits/${auditId}/pbc-requests/${pbcId}/review`, payload);
+    return res.data;
+  },
+
+  // ── Batch 1: Sampling Lab ──────────────────────────────────────────────────
+  getPopulation: async (auditId: number, procedureId: number) => {
+    const res = await api.get(`/api/v1/audits/${auditId}/procedures/${procedureId}/population`);
+    return res.data;
+  },
+
+  createPopulation: async (auditId: number, procedureId: number, payload: any) => {
+    const res = await api.post(`/api/v1/audits/${auditId}/procedures/${procedureId}/population`, payload);
+    return res.data;
+  },
+
+  freezePopulation: async (auditId: number, procedureId: number, populationId: number) => {
+    const res = await api.post(
+      `/api/v1/audits/${auditId}/procedures/${procedureId}/population/${populationId}/freeze`
+    );
+    return res.data;
+  },
+
+  generateSamples: async (
+    auditId: number,
+    procedureId: number,
+    populationId: number,
+    payload: any
+  ) => {
+    const res = await api.post(
+      `/api/v1/audits/${auditId}/procedures/${procedureId}/population/${populationId}/generate`,
+      payload
+    );
+    return res.data;
+  },
+
+  updateSampleItem: async (
+    auditId: number,
+    procedureId: number,
+    sampleId: number,
+    payload: any
+  ) => {
+    const res = await api.put(
+      `/api/v1/audits/${auditId}/procedures/${procedureId}/samples/${sampleId}`,
+      payload
+    );
+    return res.data;
+  },
+
+  escalateSampleDeficiency: async (
+    auditId: number,
+    procedureId: number,
+    sampleId: number,
+    payload: any
+  ) => {
+    const res = await api.post(
+      `/api/v1/audits/${auditId}/procedures/${procedureId}/samples/${sampleId}/escalate-finding`,
+      payload
+    );
+    return res.data;
+  },
+
+  // ── Batch 1: Workpaper Four-Eyes Governance ────────────────────────────────
+  getWorkpaper: async (auditId: number, procedureId: number) => {
+    const res = await api.get(`/api/v1/audits/${auditId}/procedures/${procedureId}/workpaper`);
+    return res.data;
+  },
+
+  submitWorkpaper: async (auditId: number, procedureId: number, payload: any) => {
+    const res = await api.post(
+      `/api/v1/audits/${auditId}/procedures/${procedureId}/workpaper/submit`,
+      payload
+    );
+    return res.data;
+  },
+
+  approveWorkpaper: async (auditId: number, procedureId: number, payload: any) => {
+    const res = await api.post(
+      `/api/v1/audits/${auditId}/procedures/${procedureId}/workpaper/approve`,
+      payload
+    );
+    return res.data;
+  },
+
+  requestChangesWorkpaper: async (auditId: number, procedureId: number, payload: any) => {
+    const res = await api.post(
+      `/api/v1/audits/${auditId}/procedures/${procedureId}/workpaper/request-changes`,
+      payload
+    );
+    return res.data;
+  },
 };

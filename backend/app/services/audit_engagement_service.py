@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session, joinedload
@@ -13,6 +13,13 @@ from app.models.audit_engagement import (
     AuditStatusEnum,
     AuditTypeEnum,
     ProcedureResultEnum,
+    AuditPBCRequest,
+    AuditSamplePopulation,
+    AuditSampleItem,
+    AuditWorkpaperReview,
+    PBCStatusEnum,
+    WorkpaperStatusEnum,
+    SampleResultEnum,
 )
 from app.models.control import OrganizationControl
 from app.models.evidence import EvidenceItem, EvidenceStatusEnum
@@ -857,12 +864,49 @@ class AuditEngagementService:
             )
             active_exceptions += exc_count
 
+        # ── Batch 1: Fieldwork Telemetry ──────────────────────────────────
+        pbc_requests = (
+            db.query(AuditPBCRequest)
+            .filter(
+                AuditPBCRequest.audit_id == audit_id,
+                AuditPBCRequest.organization_id == organization_id,
+            )
+            .all()
+        )
+        pbc_total = len(pbc_requests)
+        pbc_accepted = sum(1 for p in pbc_requests if p.status == PBCStatusEnum.ACCEPTED)
+        pbc_fulfilled = sum(1 for p in pbc_requests if p.status in (PBCStatusEnum.SUBMITTED, PBCStatusEnum.ACCEPTED))
+        pbc_overdue = sum(
+            1 for p in pbc_requests
+            if p.status not in (PBCStatusEnum.ACCEPTED, PBCStatusEnum.CANCELLED)
+            and p.due_date < date.today()
+        )
+        pbc_score = (pbc_accepted / pbc_total * 100) if pbc_total > 0 else 100.0
+
+        workpapers = (
+            db.query(AuditWorkpaperReview)
+            .filter(
+                AuditWorkpaperReview.audit_id == audit_id,
+                AuditWorkpaperReview.organization_id == organization_id,
+            )
+            .all()
+        )
+        wp_total = len(workpapers)
+        wp_approved = sum(1 for w in workpapers if w.status == WorkpaperStatusEnum.REVIEWED_APPROVED)
+        wp_score = (wp_approved / wp_total * 100) if wp_total > 0 else 100.0
+
+        sample_exceptions = (
+            db.query(AuditSampleItem)
+            .join(AuditSamplePopulation)
+            .filter(
+                AuditSamplePopulation.audit_id == audit_id,
+                AuditSamplePopulation.organization_id == organization_id,
+                AuditSampleItem.test_result.in_([SampleResultEnum.FAIL, SampleResultEnum.EXCEPTION]),
+            )
+            .count()
+        )
+
         # ── Deterministic Readiness Score ──────────────────────────────────
-        # Formula:
-        #   40% — procedure completion (completed / total if total > 0)
-        #   30% — evidence coverage (controls_with_evidence / controls_in_scope)
-        #   20% — no open critical/high findings penalty
-        #   10% — no open findings penalty
         blockers: List[str] = []
 
         proc_score = (proc_completed / proc_total * 100) if proc_total > 0 else 0.0
@@ -878,6 +922,11 @@ class AuditEngagementService:
             if findings_open > 0 and critical_high == 0:
                 blockers.append(f"{findings_open} open finding(s) pending remediation")
 
+        if pbc_overdue > 0:
+            blockers.append(f"{pbc_overdue} PBC request(s) are overdue")
+        if sample_exceptions > 0:
+            blockers.append(f"{sample_exceptions} audit sample exception(s) noted")
+
         if proc_total == 0:
             blockers.append("No audit procedures defined")
         elif proc_counts[ProcedureResultEnum.NOT_STARTED] > 0:
@@ -888,7 +937,23 @@ class AuditEngagementService:
         elif controls_with_evidence < controls_in_scope:
             blockers.append(f"{controls_in_scope - controls_with_evidence} in-scope control(s) lack accepted evidence")
 
-        raw_score = (proc_score * 0.40) + (evidence_score * 0.30) - finding_penalty
+        # Dynamic weighting: If fieldwork entities exist, use 4-pillar weighting; otherwise standard 2-pillar
+        has_fieldwork = (pbc_total > 0) or (wp_total > 0) or (sample_exceptions > 0)
+        if has_fieldwork:
+            pbc_penalty = min(pbc_overdue * 2.0, 10.0)
+            sample_penalty = min(sample_exceptions * 3.0, 15.0)
+            raw_score = (
+                (proc_score * 0.30)
+                + (evidence_score * 0.20)
+                + (pbc_score * 0.25)
+                + (wp_score * 0.25)
+                - finding_penalty
+                - pbc_penalty
+                - sample_penalty
+            )
+        else:
+            raw_score = (proc_score * 0.40) + (evidence_score * 0.30) - finding_penalty
+
         raw_score = max(0.0, min(100.0, raw_score))
 
         if raw_score >= 85.0:
@@ -920,10 +985,20 @@ class AuditEngagementService:
             "findings_high": findings_high,
             "findings_in_remediation": findings_in_remediation,
             "active_exceptions_in_scope": active_exceptions,
+            "pbc_fulfillment_rate": round(pbc_score, 1),
+            "pbc_overdue_count": pbc_overdue,
+            "pbc_requests_total": pbc_total,
+            "pbc_requests_fulfilled": pbc_fulfilled,
+            "workpaper_approval_rate": round(wp_score, 1),
+            "workpapers_total": wp_total,
+            "workpapers_approved": wp_approved,
+            "sample_exceptions_count": sample_exceptions,
+            "sample_exceptions_total": sample_exceptions,
             "readiness_score": round(raw_score, 1),
             "readiness_band": band,
             "readiness_blockers": blockers,
         }
+
 
     # ─────────────────────────────────────────────────────────────────────────
     # STATS

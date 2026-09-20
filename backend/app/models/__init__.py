@@ -76,6 +76,15 @@ from app.models.audit_engagement import (
     AuditStatusEnum,
     ProcedureResultEnum,
     AuditOpinionEnum,
+    AuditPBCRequest,
+    AuditSamplePopulation,
+    AuditSampleItem,
+    AuditWorkpaperReview,
+    PBCStatusEnum,
+    PBCPriorityEnum,
+    SamplingMethodEnum,
+    SampleResultEnum,
+    WorkpaperStatusEnum,
 )
 from app.models.monitoring import (
     ControlHealthSnapshot,

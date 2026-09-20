@@ -859,6 +859,8 @@ export interface AuditProcedure {
   created_at: string;
   updated_at: string;
   evidence_count: number;
+  has_sampling?: boolean;
+  workpaper_status?: string;
 }
 
 export interface AuditFindingLink {
@@ -878,6 +880,105 @@ export interface AuditProcedureEvidence {
   link_notes?: string;
   created_by_id?: number;
   created_at: string;
+}
+
+// ── Batch 1: Audit Fieldwork Types ──────────────────────────────────────────
+export type PBCStatus = 'REQUESTED' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+export type PBCPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type SamplingMethod = 'RANDOM' | 'SYSTEMATIC' | 'STRATIFIED';
+export type SampleResult = 'PENDING' | 'PASS' | 'FAIL' | 'EXCEPTION' | 'NOT_APPLICABLE';
+export type WorkpaperStatus = 'DRAFT' | 'SUBMITTED_FOR_REVIEW' | 'REVIEWED_APPROVED' | 'CHANGES_REQUESTED';
+
+export interface AuditPBCRequest {
+  id: number;
+  organization_id: number;
+  audit_id: number;
+  procedure_id?: number;
+  organization_control_id: number;
+  request_identifier: string;
+  title: string;
+  description: string;
+  status: PBCStatus;
+  priority: PBCPriority;
+  assigned_to_id?: number;
+  due_date: string;
+  fulfilled_evidence_id?: number;
+  submission_notes?: string;
+  submitted_at?: string;
+  reviewed_by_id?: number;
+  reviewed_at?: string;
+  rejection_reason?: string;
+  created_by_id?: number;
+  created_at: string;
+  updated_at: string;
+  assigned_to_name?: string;
+  reviewed_by_name?: string;
+  control_code?: string;
+  evidence_filename?: string;
+}
+
+export interface AuditSampleItem {
+  id: number;
+  organization_id: number;
+  population_id: number;
+  item_index: number;
+  source_record_id: string;
+  item_attributes: Record<string, any>;
+  test_result: SampleResult;
+  testing_notes?: string;
+  tested_by_id?: number;
+  tested_at?: string;
+  evidence_item_id?: number;
+  deficiency_finding_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuditSamplePopulation {
+  id: number;
+  organization_id: number;
+  audit_id: number;
+  procedure_id: number;
+  population_name: string;
+  description?: string;
+  population_source: string;
+  total_count: number;
+  version_number: number;
+  is_frozen: boolean;
+  frozen_at?: string;
+  frozen_by_id?: number;
+  population_digest_sha256?: string;
+  sampling_method: SamplingMethod;
+  sampling_seed?: string;
+  sample_size: number;
+  samples_generated: boolean;
+  generated_at?: string;
+  created_by_id?: number;
+  created_at: string;
+  updated_at: string;
+  sample_items?: AuditSampleItem[];
+}
+
+export interface AuditWorkpaperReview {
+  id: number;
+  organization_id: number;
+  audit_id: number;
+  procedure_id: number;
+  version_number: number;
+  status: WorkpaperStatus;
+  testing_summary: string;
+  conclusion: string;
+  prepared_by_id: number;
+  prepared_at: string;
+  reviewed_by_id?: number;
+  reviewed_at?: string;
+  review_notes?: string;
+  rejection_reason?: string;
+  workpaper_hash_sha256?: string;
+  created_at: string;
+  updated_at: string;
+  prepared_by_name?: string;
+  reviewed_by_name?: string;
 }
 
 export interface AuditReadiness {
@@ -903,6 +1004,15 @@ export interface AuditReadiness {
   readiness_score: number;
   readiness_band: 'NOT_READY' | 'PARTIALLY_READY' | 'SUBSTANTIALLY_READY' | 'READY';
   readiness_blockers: string[];
+  pbc_fulfillment_rate?: number;
+  pbc_overdue_count?: number;
+  pbc_requests_total?: number;
+  pbc_requests_fulfilled?: number;
+  workpaper_approval_rate?: number;
+  workpapers_total?: number;
+  workpapers_approved?: number;
+  sample_exceptions_count?: number;
+  sample_exceptions_total?: number;
 }
 
 export interface AuditStats {

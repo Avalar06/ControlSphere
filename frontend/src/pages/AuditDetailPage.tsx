@@ -17,11 +17,16 @@ import {
   FileText,
   Activity,
   AlertCircle,
+  FlaskConical,
+  Send,
 } from 'lucide-react';
 import { auditService } from '../lib/auditService';
 import { api } from '../lib/api';
 import { findingService } from '../lib/findingService';
 import { evidenceService } from '../lib/evidenceService';
+import { PBCRequestsSection } from '../components/audit/PBCRequestsSection';
+import { SamplingLabModal } from '../components/audit/SamplingLabModal';
+import { WorkpaperSignoffModal } from '../components/audit/WorkpaperSignoffModal';
 import type {
   AuditStatus,
   AuditOpinion,
@@ -34,8 +39,12 @@ export const AuditDetailPage: React.FC = () => {
   const auditId = Number(id);
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'scope' | 'procedures' | 'findings' | 'readiness' | 'governance'
+    'overview' | 'scope' | 'procedures' | 'pbc' | 'findings' | 'readiness' | 'governance'
   >('overview');
+
+  // Batch 1 modal states
+  const [selectedProcForSampling, setSelectedProcForSampling] = useState<any | null>(null);
+  const [selectedProcForWorkpaper, setSelectedProcForWorkpaper] = useState<any | null>(null);
 
   // Modal states
   const [isAddScopeModalOpen, setIsAddScopeModalOpen] = useState(false);
@@ -102,6 +111,18 @@ export const AuditDetailPage: React.FC = () => {
   const { data: allEvidence = [] } = useQuery({
     queryKey: ['evidence'],
     queryFn: () => evidenceService.getEvidenceItems(),
+  });
+
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      try {
+        const res = await api.get<any[]>('/api/v1/users');
+        return res.data;
+      } catch {
+        return [];
+      }
+    },
   });
 
   // Mutations
@@ -481,6 +502,11 @@ export const AuditDetailPage: React.FC = () => {
             icon: Activity,
           },
           {
+            id: 'pbc',
+            label: `PBC Requests (${readiness?.pbc_requests_total ?? 0})`,
+            icon: Send,
+          },
+          {
             id: 'findings',
             label: `Findings (${audit.finding_links?.length ?? 0})`,
             icon: AlertTriangle,
@@ -675,7 +701,7 @@ export const AuditDetailPage: React.FC = () => {
                     className="p-4 bg-slate-900/80 rounded-xl border border-slate-800 space-y-3"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-xs font-bold text-slate-400">
                           PROC-{proc.id}
                         </span>
@@ -693,9 +719,37 @@ export const AuditDetailPage: React.FC = () => {
                         >
                           {proc.result.replace(/_/g, ' ')}
                         </span>
+                        {proc.has_sampling && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800 flex items-center gap-1">
+                            <FlaskConical size={10} /> Sampling Active
+                          </span>
+                        )}
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            proc.workpaper_status === 'REVIEWED_APPROVED'
+                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                              : proc.workpaper_status === 'SUBMITTED_FOR_REVIEW'
+                              ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                              : 'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}
+                        >
+                          WP: {proc.workpaper_status || 'DRAFT'}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelectedProcForSampling(proc)}
+                          className="px-2 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs rounded flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <FlaskConical size={12} /> Sampling Lab
+                        </button>
+                        <button
+                          onClick={() => setSelectedProcForWorkpaper(proc)}
+                          className="px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 text-xs rounded flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <ShieldCheck size={12} /> Workpaper
+                        </button>
                         {!isClosed && (
                           <>
                             <button
@@ -776,6 +830,16 @@ export const AuditDetailPage: React.FC = () => {
               )}
             </div>
           </div>
+        )}
+
+        {/* TAB: PBC REQUESTS */}
+        {activeTab === 'pbc' && (
+          <PBCRequestsSection
+            auditId={auditId}
+            isClosed={isClosed}
+            scopeControls={audit.scope_controls}
+            allUsers={allUsers}
+          />
         )}
 
         {/* TAB 4: FINDINGS */}
@@ -874,6 +938,44 @@ export const AuditDetailPage: React.FC = () => {
                   <div className="text-[10px] uppercase font-semibold text-indigo-400">Score</div>
                   <div className="text-2xl font-black text-indigo-200 font-mono">
                     {readiness.readiness_score}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Batch 1: Fieldwork Governance Telemetry */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                  <div className="text-[11px] text-slate-400 font-medium">PBC Fulfillment</div>
+                  <div className="text-lg font-bold text-slate-100 font-mono mt-0.5">
+                    {readiness.pbc_requests_fulfilled ?? 0} / {readiness.pbc_requests_total ?? 0}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    {readiness.pbc_requests_total
+                      ? Math.round(((readiness.pbc_requests_fulfilled ?? 0) / readiness.pbc_requests_total) * 100)
+                      : 100}
+                    % verified by auditee
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                  <div className="text-[11px] text-slate-400 font-medium">Workpapers Sealed</div>
+                  <div className="text-lg font-bold text-slate-100 font-mono mt-0.5">
+                    {readiness.workpapers_approved ?? 0} / {readiness.workpapers_total ?? 0}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    Four-Eyes cryptographic signoffs
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                  <div className="text-[11px] text-slate-400 font-medium">Sample Exceptions</div>
+                  <div className={`text-lg font-bold font-mono mt-0.5 ${
+                    (readiness.sample_exceptions_total ?? 0) > 0 ? 'text-rose-400' : 'text-emerald-400'
+                  }`}>
+                    {readiness.sample_exceptions_total ?? 0}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    Testing failures across populations
                   </div>
                 </div>
               </div>
@@ -1411,6 +1513,26 @@ export const AuditDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Batch 1: Modals for Sampling Lab and Workpaper Signoff */}
+      {selectedProcForSampling && (
+        <SamplingLabModal
+          auditId={auditId}
+          procedure={selectedProcForSampling}
+          isOpen={!!selectedProcForSampling}
+          onClose={() => setSelectedProcForSampling(null)}
+          isClosed={isClosed}
+        />
+      )}
+      {selectedProcForWorkpaper && (
+        <WorkpaperSignoffModal
+          auditId={auditId}
+          procedure={selectedProcForWorkpaper}
+          isOpen={!!selectedProcForWorkpaper}
+          onClose={() => setSelectedProcForWorkpaper(null)}
+          isClosed={isClosed}
+        />
       )}
     </div>
   );

@@ -59,6 +59,14 @@ class Permission(str, enum.Enum):
     AUDIT_APPROVE = "audit:approve"
     AUDIT_CLOSE = "audit:close"
 
+    # Batch 1: Audit Fieldwork Governance Permissions
+    AUDIT_PBC_MANAGE = "audit:pbc_manage"
+    AUDIT_PBC_RESPOND = "audit:pbc_respond"
+    AUDIT_SAMPLE_MANAGE = "audit:sample_manage"
+    AUDIT_SAMPLE_TEST = "audit:sample_test"
+    AUDIT_WORKPAPER_PREPARE = "audit:workpaper_prepare"
+    AUDIT_WORKPAPER_APPROVE = "audit:workpaper_approve"
+
     # Phase 7: Continuous Control Monitoring Permissions
     MONITORING_READ = "monitoring:read"
     MONITORING_EXECUTE = "monitoring:execute"
@@ -181,6 +189,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_MANAGE,
         Permission.AUDIT_EXECUTE,
         Permission.AUDIT_REVIEW,
+        Permission.AUDIT_PBC_RESPOND,
         Permission.POLICY_READ,
         Permission.POLICY_MANAGE,
         Permission.POLICY_CAMPAIGN_MANAGE,
@@ -250,6 +259,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXCEPTION_MANAGE,
         Permission.AUDIT_READ,
         Permission.AUDIT_EXECUTE,
+        Permission.AUDIT_PBC_RESPOND,
         Permission.MONITORING_READ,
         Permission.MONITORING_EXECUTE,
         Permission.MONITORING_ALERT_ACTION,
@@ -310,6 +320,12 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_EXECUTE,
         Permission.AUDIT_REVIEW,
         Permission.AUDIT_APPROVE,
+        Permission.AUDIT_PBC_MANAGE,
+        Permission.AUDIT_PBC_RESPOND,
+        Permission.AUDIT_SAMPLE_MANAGE,
+        Permission.AUDIT_SAMPLE_TEST,
+        Permission.AUDIT_WORKPAPER_PREPARE,
+        Permission.AUDIT_WORKPAPER_APPROVE,
         Permission.POLICY_READ,
         Permission.POLICY_ATTEST,
         Permission.MONITORING_READ,
@@ -349,6 +365,12 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_REVIEW,
         Permission.AUDIT_APPROVE,
         Permission.AUDIT_CLOSE,
+        Permission.AUDIT_PBC_MANAGE,
+        Permission.AUDIT_PBC_RESPOND,
+        Permission.AUDIT_SAMPLE_MANAGE,
+        Permission.AUDIT_SAMPLE_TEST,
+        Permission.AUDIT_WORKPAPER_PREPARE,
+        Permission.AUDIT_WORKPAPER_APPROVE,
         Permission.POLICY_READ,
         Permission.POLICY_MANAGE,
         Permission.POLICY_APPROVE,
