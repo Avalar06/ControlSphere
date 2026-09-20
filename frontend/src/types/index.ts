@@ -4451,3 +4451,6 @@ export interface ContinuousAssuranceSnapshot {
   created_by_id: number;
   created_at: string;
 }
+
+// Batch 2: KRI & Risk Appetite Governance Types
+export * from './kri';

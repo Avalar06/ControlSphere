@@ -160,6 +160,16 @@ class Permission(str, enum.Enum):
     CONTINUOUS_MANAGE = "continuous:manage"
     CONTINUOUS_TRIGGER = "continuous:trigger"
 
+    # Batch 2: KRI & Risk Appetite Governance Permissions
+    APPETITE_READ = "appetite:read"
+    APPETITE_MANAGE = "appetite:manage"
+    APPETITE_APPROVE = "appetite:approve"
+    KRI_READ = "kri:read"
+    KRI_MANAGE = "kri:manage"
+    KRI_OBSERVE = "kri:observe"
+    KRI_BREACH_ACTION = "kri:breach_action"
+    KRI_BREACH_CLOSE = "kri:breach_close"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -239,6 +249,12 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.INTEGRATION_EXECUTE,
         Permission.CONTINUOUS_READ,
         Permission.CONTINUOUS_TRIGGER,
+        Permission.APPETITE_READ,
+        Permission.APPETITE_MANAGE,
+        Permission.KRI_READ,
+        Permission.KRI_MANAGE,
+        Permission.KRI_OBSERVE,
+        Permission.KRI_BREACH_ACTION,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -301,6 +317,11 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.CONTINUOUS_READ,
         Permission.POLICY_READ,
         Permission.POLICY_ATTEST,
+        Permission.APPETITE_READ,
+        Permission.KRI_READ,
+        Permission.KRI_MANAGE,
+        Permission.KRI_OBSERVE,
+        Permission.KRI_BREACH_ACTION,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -345,6 +366,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.REGULATORY_READ,
         Permission.INTEGRATION_READ,
         Permission.CONTINUOUS_READ,
+        Permission.APPETITE_READ,
+        Permission.KRI_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -434,6 +457,14 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.CONTINUOUS_READ,
         Permission.CONTINUOUS_MANAGE,
         Permission.CONTINUOUS_TRIGGER,
+        Permission.APPETITE_READ,
+        Permission.APPETITE_MANAGE,
+        Permission.APPETITE_APPROVE,
+        Permission.KRI_READ,
+        Permission.KRI_MANAGE,
+        Permission.KRI_OBSERVE,
+        Permission.KRI_BREACH_ACTION,
+        Permission.KRI_BREACH_CLOSE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -462,6 +493,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXECUTIVE_READ,
         Permission.REGULATORY_READ,
         Permission.CONTINUOUS_READ,
+        Permission.APPETITE_READ,
+        Permission.KRI_READ,
     },
 }
 

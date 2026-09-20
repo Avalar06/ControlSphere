@@ -319,6 +319,21 @@ from app.models.continuous_compliance import (
     ComplianceDriftSeverityEnum,
     ComplianceDriftStatusEnum,
 )
+from app.models.kri import (
+    RiskAppetiteStatement,
+    KeyRiskIndicator,
+    KriThreshold,
+    KriObservation,
+    KriBreachRecord,
+    KriRiskLink,
+    AppetiteStatementStatusEnum,
+    KriFrequencyEnum,
+    KriDirectionEnum,
+    KriStatusEnum,
+    KriEvaluationStatusEnum,
+    KriSourceTypeEnum,
+    BreachStatusEnum,
+)
 
 __all__ = [
     "Base",
@@ -584,4 +599,17 @@ __all__ = [
     "ComplianceDriftVectorEnum",
     "ComplianceDriftSeverityEnum",
     "ComplianceDriftStatusEnum",
+    "RiskAppetiteStatement",
+    "KeyRiskIndicator",
+    "KriThreshold",
+    "KriObservation",
+    "KriBreachRecord",
+    "KriRiskLink",
+    "AppetiteStatementStatusEnum",
+    "KriFrequencyEnum",
+    "KriDirectionEnum",
+    "KriStatusEnum",
+    "KriEvaluationStatusEnum",
+    "KriSourceTypeEnum",
+    "BreachStatusEnum",
 ]

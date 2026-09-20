@@ -19,6 +19,7 @@ import { FindingsPage } from './pages/FindingsPage';
 import { FindingDetailPage } from './pages/FindingDetailPage';
 import { RisksPage } from './pages/RisksPage';
 import { RiskDetailPage } from './pages/RiskDetailPage';
+import { KriPage } from './pages/KriPage';
 import { ExceptionsPage } from './pages/ExceptionsPage';
 import { ExceptionDetailPage } from './pages/ExceptionDetailPage';
 import { AuditsPage } from './pages/AuditsPage';
@@ -110,9 +111,10 @@ export const App: React.FC = () => {
               <Route path="/findings" element={<FindingsPage />} />
               <Route path="/findings/:id" element={<FindingDetailPage />} />
 
-              {/* Phase 5: Risk Management, Exceptions & Governance */}
+              {/* Phase 5 & Batch 2: Risk Management, KRI & Appetite, Exceptions & Governance */}
               <Route path="/risks" element={<RisksPage />} />
               <Route path="/risks/:id" element={<RiskDetailPage />} />
+              <Route path="/kris" element={<KriPage />} />
               <Route path="/exceptions" element={<ExceptionsPage />} />
               <Route path="/exceptions/:id" element={<ExceptionDetailPage />} />
 
