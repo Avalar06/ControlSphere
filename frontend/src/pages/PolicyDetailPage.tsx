@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -11,11 +11,21 @@ import {
   FileCheck2,
   Send,
   Archive,
-  Check,
+  Lock,
+  GitCompare,
+  UserCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import type { FrameworkSubcategory, Policy, PolicyStatus } from '../types';
+import type {
+  FrameworkSubcategory,
+  Policy,
+  PolicyStatus,
+  PolicyVersionStatus,
+  PolicyReviewStage,
+  PolicyReviewStatus,
+} from '../types';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -24,7 +34,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 export const PolicyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [selectedVersionNum, setSelectedVersionNum] = useState<number | null>(null);
   const [allSubcategories, setAllSubcategories] = useState<FrameworkSubcategory[]>([]);
@@ -37,6 +47,25 @@ export const PolicyDetailPage: React.FC = () => {
   const [newVersionContent, setNewVersionContent] = useState('');
   const [newVersionSummary, setNewVersionSummary] = useState('');
   const [isSubmittingVersion, setIsSubmittingVersion] = useState(false);
+
+  // Submit for Review Modal
+  const [isSubmitReviewModalOpen, setIsSubmitReviewModalOpen] = useState(false);
+  const [reviewStage, setReviewStage] = useState<PolicyReviewStage>('SECURITY_REVIEW');
+  const [submitReviewNotes, setSubmitReviewNotes] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // Review / Decision Modal (Four-Eyes Approval)
+  const [isReviewActionModalOpen, setIsReviewActionModalOpen] = useState(false);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
+  const [reviewDecision, setReviewDecision] = useState<'APPROVE' | 'REJECT' | 'REQUEST_CHANGES'>('APPROVE');
+  const [reviewActionNotes, setReviewActionNotes] = useState('');
+  const [isSubmittingReviewAction, setIsSubmittingReviewAction] = useState(false);
+
+  // Version Publishing state
+  const [isPublishingVersion, setIsPublishingVersion] = useState(false);
+
+  // Diff Mode state
+  const [isDiffMode, setIsDiffMode] = useState(false);
 
   // Add Control Mapping Modal
   const [isMappingModalOpen, setIsMappingModalOpen] = useState(false);
@@ -90,6 +119,7 @@ export const PolicyDetailPage: React.FC = () => {
     e.preventDefault();
     if (!policy) return;
     setIsSubmittingVersion(true);
+    setError(null);
     try {
       await api.post(`/api/v1/policies/${policy.id}/versions`, {
         content: newVersionContent,
@@ -98,12 +128,76 @@ export const PolicyDetailPage: React.FC = () => {
       setIsVersionModalOpen(false);
       setNewVersionSummary('');
       await fetchPolicy();
-      setStatusMessage('New immutable policy version created.');
+      setStatusMessage('New immutable policy version created in DRAFT status.');
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.detail || 'Failed to create version.');
     } finally {
       setIsSubmittingVersion(false);
+    }
+  };
+
+  const handleSubmitForReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!policy || !currentDisplayVersion) return;
+    setIsSubmittingReview(true);
+    setError(null);
+    try {
+      await api.post(`/api/v1/policies/${policy.id}/versions/${currentDisplayVersion.id}/submit-review`, {
+        review_stage: reviewStage,
+        review_notes: submitReviewNotes,
+      });
+      setIsSubmitReviewModalOpen(false);
+      setSubmitReviewNotes('');
+      await fetchPolicy();
+      setStatusMessage(`Version v${currentDisplayVersion.version_number} submitted for ${reviewStage.replace('_', ' ')}.`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Failed to submit version for review.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const handleReviewDecision = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!policy || !currentDisplayVersion || !selectedWorkflowId) return;
+    setIsSubmittingReviewAction(true);
+    setError(null);
+    try {
+      await api.post(
+        `/api/v1/policies/${policy.id}/versions/${currentDisplayVersion.id}/review/${selectedWorkflowId}`,
+        {
+          decision: reviewDecision,
+          review_notes: reviewActionNotes,
+        }
+      );
+      setIsReviewActionModalOpen(false);
+      setReviewActionNotes('');
+      setSelectedWorkflowId(null);
+      await fetchPolicy();
+      setStatusMessage(`Review workflow decision recorded: ${reviewDecision}.`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Failed to record review decision.');
+    } finally {
+      setIsSubmittingReviewAction(false);
+    }
+  };
+
+  const handlePublishVersion = async (versionId: number) => {
+    if (!policy) return;
+    setIsPublishingVersion(true);
+    setError(null);
+    try {
+      await api.post(`/api/v1/policies/${policy.id}/versions/${versionId}/publish`);
+      await fetchPolicy();
+      setStatusMessage(`Policy version published successfully. Previous active versions superseded.`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Failed to publish policy version.');
+    } finally {
+      setIsPublishingVersion(false);
     }
   };
 
@@ -142,7 +236,7 @@ export const PolicyDetailPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return <LoadingSpinner text="Loading policy document &amp; versions..." />;
+    return <LoadingSpinner text="Loading policy document & versions..." />;
   }
 
   if (!policy) {
@@ -160,6 +254,19 @@ export const PolicyDetailPage: React.FC = () => {
     policy.versions?.find((v) => v.version_number === selectedVersionNum) ||
     policy.current_version;
 
+  const previousVersion = policy.versions?.find(
+    (v) => v.version_number === (currentDisplayVersion?.version_number || 1) - 1
+  );
+
+  const pendingWorkflow = currentDisplayVersion?.reviews?.find(
+    (r) => r.status === 'PENDING'
+  );
+
+  const isCreatorOfCurrentVersion =
+    user?.id !== undefined &&
+    currentDisplayVersion?.created_by_id !== undefined &&
+    user.id === currentDisplayVersion.created_by_id;
+
   const getStatusBadge = (status: PolicyStatus) => {
     switch (status) {
       case 'PUBLISHED':
@@ -173,6 +280,38 @@ export const PolicyDetailPage: React.FC = () => {
       case 'DRAFT':
       default:
         return <Badge variant="info">DRAFT</Badge>;
+    }
+  };
+
+  const getVersionStatusBadge = (status?: PolicyVersionStatus) => {
+    switch (status) {
+      case 'PUBLISHED':
+        return <Badge variant="success">PUBLISHED</Badge>;
+      case 'APPROVED':
+        return <Badge variant="purple">APPROVED</Badge>;
+      case 'UNDER_REVIEW':
+        return <Badge variant="warning">UNDER REVIEW</Badge>;
+      case 'SUPERSEDED':
+        return <Badge variant="default">SUPERSEDED</Badge>;
+      case 'ARCHIVED':
+        return <Badge variant="default">ARCHIVED</Badge>;
+      case 'DRAFT':
+      default:
+        return <Badge variant="info">DRAFT</Badge>;
+    }
+  };
+
+  const getReviewStatusBadge = (status: PolicyReviewStatus) => {
+    switch (status) {
+      case 'APPROVED':
+        return <Badge variant="success">APPROVED</Badge>;
+      case 'REJECTED':
+        return <Badge variant="danger">REJECTED</Badge>;
+      case 'CHANGES_REQUESTED':
+        return <Badge variant="warning">CHANGES REQUESTED</Badge>;
+      case 'PENDING':
+      default:
+        return <Badge variant="info">PENDING</Badge>;
     }
   };
 
@@ -202,53 +341,20 @@ export const PolicyDetailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Status Action Buttons */}
-          {hasPermission('policy:manage') && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {policy.status === 'DRAFT' && (
-                <Button
-                  size="sm"
-                  variant="warning"
-                  onClick={() => handleStatusTransition('UNDER_REVIEW')}
-                >
-                  <Send size={13} />
-                  Submit for Review
-                </Button>
-              )}
+          {/* Top Level Policy Actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {hasPermission('policy:manage') && policy.status !== 'ARCHIVED' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleStatusTransition('ARCHIVED')}
+              >
+                <Archive size={13} />
+                Archive Policy
+              </Button>
+            )}
 
-              {policy.status === 'UNDER_REVIEW' && (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => handleStatusTransition('APPROVED')}
-                >
-                  <Check size={13} />
-                  Approve Policy
-                </Button>
-              )}
-
-              {policy.status === 'APPROVED' && (
-                <Button
-                  size="sm"
-                  variant="success"
-                  onClick={() => handleStatusTransition('PUBLISHED')}
-                >
-                  <CheckCircle size={13} />
-                  Publish Policy
-                </Button>
-              )}
-
-              {policy.status !== 'ARCHIVED' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleStatusTransition('ARCHIVED')}
-                >
-                  <Archive size={13} />
-                  Archive
-                </Button>
-              )}
-
+            {hasPermission('policy:manage') && (
               <Button
                 size="sm"
                 variant="secondary"
@@ -260,8 +366,8 @@ export const PolicyDetailPage: React.FC = () => {
                 <Plus size={13} />
                 New Version
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -284,39 +390,206 @@ export const PolicyDetailPage: React.FC = () => {
         {/* Document Viewer (2 Cols) */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            {/* Version Bar */}
+            <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
                 <History size={14} className="text-indigo-400" />
                 <span className="text-xs font-semibold text-slate-200">
-                  Viewing Version v{currentDisplayVersion?.version_number || 1}
+                  Version v{currentDisplayVersion?.version_number || 1}
                 </span>
-                <span className="text-[11px] text-slate-400">
-                  · {currentDisplayVersion?.change_summary}
-                </span>
+                {getVersionStatusBadge(currentDisplayVersion?.status)}
+                {currentDisplayVersion?.content_hash_sha256 && (
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-emerald-400"
+                    title={`Cryptographic SHA-256 Hash: ${currentDisplayVersion.content_hash_sha256}`}
+                  >
+                    <Lock size={10} />
+                    SHA256:{currentDisplayVersion.content_hash_sha256.substring(0, 10)}...
+                  </span>
+                )}
               </div>
 
-              {/* Version Selector Dropdown */}
-              {policy.versions && policy.versions.length > 1 && (
-                <select
-                  value={selectedVersionNum || policy.current_version?.version_number}
-                  onChange={(e) => setSelectedVersionNum(parseInt(e.target.value, 10))}
-                  className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 font-mono"
-                >
-                  {policy.versions.map((v) => (
-                    <option key={v.id} value={v.version_number}>
-                      v{v.version_number} — {new Date(v.created_at).toLocaleDateString()}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Diff Toggle */}
+                {previousVersion && (
+                  <Button
+                    size="xs"
+                    variant={isDiffMode ? 'primary' : 'outline'}
+                    onClick={() => setIsDiffMode(!isDiffMode)}
+                  >
+                    <GitCompare size={12} />
+                    {isDiffMode ? 'Standard View' : 'Compare Diff'}
+                  </Button>
+                )}
+
+                {/* Version Selector Dropdown */}
+                {policy.versions && policy.versions.length > 1 && (
+                  <select
+                    value={selectedVersionNum || policy.current_version?.version_number}
+                    onChange={(e) => {
+                      setSelectedVersionNum(parseInt(e.target.value, 10));
+                      setIsDiffMode(false);
+                    }}
+                    className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 font-mono"
+                  >
+                    {policy.versions.map((v) => (
+                      <option key={v.id} value={v.version_number}>
+                        v{v.version_number} ({v.status}) — {new Date(v.created_at).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {/* Version Governance Action Bar */}
+            {currentDisplayVersion && (
+              <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="text-slate-400">
+                  <span>Revision: </span>
+                  <span className="text-slate-200">{currentDisplayVersion.change_summary || 'Baseline version'}</span>
+                  {currentDisplayVersion.created_by && (
+                    <span className="ml-2 text-slate-500">
+                      by {currentDisplayVersion.created_by.full_name}
+                    </span>
+                  )}
+                  {currentDisplayVersion.approved_by && (
+                    <span className="ml-2 text-purple-400">
+                      · Approved by {currentDisplayVersion.approved_by.full_name}
+                    </span>
+                  )}
+                </div>
+
+                {/* Action Buttons based on Version Lifecycle */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Submit DRAFT for Review */}
+                  {currentDisplayVersion.status === 'DRAFT' && hasPermission('policy:manage') && (
+                    <Button
+                      size="xs"
+                      variant="warning"
+                      onClick={() => setIsSubmitReviewModalOpen(true)}
+                    >
+                      <Send size={12} />
+                      Submit for Formal Review
+                    </Button>
+                  )}
+
+                  {/* Four-Eyes Review Action */}
+                  {currentDisplayVersion.status === 'UNDER_REVIEW' && pendingWorkflow && (
+                    <>
+                      {isCreatorOfCurrentVersion ? (
+                        <div className="flex items-center gap-1 text-[11px] text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2 py-1 rounded">
+                          <AlertTriangle size={12} />
+                          <span>Four-Eyes Governance: Creator cannot self-approve</span>
+                        </div>
+                      ) : (
+                        hasPermission('policy:approve') && (
+                          <Button
+                            size="xs"
+                            variant="primary"
+                            onClick={() => {
+                              setSelectedWorkflowId(pendingWorkflow.id);
+                              setIsReviewActionModalOpen(true);
+                            }}
+                          >
+                            <UserCheck size={12} />
+                            Review & Decide (Four-Eyes)
+                          </Button>
+                        )
+                      )}
+                    </>
+                  )}
+
+                  {/* Publish APPROVED Version */}
+                  {currentDisplayVersion.status === 'APPROVED' && hasPermission('policy:manage') && (
+                    <Button
+                      size="xs"
+                      variant="success"
+                      isLoading={isPublishingVersion}
+                      onClick={() => handlePublishVersion(currentDisplayVersion.id)}
+                    >
+                      <CheckCircle size={12} />
+                      Publish Version
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Document Content / Diff View */}
+            <div className="p-6">
+              {isDiffMode && previousVersion ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-400 block mb-1">
+                        Previous Version v{previousVersion.version_number} ({previousVersion.status})
+                      </span>
+                      <div className="prose prose-invert max-w-none text-xs text-rose-300/80 font-mono whitespace-pre-wrap leading-relaxed bg-rose-950/20 p-4 rounded-lg border border-rose-900/40 max-h-[500px] overflow-y-auto">
+                        {previousVersion.content}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-semibold text-emerald-400 block mb-1">
+                        Selected Version v{currentDisplayVersion?.version_number} ({currentDisplayVersion?.status})
+                      </span>
+                      <div className="prose prose-invert max-w-none text-xs text-emerald-300 font-mono whitespace-pre-wrap leading-relaxed bg-emerald-950/20 p-4 rounded-lg border border-emerald-900/40 max-h-[500px] overflow-y-auto">
+                        {currentDisplayVersion?.content}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="prose prose-invert max-w-none text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed bg-slate-950/70 p-4 rounded-lg border border-slate-800/80">
+                  {currentDisplayVersion?.content || 'No content drafted.'}
+                </div>
               )}
             </div>
-
-            <div className="p-6">
-              <div className="prose prose-invert max-w-none text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed bg-slate-950/70 p-4 rounded-lg border border-slate-800/80">
-                {currentDisplayVersion?.content || 'No content drafted.'}
-              </div>
-            </div>
           </Card>
+
+          {/* Review Workflow Audit Trail Card */}
+          {currentDisplayVersion?.reviews && currentDisplayVersion.reviews.length > 0 && (
+            <Card>
+              <CardHeader
+                title={`Review & Approval Audit Trail (${currentDisplayVersion.reviews.length})`}
+                subtitle="Tamper-evident log of formal Four-Eyes review stages and approver decisions."
+              />
+              <div className="p-3">
+                <div className="space-y-2">
+                  {currentDisplayVersion.reviews.map((wf) => (
+                    <div
+                      key={wf.id}
+                      className="p-3 rounded bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-slate-400 font-semibold">{wf.workflow_code}</span>
+                          <span className="text-indigo-400 font-medium">[{wf.review_stage.replace('_', ' ')}]</span>
+                          {getReviewStatusBadge(wf.status)}
+                        </div>
+                        {wf.review_notes && (
+                          <p className="text-slate-300 text-[11px] italic">"{wf.review_notes}"</p>
+                        )}
+                        <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                          {wf.created_by && <span>Submitted by: {wf.created_by.full_name}</span>}
+                          {wf.reviewed_by && <span>Reviewed by: {wf.reviewed_by.full_name}</span>}
+                          {wf.approved_by && <span>Approved by: {wf.approved_by.full_name}</span>}
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] font-mono text-slate-500 shrink-0">
+                        {wf.reviewed_at ? (
+                          <span>{new Date(wf.reviewed_at).toLocaleDateString()}</span>
+                        ) : (
+                          <span className="text-amber-400/80">Pending Decision</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar Meta: Mapped Controls & Lifecycle (1 Col) */}
@@ -335,6 +608,12 @@ export const PolicyDetailPage: React.FC = () => {
                 <span className="text-slate-400">Total Versions</span>
                 <span className="text-slate-200 font-mono font-medium">
                   {policy.total_versions}
+                </span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-800/80">
+                <span className="text-slate-400">Active Version</span>
+                <span className="text-emerald-400 font-mono font-medium">
+                  v{policy.current_version?.version_number || 1} ({policy.current_version?.status || 'DRAFT'})
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-800/80">
@@ -460,6 +739,146 @@ export const PolicyDetailPage: React.FC = () => {
               isLoading={isSubmittingVersion}
             >
               Save Immutable Version
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Submit for Review Modal */}
+      <Modal
+        isOpen={isSubmitReviewModalOpen}
+        onClose={() => setIsSubmitReviewModalOpen(false)}
+        title={`Submit Version v${currentDisplayVersion?.version_number} for Review`}
+      >
+        <form onSubmit={handleSubmitForReview} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1">Review Stage</label>
+            <select
+              value={reviewStage}
+              onChange={(e) => setReviewStage(e.target.value as PolicyReviewStage)}
+              className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="SECURITY_REVIEW">Security Review</option>
+              <option value="LEGAL_REVIEW">Legal Review</option>
+              <option value="EXECUTIVE_APPROVAL">Executive Approval</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1">
+              Submission Notes / Justification
+            </label>
+            <textarea
+              rows={4}
+              value={submitReviewNotes}
+              onChange={(e) => setSubmitReviewNotes(e.target.value)}
+              placeholder="Provide background, legal references, or key changes for reviewers..."
+              className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2 border-t border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSubmitReviewModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="warning"
+              size="sm"
+              isLoading={isSubmittingReview}
+            >
+              Submit for Formal Review
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Four-Eyes Review Decision Modal */}
+      <Modal
+        isOpen={isReviewActionModalOpen}
+        onClose={() => setIsReviewActionModalOpen(false)}
+        title="Four-Eyes Review & Approval Decision"
+      >
+        <form onSubmit={handleReviewDecision} className="space-y-4">
+          <div className="p-3 bg-indigo-950/40 border border-indigo-800/60 rounded text-xs text-indigo-300">
+            <span className="font-semibold block mb-0.5">Four-Eyes Integrity Control</span>
+            You are reviewing as an independent authorized stakeholder. Self-approval of authored policies is strictly blocked.
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1">Review Decision</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setReviewDecision('APPROVE')}
+                className={`flex-1 py-2 px-3 rounded border text-xs font-medium transition-colors ${
+                  reviewDecision === 'APPROVE'
+                    ? 'bg-emerald-950 border-emerald-500 text-emerald-300'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Approve Version
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewDecision('REQUEST_CHANGES')}
+                className={`flex-1 py-2 px-3 rounded border text-xs font-medium transition-colors ${
+                  reviewDecision === 'REQUEST_CHANGES'
+                    ? 'bg-amber-950 border-amber-500 text-amber-300'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Request Changes
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewDecision('REJECT')}
+                className={`flex-1 py-2 px-3 rounded border text-xs font-medium transition-colors ${
+                  reviewDecision === 'REJECT'
+                    ? 'bg-rose-950 border-rose-500 text-rose-300'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Reject Version
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1">
+              Reviewer Notes / Findings
+            </label>
+            <textarea
+              required
+              rows={4}
+              value={reviewActionNotes}
+              onChange={(e) => setReviewActionNotes(e.target.value)}
+              placeholder="Detail observations, approvals, or requirements for required revisions..."
+              className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2 border-t border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsReviewActionModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant={reviewDecision === 'APPROVE' ? 'success' : reviewDecision === 'REJECT' ? 'danger' : 'warning'}
+              size="sm"
+              isLoading={isSubmittingReviewAction}
+            >
+              Submit {reviewDecision.replace('_', ' ')}
             </Button>
           </div>
         </form>

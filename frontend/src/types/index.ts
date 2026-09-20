@@ -166,15 +166,137 @@ export type PolicyType =
   | 'CHANGE_MANAGEMENT'
   | 'OTHER';
 
+export type PolicyVersionStatus =
+  | 'DRAFT'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'PUBLISHED'
+  | 'SUPERSEDED'
+  | 'ARCHIVED';
+
+export type PolicyReviewStage =
+  | 'LEGAL_REVIEW'
+  | 'SECURITY_REVIEW'
+  | 'EXECUTIVE_APPROVAL';
+
+export type PolicyReviewStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CHANGES_REQUESTED';
+
+export type CampaignTargetType = 'ALL_USERS' | 'ROLE_BASED' | 'CUSTOM_GROUP';
+
+export type PolicyCampaignStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+
+export type AttestationRecordStatus = 'PENDING' | 'ATTESTED' | 'OVERDUE' | 'EXEMPTED';
+
+export interface PolicyReviewWorkflow {
+  id: number;
+  organization_id: number;
+  policy_id: number;
+  version_id: number;
+  workflow_code: string;
+  review_stage: PolicyReviewStage;
+  status: PolicyReviewStatus;
+  assigned_reviewer_id?: number;
+  review_notes?: string;
+  reviewed_by_id?: number;
+  reviewed_at?: string;
+  approved_by_id?: number;
+  approved_at?: string;
+  created_by_id?: number;
+  created_at: string;
+  assigned_reviewer?: User;
+  reviewed_by?: User;
+  approved_by?: User;
+  created_by?: User;
+}
+
 export interface PolicyVersion {
   id: number;
   policy_id: number;
+  organization_id?: number;
   version_number: number;
   content: string;
   change_summary: string;
+  content_hash_sha256?: string;
+  status?: PolicyVersionStatus;
+  effective_date?: string;
+  approved_by_id?: number;
+  approved_at?: string;
   created_by_id?: number;
   created_at: string;
   created_by?: User;
+  approved_by?: User;
+  reviews?: PolicyReviewWorkflow[];
+}
+
+export interface PolicyAttestationCampaign {
+  id: number;
+  organization_id: number;
+  campaign_code: string;
+  title: string;
+  description?: string;
+  policy_id: number;
+  version_id: number;
+  policy_version_hash: string;
+  target_type: CampaignTargetType;
+  target_role?: string;
+  due_date: string;
+  grace_period_days: number;
+  status: PolicyCampaignStatus;
+  assessment_id?: number;
+  total_targeted_count: number;
+  completed_count: number;
+  created_by_id?: number;
+  launched_at?: string;
+  closed_at?: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: User;
+  policy?: Policy;
+  version?: PolicyVersion;
+  completion_rate_pct?: number;
+  overdue_count?: number;
+}
+
+export interface UserAttestationRecord {
+  id: number;
+  organization_id: number;
+  campaign_id: number;
+  policy_id: number;
+  version_id: number;
+  user_id: number;
+  status: AttestationRecordStatus;
+  attested_at?: string;
+  ip_address?: string;
+  user_agent?: string;
+  acknowledgement_text?: string;
+  comprehension_passed: boolean;
+  attestation_receipt_hash?: string;
+  evidence_item_id?: number;
+  created_at: string;
+  campaign?: PolicyAttestationCampaign;
+  policy?: Policy;
+  version?: PolicyVersion;
+  user?: User;
+}
+
+export interface PendingAttestationItem {
+  record_id: number;
+  campaign_id: number;
+  campaign_code: string;
+  campaign_title: string;
+  policy_id: number;
+  policy_title: string;
+  version_id: number;
+  version_number: number;
+  policy_version_hash: string;
+  policy_content: string;
+  due_date: string;
+  assessment_id?: number;
+  status: AttestationRecordStatus;
 }
 
 export interface Policy {
@@ -194,6 +316,7 @@ export interface Policy {
   total_versions: number;
   versions?: PolicyVersion[];
   mapped_subcategories: FrameworkSubcategory[];
+  campaigns?: PolicyAttestationCampaign[];
 }
 
 // Phase 3 Evidence Types

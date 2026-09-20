@@ -14,11 +14,13 @@ import {
   Flame,
   AlertOctagon,
   AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { evidenceService } from '../lib/evidenceService';
@@ -40,6 +42,7 @@ import type {
   MonitoringOverview,
   MultiFrameworkPostureResponse,
   OrganizationEvidenceStats,
+  PendingAttestationItem,
   RiskStats,
 } from '../types';
 
@@ -56,6 +59,13 @@ export const DashboardPage: React.FC = () => {
   const [harmonizationPosture, setHarmonizationPosture] = useState<MultiFrameworkPostureResponse | null>(null);
   const [incidentOverview, setIncidentOverview] = useState<IncidentOverviewResponse | null>(null);
   const [heatmapCells, setHeatmapCells] = useState<HeatmapCell[]>([]);
+  const [pendingAttestations, setPendingAttestations] = useState<PendingAttestationItem[]>([]);
+  const [isAttestModalOpen, setIsAttestModalOpen] = useState(false);
+  const [activeAttestation, setActiveAttestation] = useState<PendingAttestationItem | null>(null);
+  const [acknowledgementText, setAcknowledgementText] = useState('');
+  const [isSubmittingAttest, setIsSubmittingAttest] = useState(false);
+  const [attestSuccessReceipt, setAttestSuccessReceipt] = useState<string | null>(null);
+  const [attestError, setAttestError] = useState<string | null>(null);
 
   const [logsLoading, setLogsLoading] = useState(false);
 
@@ -135,7 +145,32 @@ export const DashboardPage: React.FC = () => {
         .catch((err) => console.error('Failed to load audit logs in dashboard', err))
         .finally(() => setLogsLoading(false));
     }
+    // 10. Fetch pending policy workforce attestations
+    api
+      .get<PendingAttestationItem[]>('/api/v1/policies/my-pending-attestations')
+      .then((res) => setPendingAttestations(res.data))
+      .catch((err) => console.error('Failed to load pending attestations in dashboard', err));
   }, [user]);
+
+  const handleAttestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeAttestation) return;
+    setIsSubmittingAttest(true);
+    setAttestError(null);
+    try {
+      const { data } = await api.post(`/api/v1/policies/campaigns/${activeAttestation.campaign_id}/attest`, {
+        policy_version_hash: activeAttestation.policy_version_hash,
+        acknowledgement_text: acknowledgementText,
+      });
+      setAttestSuccessReceipt(data.attestation_receipt_hash);
+      setPendingAttestations((prev) => prev.filter((p) => p.campaign_id !== activeAttestation.campaign_id));
+    } catch (err: any) {
+      console.error(err);
+      setAttestError(err.response?.data?.detail || 'Failed to submit policy attestation.');
+    } finally {
+      setIsSubmittingAttest(false);
+    }
+  };
 
   const getHeatmapColor = (band: string, count: number) => {
     if (count === 0) {
@@ -208,6 +243,41 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Pending Policy Workforce Attestations Action Banner */}
+      {pendingAttestations.length > 0 && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-700/60 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-indigo-900/60 border border-indigo-700/60 text-indigo-300">
+              <FileCheck2 size={22} />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-100 flex items-center gap-2">
+                Mandatory Workforce Attestation Required ({pendingAttestations.length} Pending)
+                <Badge variant="warning" className="text-[10px] py-0">Action Required</Badge>
+              </span>
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                Next required review: <span className="text-indigo-300 font-semibold">{pendingAttestations[0].policy_title}</span> (Due {new Date(pendingAttestations[0].due_date).toLocaleDateString()})
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              setActiveAttestation(pendingAttestations[0]);
+              setAcknowledgementText(
+                `I hereby confirm and attest that I have read, understood, and agree to abide by the provisions set forth in the ${pendingAttestations[0].policy_title}.`
+              );
+              setAttestSuccessReceipt(null);
+              setAttestError(null);
+              setIsAttestModalOpen(true);
+            }}
+          >
+            Review & Attest Now
+          </Button>
+        </div>
+      )}
 
       {/* Live Executive Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
@@ -587,6 +657,102 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {/* Self-Service Workforce Policy Attestation Modal */}
+      <Modal
+        isOpen={isAttestModalOpen}
+        onClose={() => setIsAttestModalOpen(false)}
+        title={`Workforce Attestation: ${activeAttestation?.policy_title || 'Policy Review'}`}
+      >
+        {activeAttestation && (
+          <div className="space-y-4 text-xs">
+            {attestSuccessReceipt ? (
+              <div className="p-4 bg-emerald-950/60 border border-emerald-800 rounded-lg space-y-3">
+                <div className="flex items-center gap-2 text-emerald-300 font-semibold">
+                  <FileCheck2 size={18} />
+                  <span>Attestation Successfully Recorded!</span>
+                </div>
+                <p className="text-slate-300 text-[11px]">
+                  Your compliance attestation has been cryptographically hashed and entered into the immutable audit ledger.
+                </p>
+                <div>
+                  <span className="text-[10px] font-mono text-slate-400 block mb-0.5">Tamper-Evident Attestation Receipt Hash (SHA-256):</span>
+                  <div className="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-[11px] text-emerald-400 break-all select-all">
+                    {attestSuccessReceipt}
+                  </div>
+                </div>
+                <div className="pt-2 flex justify-end">
+                  <Button size="sm" variant="outline" onClick={() => setIsAttestModalOpen(false)}>
+                    Done
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAttestSubmit} className="space-y-4">
+                {attestError && (
+                  <div className="p-3 bg-rose-950/60 border border-rose-800/70 text-rose-300 rounded flex items-center gap-2">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{attestError}</span>
+                  </div>
+                )}
+
+                <div className="p-3 bg-slate-950 rounded border border-slate-800 space-y-1">
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Campaign: <strong className="text-slate-200">{activeAttestation.campaign_code}</strong></span>
+                    <span>Version: <strong className="text-indigo-400">v{activeAttestation.version_number}</strong></span>
+                  </div>
+                  <div className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                    <Lock size={10} />
+                    <span>Bound Version SHA-256: {activeAttestation.policy_version_hash}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Policy Content Review</label>
+                  <div className="bg-slate-950 p-3.5 rounded border border-slate-800 font-mono text-xs text-slate-300 max-h-56 overflow-y-auto leading-relaxed whitespace-pre-wrap">
+                    {activeAttestation.policy_content || 'No content provided.'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Legal & Compliance Acknowledgement
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={acknowledgementText}
+                    onChange={(e) => setAcknowledgementText(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  />
+                  <span className="text-[10px] text-slate-500 block mt-1">
+                    Submitting records your user ID, client IP address, and timestamp into a deterministic SHA-256 cryptographic receipt.
+                  </span>
+                </div>
+
+                <div className="pt-3 flex justify-end gap-2 border-t border-slate-800">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAttestModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    isLoading={isSubmittingAttest}
+                  >
+                    Submit Attestation
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

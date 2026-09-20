@@ -47,6 +47,9 @@ class Permission(str, enum.Enum):
     EXCEPTION_APPROVE = "exception:approve"
     POLICY_READ = "policy:read"
     POLICY_MANAGE = "policy:manage"
+    POLICY_APPROVE = "policy:approve"
+    POLICY_CAMPAIGN_MANAGE = "policy:campaign_manage"
+    POLICY_ATTEST = "policy:attest"
 
     # Phase 6: Audit Management Permissions
     AUDIT_READ = "audit:read"
@@ -180,6 +183,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_REVIEW,
         Permission.POLICY_READ,
         Permission.POLICY_MANAGE,
+        Permission.POLICY_CAMPAIGN_MANAGE,
+        Permission.POLICY_ATTEST,
         Permission.MONITORING_READ,
         Permission.MONITORING_EXECUTE,
         Permission.MONITORING_ALERT_ACTION,
@@ -284,6 +289,8 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.INTEGRATION_READ,
         Permission.INTEGRATION_EXECUTE,
         Permission.CONTINUOUS_READ,
+        Permission.POLICY_READ,
+        Permission.POLICY_ATTEST,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -304,6 +311,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_REVIEW,
         Permission.AUDIT_APPROVE,
         Permission.POLICY_READ,
+        Permission.POLICY_ATTEST,
         Permission.MONITORING_READ,
         Permission.HARMONIZATION_READ,
         Permission.VENDOR_READ,
@@ -342,6 +350,10 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.AUDIT_APPROVE,
         Permission.AUDIT_CLOSE,
         Permission.POLICY_READ,
+        Permission.POLICY_MANAGE,
+        Permission.POLICY_APPROVE,
+        Permission.POLICY_CAMPAIGN_MANAGE,
+        Permission.POLICY_ATTEST,
         Permission.MONITORING_READ,
         Permission.MONITORING_MANAGE,
         Permission.MONITORING_ALERT_ACTION,
@@ -412,6 +424,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.EXCEPTION_READ,
         Permission.AUDIT_READ,
         Permission.POLICY_READ,
+        Permission.POLICY_ATTEST,
         Permission.MONITORING_READ,
         Permission.HARMONIZATION_READ,
         Permission.VENDOR_READ,

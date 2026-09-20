@@ -1,8 +1,31 @@
-﻿from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date
 import enum
-from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.types import TypeDecorator
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+
+
+class UTCDateTime(TypeDecorator):
+    """DateTime TypeDecorator ensuring timezone-aware UTC datetime instances across SQLite and PostgreSQL."""
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
 
 
 class PolicyStatusEnum(str, enum.Enum):
@@ -27,6 +50,47 @@ class PolicyTypeEnum(str, enum.Enum):
     OTHER = "OTHER"
 
 
+class PolicyVersionStatusEnum(str, enum.Enum):
+    DRAFT = "DRAFT"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    APPROVED = "APPROVED"
+    PUBLISHED = "PUBLISHED"
+    SUPERSEDED = "SUPERSEDED"
+    ARCHIVED = "ARCHIVED"
+
+
+class PolicyReviewStageEnum(str, enum.Enum):
+    LEGAL_REVIEW = "LEGAL_REVIEW"
+    SECURITY_REVIEW = "SECURITY_REVIEW"
+    EXECUTIVE_APPROVAL = "EXECUTIVE_APPROVAL"
+
+
+class PolicyReviewStatusEnum(str, enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CHANGES_REQUESTED = "CHANGES_REQUESTED"
+
+
+class CampaignTargetTypeEnum(str, enum.Enum):
+    ALL_USERS = "ALL_USERS"
+    ROLE_BASED = "ROLE_BASED"
+    CUSTOM_GROUP = "CUSTOM_GROUP"
+
+
+class CampaignStatusEnum(str, enum.Enum):
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class AttestationRecordStatusEnum(str, enum.Enum):
+    PENDING = "PENDING"
+    ATTESTED = "ATTESTED"
+    OVERDUE = "OVERDUE"
+
+
 class Policy(Base):
     __tablename__ = "policies"
 
@@ -48,17 +112,24 @@ class Policy(Base):
     owner = relationship("User", foreign_keys=[owner_id])
     versions = relationship("PolicyVersion", back_populates="policy", cascade="all, delete-orphan", order_by="PolicyVersion.version_number.desc()")
     control_mappings = relationship("PolicyControlMapping", back_populates="policy", cascade="all, delete-orphan")
+    campaigns = relationship("PolicyAttestationCampaign", back_populates="policy", cascade="all, delete-orphan")
 
 
 class PolicyVersion(Base):
     __tablename__ = "policy_versions"
 
     id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     policy_id = Column(Integer, ForeignKey("policies.id", ondelete="CASCADE"), nullable=False, index=True)
     version_number = Column(Integer, nullable=False)  # 1, 2, 3...
     content = Column(Text, nullable=False)  # Markdown / policy text
+    content_hash_sha256 = Column(String(64), nullable=True, index=True)
     change_summary = Column(String(255), nullable=False, default="Initial version")
+    status = Column(Enum(PolicyVersionStatusEnum), default=PolicyVersionStatusEnum.DRAFT, nullable=False, index=True)
+    effective_date = Column(Date, nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     __table_args__ = (
@@ -66,7 +137,111 @@ class PolicyVersion(Base):
     )
 
     policy = relationship("Policy", back_populates="versions")
+    organization = relationship("Organization")
     created_by = relationship("User", foreign_keys=[created_by_id])
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+    reviews = relationship("PolicyReviewWorkflow", back_populates="version", cascade="all, delete-orphan", order_by="PolicyReviewWorkflow.created_at.desc()")
+    campaigns = relationship("PolicyAttestationCampaign", back_populates="version")
+
+
+class PolicyReviewWorkflow(Base):
+    __tablename__ = "policy_review_workflows"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    policy_id = Column(Integer, ForeignKey("policies.id", ondelete="CASCADE"), nullable=False, index=True)
+    version_id = Column(Integer, ForeignKey("policy_versions.id", ondelete="CASCADE"), nullable=False, index=True)
+    workflow_code = Column(String(64), nullable=False)
+    review_stage = Column(Enum(PolicyReviewStageEnum), default=PolicyReviewStageEnum.LEGAL_REVIEW, nullable=False)
+    status = Column(Enum(PolicyReviewStatusEnum), default=PolicyReviewStatusEnum.PENDING, nullable=False, index=True)
+    assigned_reviewer_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    review_notes = Column(Text, nullable=True)
+    reviewed_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "workflow_code", name="uq_pol_rev_wf_code"),
+    )
+
+    organization = relationship("Organization")
+    policy = relationship("Policy")
+    version = relationship("PolicyVersion", back_populates="reviews")
+    assigned_reviewer = relationship("User", foreign_keys=[assigned_reviewer_id])
+    reviewed_by = relationship("User", foreign_keys=[reviewed_by_id])
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+    created_by = relationship("User", foreign_keys=[created_by_id])
+
+
+class PolicyAttestationCampaign(Base):
+    __tablename__ = "policy_attestation_campaigns"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    campaign_code = Column(String(64), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    policy_id = Column(Integer, ForeignKey("policies.id", ondelete="CASCADE"), nullable=False, index=True)
+    version_id = Column(Integer, ForeignKey("policy_versions.id", ondelete="RESTRICT"), nullable=False, index=True)
+    policy_version_hash = Column(String(64), nullable=False)
+    target_type = Column(Enum(CampaignTargetTypeEnum), default=CampaignTargetTypeEnum.ALL_USERS, nullable=False)
+    target_role = Column(String(50), nullable=True)
+    due_date = Column(UTCDateTime, nullable=False)
+    grace_period_days = Column(Integer, default=0, nullable=False)
+    status = Column(Enum(CampaignStatusEnum), default=CampaignStatusEnum.DRAFT, nullable=False, index=True)
+    assessment_id = Column(Integer, ForeignKey("assessments.id", ondelete="SET NULL"), nullable=True)
+    total_targeted_count = Column(Integer, default=0, nullable=False)
+    completed_count = Column(Integer, default=0, nullable=False)
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    launched_at = Column(UTCDateTime, nullable=True)
+    closed_at = Column(UTCDateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "campaign_code", name="uq_pol_att_camp_code"),
+    )
+
+    organization = relationship("Organization")
+    policy = relationship("Policy", back_populates="campaigns")
+    version = relationship("PolicyVersion", back_populates="campaigns")
+    assessment = relationship("Assessment")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    attestation_records = relationship("UserAttestationRecord", back_populates="campaign", cascade="all, delete-orphan")
+
+
+class UserAttestationRecord(Base):
+    __tablename__ = "user_attestation_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    campaign_id = Column(Integer, ForeignKey("policy_attestation_campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    policy_id = Column(Integer, ForeignKey("policies.id", ondelete="CASCADE"), nullable=False, index=True)
+    version_id = Column(Integer, ForeignKey("policy_versions.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(Enum(AttestationRecordStatusEnum), default=AttestationRecordStatusEnum.PENDING, nullable=False, index=True)
+    attested_at = Column(UTCDateTime, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    acknowledgement_text = Column(Text, nullable=True)
+    comprehension_passed = Column(Boolean, default=True, nullable=False)
+    attestation_receipt_hash = Column(String(64), nullable=True)
+    evidence_item_id = Column(Integer, ForeignKey("evidence_items.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "campaign_id", "user_id", name="uq_camp_user_attestation"),
+    )
+
+    organization = relationship("Organization")
+    campaign = relationship("PolicyAttestationCampaign", back_populates="attestation_records")
+    policy = relationship("Policy")
+    version = relationship("PolicyVersion")
+    user = relationship("User", foreign_keys=[user_id])
+    evidence_item = relationship("EvidenceItem")
 
 
 class PolicyControlMapping(Base):
