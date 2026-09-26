@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -89,6 +90,7 @@ class AttestationRecordStatusEnum(str, enum.Enum):
     PENDING = "PENDING"
     ATTESTED = "ATTESTED"
     OVERDUE = "OVERDUE"
+    EXEMPTED = "EXEMPTED"
 
 
 class Policy(Base):
@@ -162,9 +164,11 @@ class PolicyReviewWorkflow(Base):
     approved_at = Column(DateTime(timezone=True), nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("organization_id", "workflow_code", name="uq_pol_rev_wf_code"),
+        Index("ix_pol_rev_wf_org_ver_status", "organization_id", "version_id", "status"),
     )
 
     organization = relationship("Organization")
@@ -195,6 +199,8 @@ class PolicyAttestationCampaign(Base):
     assessment_id = Column(Integer, ForeignKey("assessments.id", ondelete="SET NULL"), nullable=True)
     total_targeted_count = Column(Integer, default=0, nullable=False)
     completed_count = Column(Integer, default=0, nullable=False)
+    overdue_count = Column(Integer, default=0, nullable=False)
+    reminder_sent_at = Column(UTCDateTime, nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     launched_at = Column(UTCDateTime, nullable=True)
     closed_at = Column(UTCDateTime, nullable=True)
@@ -203,6 +209,7 @@ class PolicyAttestationCampaign(Base):
 
     __table_args__ = (
         UniqueConstraint("organization_id", "campaign_code", name="uq_pol_att_camp_code"),
+        Index("ix_pol_camp_org_pol_status", "organization_id", "policy_id", "status"),
     )
 
     organization = relationship("Organization")
@@ -230,10 +237,15 @@ class UserAttestationRecord(Base):
     comprehension_passed = Column(Boolean, default=True, nullable=False)
     attestation_receipt_hash = Column(String(64), nullable=True)
     evidence_item_id = Column(Integer, ForeignKey("evidence_items.id", ondelete="SET NULL"), nullable=True)
+    exemption_exception_id = Column(Integer, ForeignKey("security_exceptions.id", ondelete="SET NULL"), nullable=True)
+    exemption_reason = Column(Text, nullable=True)
+    exempted_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    exempted_at = Column(UTCDateTime, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("organization_id", "campaign_id", "user_id", name="uq_camp_user_attestation"),
+        Index("ix_user_att_org_camp_status", "organization_id", "campaign_id", "status"),
     )
 
     organization = relationship("Organization")
@@ -242,6 +254,8 @@ class UserAttestationRecord(Base):
     version = relationship("PolicyVersion")
     user = relationship("User", foreign_keys=[user_id])
     evidence_item = relationship("EvidenceItem")
+    exemption_exception = relationship("SecurityException", foreign_keys=[exemption_exception_id])
+    exempted_by = relationship("User", foreign_keys=[exempted_by_id])
 
 
 class PolicyControlMapping(Base):

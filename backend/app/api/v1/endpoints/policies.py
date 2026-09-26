@@ -1,5 +1,6 @@
+from datetime import date
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 from app.api.deps import (
     get_client_ip,
@@ -9,13 +10,20 @@ from app.api.deps import (
     require_permission,
 )
 from app.core.permissions import Permission
-from app.models.policy import CampaignStatusEnum, PolicyStatusEnum, PolicyTypeEnum
+from app.models.policy import (
+    AttestationRecordStatusEnum,
+    CampaignStatusEnum,
+    PolicyStatusEnum,
+    PolicyTypeEnum,
+)
 from app.models.user import User
 from app.schemas.policy import (
     CampaignEvidenceManifestResponse,
     PolicyAttestationCampaignCreate,
     PolicyAttestationCampaignResponse,
     PolicyAttestationCampaignUpdate,
+    PolicyAttestationExemptionCreate,
+    PolicyCampaignCancelRequest,
     PolicyControlMappingCreate,
     PolicyCreate,
     PolicyResponse,
@@ -23,6 +31,7 @@ from app.schemas.policy import (
     PolicyReviewWorkflowCreate,
     PolicyReviewWorkflowResponse,
     PolicyStatusUpdate,
+    PolicyTelemetryResponse,
     PolicyUpdate,
     PolicyVersionCreate,
     PolicyVersionResponse,
@@ -35,6 +44,43 @@ from app.services.policy_service import PolicyService
 from app.services.user_service import UserService
 
 router = APIRouter()
+
+
+def _serialize_campaign_response(c: Any) -> Dict[str, Any]:
+    rate = (
+        round((c.completed_count / c.total_targeted_count * 100), 2)
+        if c.total_targeted_count
+        else 0.0
+    )
+    return {
+        "id": c.id,
+        "organization_id": c.organization_id,
+        "campaign_code": c.campaign_code,
+        "title": c.title,
+        "description": c.description,
+        "policy_id": c.policy_id,
+        "version_id": c.version_id,
+        "policy_version_hash": c.policy_version_hash,
+        "target_type": c.target_type,
+        "target_role": c.target_role,
+        "due_date": c.due_date,
+        "grace_period_days": c.grace_period_days,
+        "status": c.status,
+        "assessment_id": c.assessment_id,
+        "total_targeted_count": c.total_targeted_count,
+        "completed_count": c.completed_count,
+        "overdue_count": getattr(c, "overdue_count", 0) or 0,
+        "reminder_sent_at": getattr(c, "reminder_sent_at", None),
+        "completion_rate": rate,
+        "completion_rate_pct": rate,
+        "created_by_id": c.created_by_id,
+        "launched_at": c.launched_at,
+        "closed_at": c.closed_at,
+        "created_at": c.created_at,
+        "updated_at": c.updated_at,
+        "policy_title": c.policy.title if getattr(c, "policy", None) else None,
+        "policy_version_number": c.version.version_number if getattr(c, "version", None) else None,
+    }
 
 
 # ── Policy Collection Endpoints ─────────────────────────────────────────────
@@ -111,6 +157,18 @@ def create_policy(
 
 # ── Static Path Endpoints (MUST be registered before /{policy_id}) ──────────
 
+@router.get("/telemetry", response_model=PolicyTelemetryResponse)
+def get_policy_telemetry(
+    current_user: User = Depends(require_permission(Permission.POLICY_READ)),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Retrieve organization-wide policy lifecycle and workforce attestation telemetry."""
+    return PolicyService.get_policy_telemetry(
+        db=db,
+        organization_id=current_user.organization_id,
+    )
+
+
 @router.get("/my-pending-attestations", response_model=List[UserAttestationRecordResponse])
 def get_my_pending_attestations(
     current_user: User = Depends(require_permission(Permission.POLICY_ATTEST)),
@@ -142,36 +200,7 @@ def list_campaigns(
         skip=skip,
         limit=limit,
     )
-    results = []
-    for c in campaigns:
-        rate = round((c.completed_count / c.total_targeted_count * 100), 2) if c.total_targeted_count else 0.0
-        results.append({
-            "id": c.id,
-            "organization_id": c.organization_id,
-            "campaign_code": c.campaign_code,
-            "title": c.title,
-            "description": c.description,
-            "policy_id": c.policy_id,
-            "version_id": c.version_id,
-            "policy_version_hash": c.policy_version_hash,
-            "target_type": c.target_type,
-            "target_role": c.target_role,
-            "due_date": c.due_date,
-            "grace_period_days": c.grace_period_days,
-            "status": c.status,
-            "assessment_id": c.assessment_id,
-            "total_targeted_count": c.total_targeted_count,
-            "completed_count": c.completed_count,
-            "completion_rate": rate,
-            "created_by_id": c.created_by_id,
-            "launched_at": c.launched_at,
-            "closed_at": c.closed_at,
-            "created_at": c.created_at,
-            "updated_at": c.updated_at,
-            "policy_title": c.policy.title if c.policy else None,
-            "policy_version_number": c.version.version_number if c.version else None,
-        })
-    return results
+    return [_serialize_campaign_response(c) for c in campaigns]
 
 
 @router.post("/campaigns", response_model=PolicyAttestationCampaignResponse, status_code=status.HTTP_201_CREATED)
@@ -208,30 +237,7 @@ def create_campaign(
         details={"campaign_code": c.campaign_code, "policy_id": c.policy_id, "version_id": c.version_id},
     )
 
-    return {
-        "id": c.id,
-        "organization_id": c.organization_id,
-        "campaign_code": c.campaign_code,
-        "title": c.title,
-        "description": c.description,
-        "policy_id": c.policy_id,
-        "version_id": c.version_id,
-        "policy_version_hash": c.policy_version_hash,
-        "target_type": c.target_type,
-        "target_role": c.target_role,
-        "due_date": c.due_date,
-        "grace_period_days": c.grace_period_days,
-        "status": c.status,
-        "assessment_id": c.assessment_id,
-        "total_targeted_count": c.total_targeted_count,
-        "completed_count": c.completed_count,
-        "completion_rate": 0.0,
-        "created_by_id": c.created_by_id,
-        "launched_at": c.launched_at,
-        "closed_at": c.closed_at,
-        "created_at": c.created_at,
-        "updated_at": c.updated_at,
-    }
+    return _serialize_campaign_response(c)
 
 
 @router.get("/campaigns/{campaign_id}", response_model=PolicyAttestationCampaignResponse)
@@ -245,33 +251,7 @@ def get_campaign(
     if not c:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found in your organization")
 
-    rate = round((c.completed_count / c.total_targeted_count * 100), 2) if c.total_targeted_count else 0.0
-    return {
-        "id": c.id,
-        "organization_id": c.organization_id,
-        "campaign_code": c.campaign_code,
-        "title": c.title,
-        "description": c.description,
-        "policy_id": c.policy_id,
-        "version_id": c.version_id,
-        "policy_version_hash": c.policy_version_hash,
-        "target_type": c.target_type,
-        "target_role": c.target_role,
-        "due_date": c.due_date,
-        "grace_period_days": c.grace_period_days,
-        "status": c.status,
-        "assessment_id": c.assessment_id,
-        "total_targeted_count": c.total_targeted_count,
-        "completed_count": c.completed_count,
-        "completion_rate": rate,
-        "created_by_id": c.created_by_id,
-        "launched_at": c.launched_at,
-        "closed_at": c.closed_at,
-        "created_at": c.created_at,
-        "updated_at": c.updated_at,
-        "policy_title": c.policy.title if c.policy else None,
-        "policy_version_number": c.version.version_number if c.version else None,
-    }
+    return _serialize_campaign_response(c)
 
 
 @router.patch("/campaigns/{campaign_id}", response_model=PolicyAttestationCampaignResponse)
@@ -291,7 +271,10 @@ def update_campaign(
             campaign_in=campaign_in,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        err_msg = str(e)
+        if "Campaign not found" in err_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
 
     ip = get_client_ip(request)
     ua = get_user_agent(request)
@@ -309,33 +292,7 @@ def update_campaign(
         details={"updated_fields": list(campaign_in.model_dump(exclude_unset=True).keys())},
     )
 
-    rate = round((c.completed_count / c.total_targeted_count * 100), 2) if c.total_targeted_count else 0.0
-    return {
-        "id": c.id,
-        "organization_id": c.organization_id,
-        "campaign_code": c.campaign_code,
-        "title": c.title,
-        "description": c.description,
-        "policy_id": c.policy_id,
-        "version_id": c.version_id,
-        "policy_version_hash": c.policy_version_hash,
-        "target_type": c.target_type,
-        "target_role": c.target_role,
-        "due_date": c.due_date,
-        "grace_period_days": c.grace_period_days,
-        "status": c.status,
-        "assessment_id": c.assessment_id,
-        "total_targeted_count": c.total_targeted_count,
-        "completed_count": c.completed_count,
-        "completion_rate": rate,
-        "created_by_id": c.created_by_id,
-        "launched_at": c.launched_at,
-        "closed_at": c.closed_at,
-        "created_at": c.created_at,
-        "updated_at": c.updated_at,
-        "policy_title": c.policy.title if c.policy else None,
-        "policy_version_number": c.version.version_number if c.version else None,
-    }
+    return _serialize_campaign_response(c)
 
 
 @router.post("/campaigns/{campaign_id}/launch", response_model=PolicyAttestationCampaignResponse)
@@ -354,7 +311,10 @@ def launch_campaign(
             current_user_id=current_user.id,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        err_msg = str(e)
+        if "Campaign not found" in err_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
 
     ip = get_client_ip(request)
     ua = get_user_agent(request)
@@ -372,30 +332,7 @@ def launch_campaign(
         details={"campaign_code": c.campaign_code, "total_targeted": c.total_targeted_count},
     )
 
-    return {
-        "id": c.id,
-        "organization_id": c.organization_id,
-        "campaign_code": c.campaign_code,
-        "title": c.title,
-        "description": c.description,
-        "policy_id": c.policy_id,
-        "version_id": c.version_id,
-        "policy_version_hash": c.policy_version_hash,
-        "target_type": c.target_type,
-        "target_role": c.target_role,
-        "due_date": c.due_date,
-        "grace_period_days": c.grace_period_days,
-        "status": c.status,
-        "assessment_id": c.assessment_id,
-        "total_targeted_count": c.total_targeted_count,
-        "completed_count": c.completed_count,
-        "completion_rate": 0.0,
-        "created_by_id": c.created_by_id,
-        "launched_at": c.launched_at,
-        "closed_at": c.closed_at,
-        "created_at": c.created_at,
-        "updated_at": c.updated_at,
-    }
+    return _serialize_campaign_response(c)
 
 
 @router.post("/campaigns/{campaign_id}/close", response_model=PolicyAttestationCampaignResponse)
@@ -414,7 +351,10 @@ def close_campaign(
             current_user_id=current_user.id,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        err_msg = str(e)
+        if "Campaign not found" in err_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
 
     ip = get_client_ip(request)
     ua = get_user_agent(request)
@@ -432,31 +372,157 @@ def close_campaign(
         details={"campaign_code": c.campaign_code, "completed_count": c.completed_count},
     )
 
-    rate = round((c.completed_count / c.total_targeted_count * 100), 2) if c.total_targeted_count else 0.0
-    return {
-        "id": c.id,
-        "organization_id": c.organization_id,
-        "campaign_code": c.campaign_code,
-        "title": c.title,
-        "description": c.description,
-        "policy_id": c.policy_id,
-        "version_id": c.version_id,
-        "policy_version_hash": c.policy_version_hash,
-        "target_type": c.target_type,
-        "target_role": c.target_role,
-        "due_date": c.due_date,
-        "grace_period_days": c.grace_period_days,
-        "status": c.status,
-        "assessment_id": c.assessment_id,
-        "total_targeted_count": c.total_targeted_count,
-        "completed_count": c.completed_count,
-        "completion_rate": rate,
-        "created_by_id": c.created_by_id,
-        "launched_at": c.launched_at,
-        "closed_at": c.closed_at,
-        "created_at": c.created_at,
-        "updated_at": c.updated_at,
-    }
+    return _serialize_campaign_response(c)
+
+
+@router.post("/campaigns/{campaign_id}/cancel", response_model=PolicyAttestationCampaignResponse)
+def cancel_campaign(
+    request: Request,
+    campaign_id: int,
+    cancel_in: Optional[PolicyCampaignCancelRequest] = Body(default=None),
+    current_user: User = Depends(require_permission(Permission.POLICY_CAMPAIGN_MANAGE)),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Cancel a DRAFT or ACTIVE attestation campaign."""
+    try:
+        c = PolicyService.cancel_campaign(
+            db=db,
+            campaign_id=campaign_id,
+            organization_id=current_user.organization_id,
+            current_user_id=current_user.id,
+            reason=cancel_in.reason if cancel_in else None,
+        )
+    except ValueError as e:
+        err_msg = str(e)
+        if "Campaign not found" in err_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+    ip = get_client_ip(request)
+    ua = get_user_agent(request)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        action="policy.campaign.cancel",
+        resource_type="POLICY_CAMPAIGN",
+        resource_id=str(campaign_id),
+        status="SUCCESS",
+        ip_address=ip,
+        user_agent=ua,
+        details={"campaign_code": c.campaign_code, "reason": cancel_in.reason if cancel_in else None},
+    )
+
+    return _serialize_campaign_response(c)
+
+
+@router.get("/campaigns/{campaign_id}/records", response_model=List[UserAttestationRecordResponse])
+def list_campaign_records(
+    campaign_id: int,
+    record_status: Optional[AttestationRecordStatusEnum] = Query(None, alias="status", description="Filter by record status"),
+    current_user: User = Depends(require_permission(Permission.POLICY_READ)),
+    db: Session = Depends(get_db),
+) -> Any:
+    """List workforce attestation records for a specific campaign."""
+    try:
+        return PolicyService.list_campaign_records(
+            db=db,
+            campaign_id=campaign_id,
+            organization_id=current_user.organization_id,
+            status=record_status,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post("/campaigns/{campaign_id}/evaluate-overdue", response_model=PolicyAttestationCampaignResponse)
+def evaluate_campaign_overdue(
+    request: Request,
+    campaign_id: int,
+    as_of_date: Optional[date] = Query(None, description="Optional reference date for overdue evaluation"),
+    current_user: User = Depends(require_permission(Permission.POLICY_CAMPAIGN_MANAGE)),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Evaluate overdue workforce attestation records for an active campaign and update overdue telemetry."""
+    try:
+        c = PolicyService.evaluate_campaign_overdue(
+            db=db,
+            campaign_id=campaign_id,
+            organization_id=current_user.organization_id,
+            as_of_date=as_of_date,
+        )
+    except ValueError as e:
+        err_msg = str(e)
+        if "Campaign not found" in err_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+    ip = get_client_ip(request)
+    ua = get_user_agent(request)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        action="policy.campaign.evaluate_overdue",
+        resource_type="POLICY_CAMPAIGN",
+        resource_id=str(campaign_id),
+        status="SUCCESS",
+        ip_address=ip,
+        user_agent=ua,
+        details={"campaign_code": c.campaign_code, "overdue_count": c.overdue_count},
+    )
+
+    return _serialize_campaign_response(c)
+
+
+@router.post("/campaigns/{campaign_id}/records/{record_id}/exempt", response_model=UserAttestationRecordResponse)
+def exempt_campaign_attestation_record(
+    request: Request,
+    campaign_id: int,
+    record_id: int,
+    exempt_in: PolicyAttestationExemptionCreate,
+    current_user: User = Depends(require_permission(Permission.POLICY_APPROVE)),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Grant a governed policy attestation exemption backed by an approved Phase 5 POLICY_WAIVER SecurityException."""
+    try:
+        rec = PolicyService.exempt_user_attestation(
+            db=db,
+            campaign_id=campaign_id,
+            record_id=record_id,
+            organization_id=current_user.organization_id,
+            current_user_id=current_user.id,
+            exempt_in=exempt_in,
+        )
+    except ValueError as e:
+        err_msg = str(e)
+        if "not found" in err_msg and "SecurityException" not in err_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+    ip = get_client_ip(request)
+    ua = get_user_agent(request)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+        action="policy.attestation.exempt",
+        resource_type="USER_ATTESTATION",
+        resource_id=str(record_id),
+        status="SUCCESS",
+        ip_address=ip,
+        user_agent=ua,
+        details={
+            "campaign_id": campaign_id,
+            "user_id": rec["user_id"],
+            "exemption_exception_id": exempt_in.exemption_exception_id,
+        },
+    )
+
+    return rec
 
 
 @router.post("/campaigns/{campaign_id}/attest", response_model=UserAttestationRecordResponse)
@@ -503,7 +569,7 @@ def submit_attestation(
         details={"campaign_id": campaign_id, "receipt_hash": rec.attestation_receipt_hash},
     )
 
-    return rec
+    return PolicyService._serialize_attestation_record(rec)
 
 
 @router.post("/campaigns/{campaign_id}/evidence", response_model=CampaignEvidenceManifestResponse)
@@ -808,6 +874,25 @@ def update_policy_version(
     return ver
 
 
+@router.get("/{policy_id}/versions/{version_id}/reviews", response_model=List[PolicyReviewWorkflowResponse])
+def list_version_reviews(
+    policy_id: int,
+    version_id: int,
+    current_user: User = Depends(require_permission(Permission.POLICY_READ)),
+    db: Session = Depends(get_db),
+) -> Any:
+    """List review workflow history for a specific policy version."""
+    try:
+        return PolicyService.list_version_reviews(
+            db=db,
+            policy_id=policy_id,
+            version_id=version_id,
+            organization_id=current_user.organization_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
 @router.post("/{policy_id}/versions/{version_id}/submit-review", response_model=PolicyReviewWorkflowResponse)
 def submit_version_for_review(
     request: Request,
@@ -829,7 +914,7 @@ def submit_version_for_review(
         )
     except ValueError as e:
         err_msg = str(e)
-        if "not found" in err_msg:
+        if "Policy version not found" in err_msg:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
 
@@ -877,6 +962,8 @@ def review_policy_version_workflow(
         err_msg = str(e)
         if "Four-Eyes Violation" in err_msg:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+        if "Only the assigned reviewer" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
         if "not found" in err_msg:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
@@ -905,7 +992,7 @@ def publish_policy_version(
     request: Request,
     policy_id: int,
     version_id: int,
-    current_user: User = Depends(require_permission(Permission.POLICY_MANAGE)),
+    current_user: User = Depends(require_permission(Permission.POLICY_APPROVE)),
     db: Session = Depends(get_db),
 ) -> Any:
     """Publish an APPROVED policy version, superseding any previously published versions."""
@@ -947,7 +1034,7 @@ def delete_policy_version(
     request: Request,
     policy_id: int,
     version_id: int,
-    current_user: User = Depends(require_permission(Permission.POLICY_MANAGE)),
+    current_user: User = Depends(require_permission(Permission.POLICY_APPROVE)),
     db: Session = Depends(get_db),
 ) -> None:
     """Delete a policy version. Blocked if the version is bound to an active attestation campaign."""

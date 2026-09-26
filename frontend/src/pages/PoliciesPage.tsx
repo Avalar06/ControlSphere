@@ -12,6 +12,10 @@ import {
   Play,
   StopCircle,
   FileBadge,
+  Clock,
+  XCircle,
+  ShieldAlert,
+  ListChecks,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -20,10 +24,13 @@ import type {
   Policy,
   PolicyStatus,
   PolicyType,
+  PolicyTelemetry,
   User,
   PolicyAttestationCampaign,
   PolicyCampaignStatus,
   CampaignTargetType,
+  UserAttestationRecord,
+  SecurityException,
 } from '../types';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '../components/ui/Table';
@@ -36,8 +43,9 @@ export const PoliciesPage: React.FC = () => {
   const { hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<'POLICIES' | 'CAMPAIGNS'>('POLICIES');
 
-  // Policy State
+  // Policy & Telemetry State
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [telemetry, setTelemetry] = useState<PolicyTelemetry | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +74,16 @@ export const PoliciesPage: React.FC = () => {
   const [campaignFormError, setCampaignFormError] = useState<string | null>(null);
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
 
+  // Campaign Roster & Exemption Modal State
+  const [selectedRosterCampaign, setSelectedRosterCampaign] = useState<PolicyAttestationCampaign | null>(null);
+  const [campaignRecords, setCampaignRecords] = useState<UserAttestationRecord[]>([]);
+  const [isRosterLoading, setIsRosterLoading] = useState(false);
+  const [exceptions, setExceptions] = useState<SecurityException[]>([]);
+  const [exemptRecordTarget, setExemptRecordTarget] = useState<UserAttestationRecord | null>(null);
+  const [exemptExceptionId, setExemptExceptionId] = useState<string>('');
+  const [exemptReason, setExemptReason] = useState<string>('');
+  const [isSubmittingExemption, setIsSubmittingExemption] = useState(false);
+
   // Campaign Form State
   const [campCode, setCampCode] = useState('');
   const [campTitle, setCampTitle] = useState('');
@@ -76,6 +94,15 @@ export const PoliciesPage: React.FC = () => {
   const [campTargetRole, setCampTargetRole] = useState<string>('');
   const [campDueDate, setCampDueDate] = useState<string>('');
   const [campGracePeriod, setCampGracePeriod] = useState<number>(0);
+
+  const fetchTelemetry = async () => {
+    try {
+      const { data } = await api.get<PolicyTelemetry>('/api/v1/policies/telemetry');
+      setTelemetry(data);
+    } catch {
+      // Telemetry is non-blocking
+    }
+  };
 
   const fetchPolicies = async () => {
     setIsLoading(true);
@@ -107,6 +134,7 @@ export const PoliciesPage: React.FC = () => {
   useEffect(() => {
     fetchPolicies();
     fetchCampaigns();
+    fetchTelemetry();
   }, []);
 
   const handleCreatePolicy = async (e: React.FormEvent) => {
@@ -130,6 +158,7 @@ export const PoliciesPage: React.FC = () => {
       setOwnerId('');
       setSuccessMessage('Policy draft successfully authored.');
       await fetchPolicies();
+      await fetchTelemetry();
     } catch (err: any) {
       console.error(err);
       setFormError(err.response?.data?.detail || 'Failed to create policy.');
@@ -163,7 +192,7 @@ export const PoliciesPage: React.FC = () => {
         version_id: verId,
         target_type: campTargetType,
         target_role: campTargetType === 'ROLE_BASED' ? campTargetRole : null,
-        due_date: new Date(campDueDate).toISOString(),
+        due_date: campDueDate,
         grace_period_days: campGracePeriod,
       });
 
@@ -177,6 +206,7 @@ export const PoliciesPage: React.FC = () => {
       setCampGracePeriod(0);
       setSuccessMessage('Attestation campaign created in DRAFT status.');
       await fetchCampaigns();
+      await fetchTelemetry();
     } catch (err: any) {
       console.error(err);
       setCampaignFormError(err.response?.data?.detail || 'Failed to create campaign.');
@@ -191,6 +221,7 @@ export const PoliciesPage: React.FC = () => {
       await api.post(`/api/v1/policies/campaigns/${campaignId}/launch`);
       setSuccessMessage('Campaign launched. Target roster generated and pending attestations activated.');
       await fetchCampaigns();
+      await fetchTelemetry();
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.detail || 'Failed to launch campaign.');
@@ -203,9 +234,88 @@ export const PoliciesPage: React.FC = () => {
       await api.post(`/api/v1/policies/campaigns/${campaignId}/close`);
       setSuccessMessage('Campaign formally closed.');
       await fetchCampaigns();
+      await fetchTelemetry();
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.detail || 'Failed to close campaign.');
+    }
+  };
+
+  const handleCancelCampaign = async (campaignId: number) => {
+    setError(null);
+    try {
+      await api.post(`/api/v1/policies/campaigns/${campaignId}/cancel`, {
+        reason: 'Cancelled by campaign administrator',
+      });
+      setSuccessMessage('Campaign cancelled.');
+      await fetchCampaigns();
+      await fetchTelemetry();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Failed to cancel campaign.');
+    }
+  };
+
+  const handleEvaluateOverdue = async (campaignId: number) => {
+    setError(null);
+    try {
+      const { data } = await api.post<PolicyAttestationCampaign>(
+        `/api/v1/policies/campaigns/${campaignId}/evaluate-overdue`
+      );
+      setSuccessMessage(
+        `Overdue evaluation complete for ${data.campaign_code}: ${data.overdue_count || 0} overdue record(s).`
+      );
+      await fetchCampaigns();
+      await fetchTelemetry();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Failed to evaluate overdue records.');
+    }
+  };
+
+  const handleOpenRoster = async (campaign: PolicyAttestationCampaign) => {
+    setSelectedRosterCampaign(campaign);
+    setIsRosterLoading(true);
+    setExemptRecordTarget(null);
+    try {
+      const { data } = await api.get<UserAttestationRecord[]>(
+        `/api/v1/policies/campaigns/${campaign.id}/records`
+      );
+      setCampaignRecords(data);
+      const { data: excData } = await api.get<SecurityException[]>('/api/v1/exceptions');
+      setExceptions(excData);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Failed to load campaign roster.');
+    } finally {
+      setIsRosterLoading(false);
+    }
+  };
+
+  const handleSubmitExemption = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRosterCampaign || !exemptRecordTarget || !exemptExceptionId) return;
+    setIsSubmittingExemption(true);
+    try {
+      await api.post(
+        `/api/v1/policies/campaigns/${selectedRosterCampaign.id}/records/${exemptRecordTarget.id}/exempt`,
+        {
+          exemption_exception_id: parseInt(exemptExceptionId, 10),
+          exemption_reason: exemptReason,
+        }
+      );
+      setExemptRecordTarget(null);
+      setExemptExceptionId('');
+      setExemptReason('');
+      await handleOpenRoster(selectedRosterCampaign);
+      await fetchCampaigns();
+      await fetchTelemetry();
+      setSuccessMessage('Policy attestation exemption recorded and linked to approved POLICY_WAIVER exception.');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Failed to exempt attestation record.');
+    } finally {
+      setIsSubmittingExemption(false);
     }
   };
 
@@ -302,6 +412,60 @@ export const PoliciesPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Executive Telemetry Banner */}
+      {telemetry && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card>
+            <div className="p-3">
+              <span className="text-[10px] text-slate-400 font-medium uppercase">Published Policies</span>
+              <div className="text-lg font-bold font-mono text-emerald-400 mt-0.5">
+                {telemetry.published_policies} / {telemetry.total_policies}
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-3">
+              <span className="text-[10px] text-slate-400 font-medium uppercase">Overdue Reviews</span>
+              <div className={`text-lg font-bold font-mono mt-0.5 ${telemetry.overdue_review_policies > 0 ? 'text-rose-400' : 'text-slate-200'}`}>
+                {telemetry.overdue_review_policies}
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-3">
+              <span className="text-[10px] text-slate-400 font-medium uppercase">Active Campaigns</span>
+              <div className="text-lg font-bold font-mono text-indigo-400 mt-0.5">
+                {telemetry.active_campaigns}
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-3">
+              <span className="text-[10px] text-slate-400 font-medium uppercase">Attestation Rate</span>
+              <div className="text-lg font-bold font-mono text-emerald-400 mt-0.5">
+                {telemetry.overall_attestation_rate_pct}%
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-3">
+              <span className="text-[10px] text-slate-400 font-medium uppercase">Exempted Waivers</span>
+              <div className="text-lg font-bold font-mono text-purple-400 mt-0.5">
+                {telemetry.exempted_records}
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-3">
+              <span className="text-[10px] text-slate-400 font-medium uppercase">Overdue Records</span>
+              <div className={`text-lg font-bold font-mono mt-0.5 ${telemetry.overdue_records > 0 ? 'text-amber-400' : 'text-slate-200'}`}>
+                {telemetry.overdue_records}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Tab Switcher */}
       <div className="flex border-b border-slate-800 gap-6 text-xs font-medium">
@@ -519,7 +683,7 @@ export const PoliciesPage: React.FC = () => {
             </Card>
             <Card>
               <div className="p-4">
-                <span className="text-[11px] text-slate-400 font-medium uppercase">Total Attestations</span>
+                <span className="text-[11px] text-slate-400 font-medium uppercase">Satisfied (Attested + Waived)</span>
                 <div className="text-xl font-bold font-mono text-indigo-400 mt-1">
                   {campaigns.reduce((acc, c) => acc + (c.completed_count || 0), 0)}
                 </div>
@@ -595,10 +759,10 @@ export const PoliciesPage: React.FC = () => {
                           <div className="text-xs text-slate-200 font-medium">{camp.title}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-xs text-slate-300">{camp.policy?.title || `Policy #${camp.policy_id}`}</div>
+                          <div className="text-xs text-slate-300">{camp.policy_title || camp.policy?.title || `Policy #${camp.policy_id}`}</div>
                           <div className="inline-flex items-center gap-1 font-mono text-[10px] text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
                             <Lock size={9} />
-                            v{camp.version?.version_number || camp.version_id} ({camp.policy_version_hash.substring(0, 8)}...)
+                            v{camp.policy_version_number || camp.version?.version_number || camp.version_id} ({camp.policy_version_hash.substring(0, 8)}...)
                           </div>
                         </TableCell>
                         <TableCell>
@@ -606,7 +770,14 @@ export const PoliciesPage: React.FC = () => {
                             {camp.target_type === 'ALL_USERS' ? 'All Organization Users' : `${camp.target_type} (${camp.target_role || 'Custom'})`}
                           </span>
                         </TableCell>
-                        <TableCell>{getCampaignStatusBadge(camp.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            {getCampaignStatusBadge(camp.status)}
+                            {(camp.overdue_count || 0) > 0 && (
+                              <Badge variant="danger">{camp.overdue_count} Overdue</Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="w-36 space-y-1">
                             <div className="flex justify-between text-[11px] font-mono text-slate-400">
@@ -642,7 +813,31 @@ export const PoliciesPage: React.FC = () => {
                               </Button>
                             )}
 
+                            {camp.status !== 'DRAFT' && (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => handleOpenRoster(camp)}
+                                title="Inspect Campaign Roster & Waivers"
+                              >
+                                <ListChecks size={11} />
+                                Roster
+                              </Button>
+                            )}
+
                             {camp.status === 'ACTIVE' && hasPermission('policy:campaign_manage') && (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => handleEvaluateOverdue(camp.id)}
+                                title="Evaluate Overdue Records & Escalate"
+                              >
+                                <Clock size={11} />
+                                Sweep Overdue
+                              </Button>
+                            )}
+
+                            {camp.status === 'ACTIVE' && hasPermission('policy:approve') && (
                               <Button
                                 size="xs"
                                 variant="warning"
@@ -651,6 +846,18 @@ export const PoliciesPage: React.FC = () => {
                               >
                                 <StopCircle size={11} />
                                 Close
+                              </Button>
+                            )}
+
+                            {(camp.status === 'DRAFT' || camp.status === 'ACTIVE') && hasPermission('policy:campaign_manage') && (
+                              <Button
+                                size="xs"
+                                variant="danger"
+                                onClick={() => handleCancelCampaign(camp.id)}
+                                title="Cancel Campaign"
+                              >
+                                <XCircle size={11} />
+                                Cancel
                               </Button>
                             )}
 
@@ -676,6 +883,144 @@ export const PoliciesPage: React.FC = () => {
           </Card>
         </>
       )}
+
+      {/* Campaign Roster & Policy Waiver Exemption Modal */}
+      <Modal
+        isOpen={!!selectedRosterCampaign}
+        onClose={() => {
+          setSelectedRosterCampaign(null);
+          setExemptRecordTarget(null);
+        }}
+        title={`Campaign Roster: ${selectedRosterCampaign?.campaign_code || ''}`}
+      >
+        {isRosterLoading ? (
+          <LoadingSpinner text="Loading campaign attestation roster..." />
+        ) : (
+          <div className="space-y-4">
+            <div className="max-h-72 overflow-y-auto border border-slate-800 rounded">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeaderCell>User ID</TableHeaderCell>
+                    <TableHeaderCell>Status</TableHeaderCell>
+                    <TableHeaderCell>Receipt / Waiver</TableHeaderCell>
+                    <TableHeaderCell>Action</TableHeaderCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {campaignRecords.map((rec) => {
+                    const matchedUser = users.find((u) => u.id === rec.user_id);
+                    return (
+                      <TableRow key={rec.id}>
+                        <TableCell>
+                          <div className="text-xs text-slate-200 font-medium">
+                            {matchedUser ? matchedUser.full_name : `User #${rec.user_id}`}
+                          </div>
+                          {matchedUser && (
+                            <div className="text-[10px] font-mono text-slate-400">{matchedUser.email}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {rec.status === 'ATTESTED' && <Badge variant="success">ATTESTED</Badge>}
+                          {rec.status === 'EXEMPTED' && <Badge variant="purple">EXEMPTED</Badge>}
+                          {rec.status === 'OVERDUE' && <Badge variant="danger">OVERDUE</Badge>}
+                          {rec.status === 'PENDING' && <Badge variant="info">PENDING</Badge>}
+                        </TableCell>
+                        <TableCell>
+                          {rec.attestation_receipt_hash ? (
+                            <span className="text-[10px] font-mono text-emerald-400">
+                              {rec.attestation_receipt_hash.substring(0, 12)}...
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-500 italic">Awaiting</span>
+                          )}
+                          {rec.exemption_exception_id && (
+                            <div className="text-[10px] text-purple-300 font-mono">
+                              Waiver Exc #{rec.exemption_exception_id}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {(rec.status === 'PENDING' || rec.status === 'OVERDUE') &&
+                            selectedRosterCampaign?.status === 'ACTIVE' &&
+                            hasPermission('policy:approve') && (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => setExemptRecordTarget(rec)}
+                              >
+                                <ShieldAlert size={11} />
+                                Exempt
+                              </Button>
+                            )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            {exemptRecordTarget && (
+              <form onSubmit={handleSubmitExemption} className="p-3 bg-slate-950 border border-indigo-800/70 rounded space-y-3">
+                <div className="text-xs font-semibold text-indigo-300">
+                  Grant Policy Waiver Exemption for User #{exemptRecordTarget.user_id}
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-300 mb-1">
+                    Approved Phase 5 POLICY_EXCEPTION SecurityException
+                  </label>
+                  <select
+                    required
+                    value={exemptExceptionId}
+                    onChange={(e) => setExemptExceptionId(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200"
+                  >
+                    <option value="">-- Select Approved Policy Exception --</option>
+                    {exceptions.map((exc) => (
+                      <option key={exc.id} value={exc.id}>
+                        #{exc.id} — {exc.title} ({exc.exception_type} / {exc.effective_status || exc.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-300 mb-1">
+                    Formal Exemption Justification (min 10 chars)
+                  </label>
+                  <textarea
+                    required
+                    minLength={10}
+                    rows={2}
+                    value={exemptReason}
+                    onChange={(e) => setExemptReason(e.target.value)}
+                    placeholder="Document the approved waiver rationale..."
+                    className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    onClick={() => setExemptRecordTarget(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="xs"
+                    variant="primary"
+                    isLoading={isSubmittingExemption}
+                  >
+                    Confirm Exemption
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* Create Policy Modal */}
       <Modal

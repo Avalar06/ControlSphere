@@ -264,8 +264,10 @@ export const PolicyDetailPage: React.FC = () => {
 
   const isCreatorOfCurrentVersion =
     user?.id !== undefined &&
-    currentDisplayVersion?.created_by_id !== undefined &&
-    user.id === currentDisplayVersion.created_by_id;
+    ((currentDisplayVersion?.created_by_id !== undefined &&
+      user.id === currentDisplayVersion.created_by_id) ||
+      (pendingWorkflow?.created_by_id !== undefined &&
+        user.id === pendingWorkflow.created_by_id));
 
   const getStatusBadge = (status: PolicyStatus) => {
     switch (status) {

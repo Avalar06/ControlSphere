@@ -249,6 +249,10 @@ export interface PolicyAttestationCampaign {
   assessment_id?: number;
   total_targeted_count: number;
   completed_count: number;
+  overdue_count?: number;
+  reminder_sent_at?: string;
+  completion_rate?: number;
+  completion_rate_pct?: number;
   created_by_id?: number;
   launched_at?: string;
   closed_at?: string;
@@ -257,12 +261,13 @@ export interface PolicyAttestationCampaign {
   created_by?: User;
   policy?: Policy;
   version?: PolicyVersion;
-  completion_rate_pct?: number;
-  overdue_count?: number;
+  policy_title?: string;
+  policy_version_number?: number;
 }
 
 export interface UserAttestationRecord {
   id: number;
+  record_id?: number;
   organization_id: number;
   campaign_id: number;
   policy_id: number;
@@ -276,11 +281,44 @@ export interface UserAttestationRecord {
   comprehension_passed: boolean;
   attestation_receipt_hash?: string;
   evidence_item_id?: number;
+  exemption_exception_id?: number;
+  exemption_reason?: string;
+  exempted_by_id?: number;
+  exempted_at?: string;
   created_at: string;
   campaign?: PolicyAttestationCampaign;
   policy?: Policy;
   version?: PolicyVersion;
   user?: User;
+  policy_title?: string;
+  policy_version_number?: number;
+  version_number?: number;
+  policy_version_hash?: string;
+  policy_content?: string;
+  campaign_title?: string;
+  campaign_code?: string;
+  due_date?: string;
+  assessment_id?: number;
+}
+
+export interface PolicyTelemetry {
+  total_policies: number;
+  draft_policies: number;
+  under_review_policies: number;
+  approved_policies: number;
+  published_policies: number;
+  archived_policies: number;
+  overdue_review_policies: number;
+  total_campaigns: number;
+  active_campaigns: number;
+  completed_campaigns: number;
+  cancelled_campaigns: number;
+  total_targeted_records: number;
+  attested_records: number;
+  exempted_records: number;
+  pending_records: number;
+  overdue_records: number;
+  overall_attestation_rate_pct: number;
 }
 
 export interface PendingAttestationItem {
@@ -309,6 +347,7 @@ export interface Policy {
   owner_id?: number;
   effective_date?: string;
   review_date?: string;
+  next_review_date?: string;
   created_at: string;
   updated_at: string;
   owner?: User;
