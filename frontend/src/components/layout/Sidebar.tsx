@@ -35,6 +35,7 @@ import {
   FileText,
   Scale,
   Link2,
+  Database,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -140,6 +141,7 @@ export const Sidebar: React.FC = () => {
       group: 'Privacy & Data Protection',
       items: [
         { name: 'Privacy Governance (PRIVACY-GRC)', path: '/privacy', icon: Lock, tag: 'Phase 16' },
+        { name: 'Data Governance & Lineage', path: '/data-governance', icon: Database, tag: 'Batch 3' },
       ],
     },
     {

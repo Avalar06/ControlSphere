@@ -114,6 +114,34 @@ class DataAsset(Base):
     vendor_id = Column(Integer, ForeignKey("vendors.id", ondelete="SET NULL"), nullable=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
+    # Batch 3: Enterprise Data Governance & Lineage Extensions
+    asset_type = Column(String(64), nullable=False, default="DATABASE_TABLE", server_default="DATABASE_TABLE", index=True)
+    lifecycle_state = Column(String(32), nullable=False, default="ACTIVE", server_default="ACTIVE", index=True)
+    steward_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL", name="fk_data_assets_steward_id"), nullable=True, index=True)
+    cloud_asset_id = Column(Integer, ForeignKey("cloud_assets.id", ondelete="SET NULL", name="fk_data_assets_cloud_asset_id"), nullable=True, index=True)
+    classification_scheme_id = Column(Integer, ForeignKey("data_classification_schemes.id", ondelete="SET NULL", name="fk_data_assets_class_scheme_id"), nullable=True, index=True)
+    classification_level_id = Column(Integer, ForeignKey("data_classification_levels.id", ondelete="SET NULL", name="fk_data_assets_class_level_id"), nullable=True, index=True)
+    classification_status = Column(String(32), nullable=False, default="APPROVED", server_default="APPROVED", index=True)
+    classified_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL", name="fk_data_assets_classified_by_id"), nullable=True)
+    classification_approved_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL", name="fk_data_assets_class_approved_by_id"), nullable=True)
+    classification_approved_at = Column(DateTime(timezone=True), nullable=True)
+    last_reviewed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Governed Ownership Transfer State
+    owner_transfer_status = Column(String(32), nullable=False, default="NONE", server_default="NONE")
+    pending_owner_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL", name="fk_data_assets_pending_owner_id"), nullable=True)
+    owner_transfer_requested_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL", name="fk_data_assets_owner_req_by_id"), nullable=True)
+    owner_transfer_justification = Column(Text, nullable=True)
+
+    # Governed Deprecation & Retirement / Disposal State
+    deprecation_notes = Column(Text, nullable=True)
+    disposal_method = Column(String(64), nullable=True)
+    retirement_requested_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL", name="fk_data_assets_retire_req_by_id"), nullable=True)
+    retired_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL", name="fk_data_assets_retired_by_id"), nullable=True)
+    retired_at = Column(DateTime(timezone=True), nullable=True)
+    retirement_notes = Column(Text, nullable=True)
+    retirement_evidence_id = Column(Integer, ForeignKey("evidence_items.id", ondelete="SET NULL", name="fk_data_assets_retire_ev_id"), nullable=True, index=True)
+
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -123,6 +151,11 @@ class DataAsset(Base):
     ai_system = relationship("AISystem", foreign_keys=[ai_system_id])
     vendor = relationship("Vendor", foreign_keys=[vendor_id])
     owner = relationship("User", foreign_keys=[owner_id])
+    steward = relationship("User", foreign_keys=[steward_id])
+    cloud_asset = relationship("CloudAsset", foreign_keys=[cloud_asset_id])
+    classification_scheme = relationship("DataClassificationScheme", foreign_keys=[classification_scheme_id])
+    classification_level = relationship("DataClassificationLevel", foreign_keys=[classification_level_id])
+    retirement_evidence = relationship("EvidenceItem", foreign_keys=[retirement_evidence_id])
 
     __table_args__ = (
         UniqueConstraint("organization_id", "asset_code", name="uq_data_asset_org_code"),

@@ -170,6 +170,14 @@ class Permission(str, enum.Enum):
     KRI_BREACH_ACTION = "kri:breach_action"
     KRI_BREACH_CLOSE = "kri:breach_close"
 
+    # Batch 3: Enterprise Data Governance & Lineage Permissions
+    DATA_GOV_READ = "data_gov:read"
+    DATA_GOV_MANAGE = "data_gov:manage"
+    DATA_GOV_CLASSIFY = "data_gov:classify"
+    DATA_GOV_APPROVE = "data_gov:approve"
+    DATA_GOV_LINEAGE_MANAGE = "data_gov:lineage_manage"
+    DATA_GOV_OWNER_MANAGE = "data_gov:owner_manage"
+
 
 ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
     RoleEnum.ADMIN: set(Permission),  # All permissions
@@ -255,6 +263,11 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.KRI_MANAGE,
         Permission.KRI_OBSERVE,
         Permission.KRI_BREACH_ACTION,
+        Permission.DATA_GOV_READ,
+        Permission.DATA_GOV_MANAGE,
+        Permission.DATA_GOV_CLASSIFY,
+        Permission.DATA_GOV_LINEAGE_MANAGE,
+        Permission.DATA_GOV_OWNER_MANAGE,
     },
     RoleEnum.SECURITY_ANALYST: {
         Permission.ORG_READ,
@@ -322,6 +335,9 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.KRI_MANAGE,
         Permission.KRI_OBSERVE,
         Permission.KRI_BREACH_ACTION,
+        Permission.DATA_GOV_READ,
+        Permission.DATA_GOV_CLASSIFY,
+        Permission.DATA_GOV_LINEAGE_MANAGE,
     },
     RoleEnum.AUDITOR: {
         Permission.ORG_READ,
@@ -368,6 +384,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.CONTINUOUS_READ,
         Permission.APPETITE_READ,
         Permission.KRI_READ,
+        Permission.DATA_GOV_READ,
     },
     RoleEnum.MANAGER: {
         Permission.ORG_READ,
@@ -465,6 +482,12 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.KRI_OBSERVE,
         Permission.KRI_BREACH_ACTION,
         Permission.KRI_BREACH_CLOSE,
+        Permission.DATA_GOV_READ,
+        Permission.DATA_GOV_MANAGE,
+        Permission.DATA_GOV_CLASSIFY,
+        Permission.DATA_GOV_APPROVE,
+        Permission.DATA_GOV_LINEAGE_MANAGE,
+        Permission.DATA_GOV_OWNER_MANAGE,
     },
     RoleEnum.VIEWER: {
         Permission.ORG_READ,
@@ -495,6 +518,7 @@ ROLE_PERMISSIONS: dict[RoleEnum, Set[Permission]] = {
         Permission.CONTINUOUS_READ,
         Permission.APPETITE_READ,
         Permission.KRI_READ,
+        Permission.DATA_GOV_READ,
     },
 }
 

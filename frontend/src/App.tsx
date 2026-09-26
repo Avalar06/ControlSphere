@@ -46,6 +46,7 @@ import { AISystemDetailPage } from './pages/AISystemDetailPage';
 import { PrivacyGovernancePage } from './pages/PrivacyGovernancePage';
 import { PrivacyProcessingDetailPage } from './pages/PrivacyProcessingDetailPage';
 import { PrivacyAssetDetailPage } from './pages/PrivacyAssetDetailPage';
+import { DataGovernancePage } from './pages/DataGovernancePage';
 import { SupplyChainGovernancePage } from './pages/SupplyChainGovernancePage';
 import { SoftwareProductDetailPage } from './pages/SoftwareProductDetailPage';
 import { SBOMDetailPage } from './pages/SBOMDetailPage';
@@ -152,10 +153,11 @@ export const App: React.FC = () => {
               <Route path="/ai-governance/systems/:id" element={<AISystemDetailPage />} />
               <Route path="/ai-governance/:id" element={<AISystemDetailPage />} />
 
-              {/* Phase 16: Continuous Privacy Governance & RoPA Inventory (PRIVACY-GRC) */}
+              {/* Phase 16 & Batch 3: Continuous Privacy Governance & Data Governance (PRIVACY-GRC / DATA-GOVERNANCE-GRC) */}
               <Route path="/privacy" element={<PrivacyGovernancePage />} />
               <Route path="/privacy/processing/:id" element={<PrivacyProcessingDetailPage />} />
               <Route path="/privacy/assets/:id" element={<PrivacyAssetDetailPage />} />
+              <Route path="/data-governance" element={<DataGovernancePage />} />
 
               {/* Phase 17: Software Supply Chain & SBOM Governance (SUPPLYCHAIN-GRC) */}
               <Route path="/supply-chain" element={<SupplyChainGovernancePage />} />

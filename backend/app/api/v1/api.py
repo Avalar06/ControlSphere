@@ -33,6 +33,7 @@ from app.api.v1.endpoints import (
     integrations,
     continuous_compliance,
     kri,
+    data_governance,
 )
 
 api_router = APIRouter()
@@ -70,3 +71,4 @@ api_router.include_router(regulatory.router, prefix="/regulatory", tags=["Regula
 api_router.include_router(integrations.router, prefix="/integrations", tags=["Automated Evidence Collection & Enterprise Integrations (INTEGRATION-GRC)"])
 api_router.include_router(continuous_compliance.router, prefix="/continuous-compliance", tags=["Continuous Compliance & Unified Assurance (CONTINUOUS-GRC)"])
 api_router.include_router(kri.router, prefix="/kri", tags=["KRI & Risk Appetite Governance (KRI-APPETITE-GRC)"])
+api_router.include_router(data_governance.router, prefix="/data-governance", tags=["Enterprise Data Governance & Lineage (DATA-GOVERNANCE-GRC)"])

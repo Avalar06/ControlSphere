@@ -334,6 +334,25 @@ class PrivacyService:
     ) -> DataAsset:
         asset = cls.get_data_asset(db, organization_id, asset_id)
 
+        if getattr(asset, "lifecycle_state", "ACTIVE") == "RETIRED":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot modify a RETIRED data asset",
+            )
+
+        if (
+            payload.data_sensitivity_level is not None
+            and payload.data_sensitivity_level != asset.data_sensitivity_level
+            and (
+                getattr(asset, "classification_level_id", None) is not None
+                or getattr(asset, "classification_status", "APPROVED") == "PENDING_APPROVAL"
+            )
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Governed data asset sensitivity changes must use the Data Governance classification approval workflow",
+            )
+
         cls.validate_cross_module_references(
             db=db,
             organization_id=organization_id,
@@ -363,7 +382,35 @@ class PrivacyService:
 
     @classmethod
     def delete_data_asset(cls, db: Session, organization_id: int, asset_id: int, user_id: int) -> None:
+        from app.models.data_governance import DataClassificationRecord, DataLineageEdge
+
         asset = cls.get_data_asset(db, organization_id, asset_id)
+        if getattr(asset, "lifecycle_state", "ACTIVE") == "RETIRED":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot hard-delete a RETIRED data asset; retirement history is immutable",
+            )
+        has_class_history = (
+            db.query(DataClassificationRecord.id)
+            .filter(DataClassificationRecord.data_asset_id == asset.id)
+            .first()
+            is not None
+        )
+        has_lineage = (
+            db.query(DataLineageEdge.id)
+            .filter(
+                (DataLineageEdge.source_data_asset_id == asset.id)
+                | (DataLineageEdge.target_data_asset_id == asset.id)
+            )
+            .first()
+            is not None
+        )
+        if has_class_history or has_lineage:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Governed data assets with classification or lineage history must be retired via Data Governance rather than deleted",
+            )
+
         code = asset.asset_code
         db.delete(asset)
         db.commit()
