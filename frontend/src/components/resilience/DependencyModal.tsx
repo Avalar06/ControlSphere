@@ -5,8 +5,22 @@ import { tprmService } from '../../lib/tprmService';
 import { api } from '../../lib/api';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import type { DependencyType, OrganizationControl } from '../../types';
-import { AlertTriangle, Building2, Link2, Shield } from 'lucide-react';
+import type {
+  BusinessProcess,
+  CloudAsset,
+  DataAsset,
+  DependencyType,
+  OrganizationControl,
+} from '../../types';
+import {
+  AlertTriangle,
+  Building2,
+  Cloud,
+  Database,
+  Layers,
+  Link2,
+  Shield,
+} from 'lucide-react';
 
 interface DependencyModalProps {
   isOpen: boolean;
@@ -25,17 +39,19 @@ export const DependencyModal: React.FC<DependencyModalProps> = ({
 
   const [dependencyType, setDependencyType] = useState<DependencyType>('VENDOR');
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');
+  const [isSpof, setIsSpof] = useState<boolean>(false);
+  const [propagationWeight, setPropagationWeight] = useState<string>('1.0');
+  const [recoveryPriority, setRecoveryPriority] = useState<string>('1');
   const [notes, setNotes] = useState<string>('');
+  const [criticalityNotes, setCriticalityNotes] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Fetch tenant vendors from Phase 9 TPRM
   const { data: vendors = [], isLoading: isVendorsLoading } = useQuery({
     queryKey: ['resilience-dep-vendors'],
     queryFn: () => tprmService.listVendors(),
     enabled: isOpen && dependencyType === 'VENDOR',
   });
 
-  // Fetch tenant controls from Phase 2 Controls
   const { data: controls = [], isLoading: isControlsLoading } = useQuery({
     queryKey: ['resilience-dep-controls'],
     queryFn: async () => {
@@ -45,27 +61,67 @@ export const DependencyModal: React.FC<DependencyModalProps> = ({
     enabled: isOpen && dependencyType === 'CONTROL',
   });
 
+  const { data: cloudAssets = [], isLoading: isCloudLoading } = useQuery({
+    queryKey: ['resilience-dep-cloud-assets'],
+    queryFn: async () => {
+      const response = await api.get<CloudAsset[]>('/cloudsec/assets');
+      return response.data;
+    },
+    enabled: isOpen && dependencyType === 'CLOUD_ASSET',
+  });
+
+  const { data: dataAssets = [], isLoading: isDataLoading } = useQuery({
+    queryKey: ['resilience-dep-data-assets'],
+    queryFn: async () => {
+      const response = await api.get<DataAsset[]>('/privacy/assets');
+      return response.data;
+    },
+    enabled: isOpen && dependencyType === 'DATA_ASSET',
+  });
+
+  const { data: processes = [], isLoading: isProcessesLoading } = useQuery({
+    queryKey: ['resilience-dep-processes'],
+    queryFn: () => resilienceService.listProcesses(),
+    enabled: isOpen && dependencyType === 'PROCESS',
+  });
+
   const mutation = useMutation({
     mutationFn: async () => {
       const id = parseInt(selectedEntityId, 10);
       if (!id || isNaN(id)) {
         throw new Error('Please select a valid target entity.');
       }
-      return resilienceService.addDependency({
-        process_id: processId,
+      const weight = isSpof ? 1.0 : parseFloat(propagationWeight) || 1.0;
+      const priority = Math.max(1, parseInt(recoveryPriority, 10) || 1);
+
+      return resilienceService.addProcessDependency(processId, {
         dependency_type: dependencyType,
-        dependency_id: id,
+        vendor_id: dependencyType === 'VENDOR' ? id : null,
+        organization_control_id: dependencyType === 'CONTROL' ? id : null,
+        cloud_asset_id: dependencyType === 'CLOUD_ASSET' ? id : null,
+        data_asset_id: dependencyType === 'DATA_ASSET' ? id : null,
+        depends_on_process_id: dependencyType === 'PROCESS' ? id : null,
+        is_single_point_of_failure: isSpof,
+        failure_propagation_weight: weight,
+        recovery_priority_order: priority,
         notes: notes.trim() || null,
+        criticality_notes: criticalityNotes.trim() || null,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resilience-process', processId] });
       queryClient.invalidateQueries({ queryKey: ['resilience-dependencies', processId] });
+      queryClient.invalidateQueries({ queryKey: ['resilience-dep-health', processId] });
       queryClient.invalidateQueries({ queryKey: ['resilience-processes'] });
+      queryClient.invalidateQueries({ queryKey: ['resilience-dashboard'] });
       onSuccess();
       onClose();
       setSelectedEntityId('');
+      setIsSpof(false);
+      setPropagationWeight('1.0');
+      setRecoveryPriority('1');
       setNotes('');
+      setCriticalityNotes('');
     },
     onError: (error: any) => {
       const detail = error.response?.data?.detail || error.message;
@@ -83,12 +139,46 @@ export const DependencyModal: React.FC<DependencyModalProps> = ({
     mutation.mutate();
   };
 
+  const categoryButtons: {
+    type: DependencyType;
+    label: string;
+    subtitle: string;
+    icon: React.ReactNode;
+  }[] = [
+    {
+      type: 'VENDOR',
+      label: 'Third-Party Vendor',
+      subtitle: 'Phase 9 TPRM',
+      icon: <Building2 className="h-4 w-4" />,
+    },
+    {
+      type: 'CONTROL',
+      label: 'Internal Control',
+      subtitle: 'Phase 2 Safeguards',
+      icon: <Shield className="h-4 w-4" />,
+    },
+    {
+      type: 'CLOUD_ASSET',
+      label: 'Cloud Infrastructure',
+      subtitle: 'Phase 11 CloudSec',
+      icon: <Cloud className="h-4 w-4" />,
+    },
+    {
+      type: 'DATA_ASSET',
+      label: 'Data Asset',
+      subtitle: 'Phase 12 Privacy/Data',
+      icon: <Database className="h-4 w-4" />,
+    },
+    {
+      type: 'PROCESS',
+      label: 'Upstream Process',
+      subtitle: 'Process Lineage DAG',
+      icon: <Layers className="h-4 w-4" />,
+    },
+  ];
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Link Upstream Process Dependency"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title="Link Upstream Process Dependency">
       <form onSubmit={handleSubmit} className="space-y-4">
         {errorMessage && (
           <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center gap-2 text-xs text-rose-400">
@@ -101,54 +191,40 @@ export const DependencyModal: React.FC<DependencyModalProps> = ({
           <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
             Dependency Category <span className="text-rose-400">*</span>
           </label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setDependencyType('VENDOR');
-                setSelectedEntityId('');
-              }}
-              className={`p-3 rounded-lg border text-left flex items-center gap-3 transition-all ${
-                dependencyType === 'VENDOR'
-                  ? 'bg-indigo-600/20 border-indigo-500/50 text-slate-100'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800/60'
-              }`}
-            >
-              <Building2 className={`h-5 w-5 ${dependencyType === 'VENDOR' ? 'text-indigo-400' : 'text-slate-500'}`} />
-              <div>
-                <div className="text-xs font-semibold">Third-Party Vendor</div>
-                <div className="text-[10px] text-slate-400">Phase 9 TPRM Catalog</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setDependencyType('CONTROL');
-                setSelectedEntityId('');
-              }}
-              className={`p-3 rounded-lg border text-left flex items-center gap-3 transition-all ${
-                dependencyType === 'CONTROL'
-                  ? 'bg-indigo-600/20 border-indigo-500/50 text-slate-100'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800/60'
-              }`}
-            >
-              <Shield className={`h-5 w-5 ${dependencyType === 'CONTROL' ? 'text-indigo-400' : 'text-slate-500'}`} />
-              <div>
-                <div className="text-xs font-semibold">Internal Control</div>
-                <div className="text-[10px] text-slate-400">Phase 2 Safeguards</div>
-              </div>
-            </button>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {categoryButtons.map((cat) => (
+              <button
+                key={cat.type}
+                type="button"
+                onClick={() => {
+                  setDependencyType(cat.type);
+                  setSelectedEntityId('');
+                }}
+                className={`p-2.5 rounded-lg border text-left flex items-center gap-2.5 transition-all ${
+                  dependencyType === cat.type
+                    ? 'bg-indigo-600/20 border-indigo-500/50 text-slate-100'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800/60'
+                }`}
+              >
+                <span className={dependencyType === cat.type ? 'text-indigo-400' : 'text-slate-500'}>
+                  {cat.icon}
+                </span>
+                <div>
+                  <div className="text-xs font-semibold">{cat.label}</div>
+                  <div className="text-[10px] text-slate-400">{cat.subtitle}</div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Dynamic Entity Selector */}
         <div>
           <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-            Select {dependencyType === 'VENDOR' ? 'Vendor' : 'Control'} <span className="text-rose-400">*</span>
+            Select Target ({dependencyType}) <span className="text-rose-400">*</span>
           </label>
 
-          {dependencyType === 'VENDOR' ? (
+          {dependencyType === 'VENDOR' && (
             <select
               value={selectedEntityId}
               onChange={(e) => setSelectedEntityId(e.target.value)}
@@ -163,7 +239,9 @@ export const DependencyModal: React.FC<DependencyModalProps> = ({
                 </option>
               ))}
             </select>
-          ) : (
+          )}
+
+          {dependencyType === 'CONTROL' && (
             <select
               value={selectedEntityId}
               onChange={(e) => setSelectedEntityId(e.target.value)}
@@ -171,7 +249,9 @@ export const DependencyModal: React.FC<DependencyModalProps> = ({
               required
               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
             >
-              <option value="">{isControlsLoading ? 'Loading controls...' : '-- Select Organization Control --'}</option>
+              <option value="">
+                {isControlsLoading ? 'Loading controls...' : '-- Select Organization Control --'}
+              </option>
               {controls.map((c) => (
                 <option key={c.id} value={c.id}>
                   Control #{c.id} ({c.subcategory?.identifier || 'N/A'}: {c.subcategory?.title || 'Control'}) — {c.status}
@@ -179,22 +259,142 @@ export const DependencyModal: React.FC<DependencyModalProps> = ({
               ))}
             </select>
           )}
-          <p className="text-[11px] text-slate-400 mt-1">
-            Links critical operational SLA and control implementation telemetry to this business process.
-          </p>
+
+          {dependencyType === 'CLOUD_ASSET' && (
+            <select
+              value={selectedEntityId}
+              onChange={(e) => setSelectedEntityId(e.target.value)}
+              disabled={isCloudLoading}
+              required
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">
+                {isCloudLoading ? 'Loading cloud assets...' : '-- Select Cloud Infrastructure Asset --'}
+              </option>
+              {cloudAssets.map((ca) => (
+                <option key={ca.id} value={ca.id}>
+                  {ca.resource_name} ({ca.provider} / {ca.region}) — {ca.posture_status}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {dependencyType === 'DATA_ASSET' && (
+            <select
+              value={selectedEntityId}
+              onChange={(e) => setSelectedEntityId(e.target.value)}
+              disabled={isDataLoading}
+              required
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">
+                {isDataLoading ? 'Loading data assets...' : '-- Select Governed Data Asset --'}
+              </option>
+              {dataAssets.map((da) => (
+                <option key={da.id} value={da.id}>
+                  {da.name} ({da.asset_code}) — {da.data_sensitivity_level}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {dependencyType === 'PROCESS' && (
+            <select
+              value={selectedEntityId}
+              onChange={(e) => setSelectedEntityId(e.target.value)}
+              disabled={isProcessesLoading}
+              required
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">
+                {isProcessesLoading ? 'Loading processes...' : '-- Select Upstream Business Process --'}
+              </option>
+              {processes
+                .filter((p: BusinessProcess) => p.id !== processId)
+                .map((p: BusinessProcess) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.criticality_tier})
+                  </option>
+                ))}
+            </select>
+          )}
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-            Contextual Dependency Notes
-          </label>
-          <textarea
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. Primary cloud hosting provider with 99.99% SLA..."
-            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-          />
+        {/* SPOF, Propagation Weight & Recovery Priority */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg flex items-center gap-2.5">
+            <input
+              id="spof-check"
+              type="checkbox"
+              checked={isSpof}
+              onChange={(e) => {
+                setIsSpof(e.target.checked);
+                if (e.target.checked) setPropagationWeight('1.0');
+              }}
+              className="rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
+            />
+            <label htmlFor="spof-check" className="text-xs font-semibold text-slate-200 cursor-pointer">
+              Single Point of Failure (SPOF)
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+              Propagation Weight (0.01–1.0)
+            </label>
+            <input
+              type="number"
+              step="0.05"
+              min="0.05"
+              max="1.0"
+              disabled={isSpof}
+              value={isSpof ? '1.0' : propagationWeight}
+              onChange={(e) => setPropagationWeight(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-slate-100 disabled:opacity-60"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+              Recovery Priority Order
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={recoveryPriority}
+              onChange={(e) => setRecoveryPriority(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-slate-100"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+              Dependency Context Notes
+            </label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Primary settlement cluster in us-east-1..."
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+              SPOF / Criticality Notes
+            </label>
+            <textarea
+              rows={2}
+              value={criticalityNotes}
+              onChange={(e) => setCriticalityNotes(e.target.value)}
+              placeholder="e.g. Requires active-passive RDS failover promotion..."
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">

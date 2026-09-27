@@ -10,14 +10,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { ProcessModal } from '../components/resilience/ProcessModal';
 import { ResilienceLineageCard } from '../components/resilience/ResilienceLineageCard';
-import type { BusinessProcess, CriticalityTier } from '../types';
+import type { BusinessProcess, CriticalityTier, ExerciseOutcome, ExerciseStatus } from '../types';
 import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
+  ClipboardCheck,
   DollarSign,
   Edit,
+  FileCheck2,
   Layers,
   Link2,
   Lock,
@@ -28,7 +30,7 @@ import {
   Trash2,
 } from 'lucide-react';
 
-type TabKey = 'overview' | 'processes' | 'lineage';
+type TabKey = 'overview' | 'processes' | 'exercises' | 'lineage';
 
 export const ResiliencePage: React.FC = () => {
   const navigate = useNavigate();
@@ -41,6 +43,7 @@ export const ResiliencePage: React.FC = () => {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState<CriticalityTier | 'ALL'>('ALL');
+  const [exerciseStatusFilter, setExerciseStatusFilter] = useState<ExerciseStatus | 'ALL'>('ALL');
 
   // Modals state
   const [isProcessModalOpen, setIsProcessModalOpen] = useState(false);
@@ -61,20 +64,37 @@ export const ResiliencePage: React.FC = () => {
       }),
   });
 
+  const { data: dashboard } = useQuery({
+    queryKey: ['resilience-dashboard'],
+    queryFn: () => resilienceService.getDashboard(),
+  });
+
+  const { data: exercises = [], isLoading: isExercisesLoading } = useQuery({
+    queryKey: ['resilience-exercises', exerciseStatusFilter],
+    queryFn: () =>
+      resilienceService.listExercises({
+        status: exerciseStatusFilter === 'ALL' ? undefined : exerciseStatusFilter,
+      }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => resilienceService.deleteProcess(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resilience-processes'] });
+      queryClient.invalidateQueries({ queryKey: ['resilience-dashboard'] });
     },
   });
 
-  // Calculate executive posture metrics from process catalog
-  const totalProcesses = processes.length;
-  const tier1Count = processes.filter((p) => p.criticality_tier === 'TIER_1').length;
-  const tier2Count = processes.filter((p) => p.criticality_tier === 'TIER_2').length;
-  const activeBiaCount = processes.filter((p) => p.active_bia && p.active_bia.status === 'ACTIVE').length;
-  const unassessedCount = totalProcesses - activeBiaCount;
-  const coveragePercentage = totalProcesses > 0 ? Math.round((activeBiaCount / totalProcesses) * 100) : 0;
+  // Calculate executive posture metrics from process catalog & dashboard
+  const totalProcesses = dashboard?.total_processes ?? processes.length;
+  const tier1Count = dashboard?.tier_1_processes ?? processes.filter((p) => p.criticality_tier === 'TIER_1').length;
+  const tier2Count = dashboard?.tier_breakdown?.TIER_2 ?? processes.filter((p) => p.criticality_tier === 'TIER_2').length;
+  const activeBiaCount = dashboard?.processes_with_approved_bia ?? processes.filter((p) => p.active_bia && p.active_bia.status === 'ACTIVE').length;
+  const coveragePercentage = dashboard?.bia_coverage_pct ?? (totalProcesses > 0 ? Math.round((activeBiaCount / totalProcesses) * 100) : 0);
+  const continuityCoveragePct = dashboard?.continuity_plan_coverage_pct ?? 0;
+  const exercisePassRatePct = dashboard?.exercise_pass_rate_pct ?? 0;
+  const assuranceScore = dashboard?.resilience_assurance_score ?? 0;
+  const unmitigatedSpofs = dashboard?.unmitigated_spof_count ?? 0;
 
   // Cumulative hourly disruption exposure from active baselines
   const cumulativeHourlyLoss = processes.reduce((acc, p) => {
@@ -96,6 +116,26 @@ export const ResiliencePage: React.FC = () => {
     }
   };
 
+  const getOutcomeBadge = (outcome?: ExerciseOutcome | null) => {
+    if (!outcome) return <Badge variant="default">PENDING</Badge>;
+    switch (outcome) {
+      case 'PASS':
+        return <Badge variant="success">PASS</Badge>;
+      case 'PASS_WITH_MINOR_EXCEPTIONS':
+        return <Badge variant="info">PASS (MINOR EXC)</Badge>;
+      case 'FAIL_MTD_BREACH':
+        return <Badge variant="danger">FAIL — MTD BREACH</Badge>;
+      case 'FAIL_RTO_BREACH':
+        return <Badge variant="danger">FAIL — RTO BREACH</Badge>;
+      case 'FAIL_RPO_BREACH':
+        return <Badge variant="warning">FAIL — RPO BREACH</Badge>;
+      case 'FAIL_CONTROL_DEFICIENCY':
+        return <Badge variant="warning">FAIL — CTRL DEFICIENCY</Badge>;
+      default:
+        return <Badge variant="default">{outcome}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -103,14 +143,14 @@ export const ResiliencePage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-slate-100">
-              Operational Resilience &amp; BIA
+              Operational Resilience, Continuity &amp; DR Assurance
             </h1>
             <span className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-              Phase 13
+              Phase 13 / Batch 5
             </span>
           </div>
           <p className="text-sm text-slate-400 mt-1">
-            Enterprise business process catalog, four-eyes Business Impact Analysis baselines, and deterministic outage disruption modeling.
+            Enterprise business process catalog, four-eyes BIA &amp; Continuity Plan governance, empirical DR exercise testing, and blast-radius simulation.
           </p>
         </div>
 
@@ -129,7 +169,7 @@ export const ResiliencePage: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-800 space-x-1">
+      <div className="flex border-b border-slate-800 space-x-1 overflow-x-auto">
         <button
           onClick={() => setActiveTab('overview')}
           className={`px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 ${
@@ -152,6 +192,18 @@ export const ResiliencePage: React.FC = () => {
         >
           <Layers size={15} />
           <span>Business Process Register ({processes.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('exercises')}
+          className={`px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 ${
+            activeTab === 'exercises'
+              ? 'bg-slate-900 text-indigo-400 border-t-2 border-indigo-500 border-x border-slate-800'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+          }`}
+        >
+          <ClipboardCheck size={15} />
+          <span>Exercises &amp; DR Testing ({exercises.length})</span>
         </button>
 
         <button
@@ -185,7 +237,7 @@ export const ResiliencePage: React.FC = () => {
           {/* TAB 1: EXECUTIVE OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* Executive KPI Grid */}
+              {/* Executive KPI Grid (Row 1: Process & BIA) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-slate-800 bg-slate-900/80">
                   <div className="flex items-center justify-between">
@@ -199,57 +251,62 @@ export const ResiliencePage: React.FC = () => {
                     <span className="text-xs text-slate-400 font-medium">cataloged</span>
                   </div>
                   <div className="mt-2 text-xs text-slate-400">
-                    <span className="text-rose-400 font-semibold">{tier1Count} Tier 1</span>, <span className="text-amber-400 font-semibold">{tier2Count} Tier 2</span> critical
+                    <span className="text-rose-400 font-semibold">{tier1Count} Tier 1</span>,{' '}
+                    <span className="text-amber-400 font-semibold">{tier2Count} Tier 2</span> critical
                   </div>
                 </Card>
 
                 <Card className="border-slate-800 bg-slate-900/80">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                      BIA Baseline Coverage
+                      BIA &amp; Continuity Coverage
                     </span>
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <FileCheck2 className="h-4 w-4 text-emerald-400" />
                   </div>
                   <div className="mt-3 flex items-baseline gap-2">
                     <span className="text-3xl font-bold font-mono text-emerald-400">{coveragePercentage}%</span>
-                    <span className="text-xs text-slate-400 font-medium">approved</span>
+                    <span className="text-xs text-slate-400 font-medium">BIA</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="text-xl font-bold font-mono text-indigo-400">{continuityCoveragePct}%</span>
+                    <span className="text-xs text-slate-400 font-medium">BCP</span>
                   </div>
                   <div className="mt-2 text-xs text-slate-400">
-                    <span className="text-emerald-400 font-semibold">{activeBiaCount}</span> of {totalProcesses} active baselines
+                    Four-eyes approved baselines &amp; runbooks
                   </div>
                 </Card>
 
                 <Card className="border-slate-800 bg-slate-900/80">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                      Unassessed Processes
+                      DR Exercise Pass Rate
                     </span>
-                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <ClipboardCheck className="h-4 w-4 text-cyan-400" />
                   </div>
                   <div className="mt-3 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold font-mono text-amber-400">{unassessedCount}</span>
-                    <span className="text-xs text-slate-400 font-medium">lacking BIA</span>
+                    <span className="text-3xl font-bold font-mono text-cyan-400">{exercisePassRatePct}%</span>
+                    <span className="text-xs text-slate-400 font-medium">empirical pass</span>
                   </div>
                   <div className="mt-2 text-xs text-slate-400">
-                    Require four-eyes BIA baseline
+                    RTO Breaches:{' '}
+                    <span className="text-rose-400 font-semibold">{dashboard?.rto_breach_exercise_count ?? 0}</span> | MTD:{' '}
+                    <span className="text-rose-400 font-semibold">{dashboard?.mtd_breach_exercise_count ?? 0}</span>
                   </div>
                 </Card>
 
                 <Card className="border-slate-800 bg-slate-900/80">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                      Hourly Outage Exposure
+                      Resilience Assurance Score
                     </span>
                     <DollarSign className="h-4 w-4 text-purple-400" />
                   </div>
-                  <div className="mt-3 flex items-baseline gap-1">
-                    <span className="text-2xl font-bold font-mono text-slate-100">
-                      ${cumulativeHourlyLoss.toLocaleString()}
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono">/hr</span>
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <span className="text-3xl font-bold font-mono text-slate-100">{assuranceScore}</span>
+                    <span className="text-xs text-slate-400 font-mono">/ 100</span>
                   </div>
                   <div className="mt-2 text-xs text-slate-400">
-                    Cumulative portfolio disruption rate
+                    Unmitigated SPOFs: <span className="text-amber-400 font-semibold">{unmitigatedSpofs}</span> | Exposure:{' '}
+                    <span className="font-mono text-purple-300">${cumulativeHourlyLoss.toLocaleString()}/hr</span>
                   </div>
                 </Card>
               </div>
@@ -307,7 +364,9 @@ export const ResiliencePage: React.FC = () => {
                           {p.active_bia ? (
                             <div className="text-emerald-400 text-[11px] font-semibold flex items-center gap-1">
                               <CheckCircle2 size={12} />
-                              <span>RTO: {p.active_bia.rto_hours}h | MTD: {p.active_bia.mtd_hours}h</span>
+                              <span>
+                                RTO: {p.active_bia.rto_hours}h | MTD: {p.active_bia.mtd_hours}h
+                              </span>
                             </div>
                           ) : (
                             <span className="text-amber-400 text-[11px]">No Active BIA</span>
@@ -428,7 +487,8 @@ export const ResiliencePage: React.FC = () => {
                                     <Lock size={12} className="text-slate-400" />
                                   </div>
                                   <div className="text-[11px] text-slate-400 font-mono">
-                                    RTO: <span className="text-slate-200">{activeBia.rto_hours}h</span> | MTD: {activeBia.mtd_hours}h
+                                    RTO: <span className="text-slate-200">{activeBia.rto_hours}h</span> | MTD:{' '}
+                                    {activeBia.mtd_hours}h
                                   </div>
                                 </div>
                               ) : (
@@ -458,7 +518,10 @@ export const ResiliencePage: React.FC = () => {
                             </TableCell>
 
                             <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1.5" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                              <div
+                                className="flex items-center justify-end gap-1.5"
+                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              >
                                 <Button
                                   variant="secondary"
                                   size="sm"
@@ -509,7 +572,128 @@ export const ResiliencePage: React.FC = () => {
             </Card>
           )}
 
-          {/* TAB 3: LINEAGE */}
+          {/* TAB 3: EXERCISES & DR TESTING */}
+          {activeTab === 'exercises' && (
+            <Card className="border-slate-800 bg-slate-900/90 space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-100">
+                    Empirical Continuity &amp; Disaster Recovery Exercises
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Target vs. actual RTO/RPO variance verification, cryptographic SHA-256 sealing, and closed-loop CAPA escalation.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">Status:</span>
+                  <select
+                    value={exerciseStatusFilter}
+                    onChange={(e) => setExerciseStatusFilter(e.target.value as ExerciseStatus | 'ALL')}
+                    className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200"
+                  >
+                    <option value="ALL">All Statuses</option>
+                    <option value="PLANNED">PLANNED</option>
+                    <option value="IN_PROGRESS">IN_PROGRESS</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="REVIEWED">REVIEWED</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                  </select>
+                </div>
+              </div>
+
+              {isExercisesLoading ? (
+                <div className="py-12 flex justify-center">
+                  <LoadingSpinner text="Loading resilience exercises..." />
+                </div>
+              ) : exercises.length === 0 ? (
+                <div className="p-10 text-center bg-slate-950/40 rounded-xl border border-slate-800 space-y-2">
+                  <ClipboardCheck className="h-9 w-9 text-slate-600 mx-auto" />
+                  <p className="text-sm font-semibold text-slate-300">No Resilience Exercises Recorded</p>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Open any Business Process with an approved Continuity Plan to schedule and execute a tabletop or functional failover exercise.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeaderCell>Exercise Code &amp; Title</TableHeaderCell>
+                        <TableHeaderCell>Type</TableHeaderCell>
+                        <TableHeaderCell>Status</TableHeaderCell>
+                        <TableHeaderCell>Target vs Actual RTO</TableHeaderCell>
+                        <TableHeaderCell>Target vs Actual RPO</TableHeaderCell>
+                        <TableHeaderCell>Outcome</TableHeaderCell>
+                        <TableHeaderCell className="text-right">Action</TableHeaderCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {exercises.map((ex) => (
+                        <TableRow key={ex.id} className="hover:bg-slate-800/40">
+                          <TableCell>
+                            <div className="font-mono text-xs font-bold text-indigo-400">{ex.exercise_code}</div>
+                            <div className="text-xs text-slate-200 font-medium">{ex.title}</div>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-slate-300">{ex.exercise_type}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                ex.status === 'REVIEWED'
+                                  ? 'success'
+                                  : ex.status === 'COMPLETED'
+                                  ? 'info'
+                                  : ex.status === 'IN_PROGRESS'
+                                  ? 'warning'
+                                  : 'default'
+                              }
+                            >
+                              {ex.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            <span className="text-slate-400">T: {ex.target_rto_hours_snapshot}h</span>
+                            {' / '}
+                            {ex.actual_rto_hours !== null ? (
+                              <span className={ex.rto_breached ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                                A: {ex.actual_rto_hours}h
+                              </span>
+                            ) : (
+                              <span className="text-slate-500">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            <span className="text-slate-400">T: {ex.target_rpo_hours_snapshot}h</span>
+                            {' / '}
+                            {ex.actual_rpo_hours !== null ? (
+                              <span className={ex.rpo_breached ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                                A: {ex.actual_rpo_hours}h
+                              </span>
+                            ) : (
+                              <span className="text-slate-500">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{getOutcomeBadge(ex.outcome)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => navigate(`/resilience/processes/${ex.process_id}`)}
+                              className="text-xs py-1 px-2.5"
+                            >
+                              Process #{ex.process_id}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* TAB 4: LINEAGE */}
           {activeTab === 'lineage' && <ResilienceLineageCard />}
         </>
       )}

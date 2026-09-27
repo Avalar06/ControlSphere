@@ -14,13 +14,24 @@ import { BiaApprovalModal } from '../components/resilience/BiaApprovalModal';
 import { DependencyModal } from '../components/resilience/DependencyModal';
 import { OutageImpactCard } from '../components/resilience/OutageImpactCard';
 import { BiaHistoryCard } from '../components/resilience/BiaHistoryCard';
-import type { BusinessImpactAnalysis, CriticalityTier } from '../types';
+import type {
+  BusinessImpactAnalysis,
+  CriticalityTier,
+  DependencyType,
+  ExerciseOutcome,
+} from '../types';
 import {
   AlertTriangle,
   ArrowLeft,
   Building2,
+  CheckCircle2,
+  ClipboardCheck,
   Clock,
+  Cloud,
+  Database,
   Edit2,
+  FileCheck2,
+  Layers,
   Link2,
   Lock,
   Plus,
@@ -59,19 +70,33 @@ export const BusinessProcessDetailPage: React.FC = () => {
     enabled: processId > 0,
   });
 
-  const {
-    data: bias = [],
-  } = useQuery({
+  const { data: bias = [] } = useQuery({
     queryKey: ['resilience-process-bias', processId],
     queryFn: () => resilienceService.listProcessBias(processId),
     enabled: processId > 0,
   });
 
-  const {
-    data: dependencies = [],
-  } = useQuery({
+  const { data: dependencies = [] } = useQuery({
     queryKey: ['resilience-dependencies', processId],
     queryFn: () => resilienceService.listDependencies(processId),
+    enabled: processId > 0,
+  });
+
+  const { data: depHealth } = useQuery({
+    queryKey: ['resilience-dep-health', processId],
+    queryFn: () => resilienceService.getDependencyHealth(processId),
+    enabled: processId > 0,
+  });
+
+  const { data: continuityPlans = [] } = useQuery({
+    queryKey: ['resilience-continuity-plans', processId],
+    queryFn: () => resilienceService.listContinuityPlans(processId),
+    enabled: processId > 0,
+  });
+
+  const { data: exercises = [] } = useQuery({
+    queryKey: ['resilience-process-exercises', processId],
+    queryFn: () => resilienceService.listExercises({ process_id: processId }),
     enabled: processId > 0,
   });
 
@@ -80,6 +105,24 @@ export const BusinessProcessDetailPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resilience-process', processId] });
       queryClient.invalidateQueries({ queryKey: ['resilience-dependencies', processId] });
+      queryClient.invalidateQueries({ queryKey: ['resilience-dep-health', processId] });
+    },
+  });
+
+  const submitPlanMutation = useMutation({
+    mutationFn: (planId: number) => resilienceService.submitContinuityPlan(planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resilience-continuity-plans', processId] });
+      queryClient.invalidateQueries({ queryKey: ['resilience-dep-health', processId] });
+    },
+  });
+
+  const approvePlanMutation = useMutation({
+    mutationFn: (planId: number) => resilienceService.approveContinuityPlan(planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resilience-continuity-plans', processId] });
+      queryClient.invalidateQueries({ queryKey: ['resilience-dep-health', processId] });
+      queryClient.invalidateQueries({ queryKey: ['resilience-dashboard'] });
     },
   });
 
@@ -120,6 +163,68 @@ export const BusinessProcessDetailPage: React.FC = () => {
         return <Badge variant="default">TIER 4 — LOW IMPACT</Badge>;
       default:
         return <Badge variant="default">{tier}</Badge>;
+    }
+  };
+
+  const renderDependencyTypeBadge = (type: DependencyType) => {
+    switch (type) {
+      case 'VENDOR':
+        return (
+          <div className="flex items-center gap-1.5 text-purple-300 text-xs font-semibold">
+            <Building2 size={14} />
+            <span>Third-Party Vendor</span>
+          </div>
+        );
+      case 'CONTROL':
+        return (
+          <div className="flex items-center gap-1.5 text-emerald-300 text-xs font-semibold">
+            <Shield size={14} />
+            <span>Internal Control</span>
+          </div>
+        );
+      case 'CLOUD_ASSET':
+        return (
+          <div className="flex items-center gap-1.5 text-cyan-300 text-xs font-semibold">
+            <Cloud size={14} />
+            <span>Cloud Infrastructure</span>
+          </div>
+        );
+      case 'DATA_ASSET':
+        return (
+          <div className="flex items-center gap-1.5 text-amber-300 text-xs font-semibold">
+            <Database size={14} />
+            <span>Governed Data Asset</span>
+          </div>
+        );
+      case 'PROCESS':
+        return (
+          <div className="flex items-center gap-1.5 text-indigo-300 text-xs font-semibold">
+            <Layers size={14} />
+            <span>Upstream Process</span>
+          </div>
+        );
+      default:
+        return <span className="text-xs text-slate-300">{type}</span>;
+    }
+  };
+
+  const getOutcomeBadge = (outcome?: ExerciseOutcome | null) => {
+    if (!outcome) return <Badge variant="default">PENDING</Badge>;
+    switch (outcome) {
+      case 'PASS':
+        return <Badge variant="success">PASS</Badge>;
+      case 'PASS_WITH_MINOR_EXCEPTIONS':
+        return <Badge variant="info">PASS (MINOR EXC)</Badge>;
+      case 'FAIL_MTD_BREACH':
+        return <Badge variant="danger">FAIL — MTD BREACH</Badge>;
+      case 'FAIL_RTO_BREACH':
+        return <Badge variant="danger">FAIL — RTO BREACH</Badge>;
+      case 'FAIL_RPO_BREACH':
+        return <Badge variant="warning">FAIL — RPO BREACH</Badge>;
+      case 'FAIL_CONTROL_DEFICIENCY':
+        return <Badge variant="warning">FAIL — CTRL DEFICIENCY</Badge>;
+      default:
+        return <Badge variant="default">{outcome}</Badge>;
     }
   };
 
@@ -193,12 +298,22 @@ export const BusinessProcessDetailPage: React.FC = () => {
             <span className="text-slate-200">{process.criticality_tier}</span>
           </div>
           <div>
-            <span className="text-slate-500 block text-[10px] uppercase font-semibold">Registered At</span>
-            <span className="text-slate-200">{new Date(process.created_at).toLocaleDateString()}</span>
+            <span className="text-slate-500 block text-[10px] uppercase font-semibold">Dependency Health</span>
+            <span className="text-emerald-400 font-bold">
+              {depHealth ? `${depHealth.dependency_health_score}%` : '100%'}
+            </span>
           </div>
           <div>
-            <span className="text-slate-500 block text-[10px] uppercase font-semibold">Last Updated</span>
-            <span className="text-slate-200">{new Date(process.updated_at).toLocaleDateString()}</span>
+            <span className="text-slate-500 block text-[10px] uppercase font-semibold">Unmitigated SPOFs</span>
+            <span
+              className={
+                (depHealth?.unmitigated_spof_count ?? 0) > 0
+                  ? 'text-rose-400 font-bold'
+                  : 'text-slate-200'
+              }
+            >
+              {depHealth?.unmitigated_spof_count ?? 0}
+            </span>
           </div>
         </div>
       </Card>
@@ -291,17 +406,17 @@ export const BusinessProcessDetailPage: React.FC = () => {
       {/* Outage Loss Simulation Engine (Rendered when active BIA exists) */}
       {activeBia && <OutageImpactCard bia={activeBia} />}
 
-      {/* Cross-Module Dependencies Section */}
+      {/* Cross-Module Dependencies Section (Extended Batch 5 Lineage) */}
       <Card className="border-slate-800 bg-slate-900/90 space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2.5">
             <Link2 className="h-5 w-5 text-indigo-400" />
             <div>
               <h3 className="text-sm font-semibold text-slate-100">
-                Upstream Process Dependencies ({dependencies.length})
+                Upstream Process Dependencies &amp; SPOF Lineage ({dependencies.length})
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Links to Phase 9 critical suppliers (TPRM) and Phase 2 organizational safeguards.
+                Links to Vendors (TPRM), Controls, Cloud Assets (CloudSec), Data Assets (Privacy), and Upstream Processes.
               </p>
             </div>
           </div>
@@ -321,47 +436,47 @@ export const BusinessProcessDetailPage: React.FC = () => {
         {dependencies.length === 0 ? (
           <div className="p-8 text-center bg-slate-950/60 rounded-xl border border-slate-800">
             <Link2 className="h-8 w-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-xs text-slate-400 font-medium">No vendor or control dependencies linked to this process.</p>
+            <p className="text-xs text-slate-400 font-medium">
+              No vendor, control, cloud asset, data asset, or process dependencies linked yet.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableHeaderCell>Priority</TableHeaderCell>
                   <TableHeaderCell>Dependency Type</TableHeaderCell>
                   <TableHeaderCell>Target Reference</TableHeaderCell>
+                  <TableHeaderCell>SPOF &amp; Weight</TableHeaderCell>
                   <TableHeaderCell>Context Notes</TableHeaderCell>
-                  <TableHeaderCell>Linked Date</TableHeaderCell>
                   <TableHeaderCell className="text-right">Actions</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {dependencies.map((dep) => (
                   <TableRow key={dep.id}>
-                    <TableCell>
-                      {dep.dependency_type === 'VENDOR' ? (
-                        <div className="flex items-center gap-1.5 text-purple-300 text-xs font-semibold">
-                          <Building2 size={14} />
-                          <span>Third-Party Vendor</span>
-                        </div>
+                    <TableCell className="font-mono text-xs text-slate-300">
+                      #{dep.recovery_priority_order ?? 1}
+                    </TableCell>
+                    <TableCell>{renderDependencyTypeBadge(dep.dependency_type)}</TableCell>
+
+                    <TableCell className="font-mono text-xs text-slate-200">
+                      {dep.dependency_type} #{dep.dependency_id}
+                    </TableCell>
+
+                    <TableCell className="text-xs font-mono">
+                      {dep.is_single_point_of_failure ? (
+                        <Badge variant="danger">SPOF (w=1.0)</Badge>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-emerald-300 text-xs font-semibold">
-                          <Shield size={14} />
-                          <span>Internal Control</span>
-                        </div>
+                        <span className="text-slate-400">w={dep.failure_propagation_weight ?? 1.0}</span>
                       )}
                     </TableCell>
 
-                    <TableCell className="font-mono text-xs text-slate-200">
-                      {dep.dependency_type === 'VENDOR' ? `Vendor #${dep.dependency_id}` : `Control #${dep.dependency_id}`}
-                    </TableCell>
-
                     <TableCell className="text-xs text-slate-400">
-                      {dep.notes || <span className="italic text-slate-600">No notes</span>}
-                    </TableCell>
-
-                    <TableCell className="text-xs font-mono text-slate-500">
-                      {new Date(dep.created_at).toLocaleDateString()}
+                      {dep.notes || dep.criticality_notes || (
+                        <span className="italic text-slate-600">No notes</span>
+                      )}
                     </TableCell>
 
                     <TableCell className="text-right">
@@ -375,6 +490,192 @@ export const BusinessProcessDetailPage: React.FC = () => {
                         >
                           <Trash2 size={12} />
                         </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+
+      {/* Batch 5: Continuity & Recovery Plans Section */}
+      <Card className="border-slate-800 bg-slate-900/90 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <FileCheck2 className="h-5 w-5 text-emerald-400" />
+            <div>
+              <h3 className="text-sm font-semibold text-slate-100">
+                Business Continuity &amp; Recovery Plans ({continuityPlans.length})
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Versioned continuity strategies, ordered recovery step durations, four-eyes approval, and SHA-256 tamper-evident sealing.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {continuityPlans.length === 0 ? (
+          <div className="p-8 text-center bg-slate-950/60 rounded-xl border border-slate-800">
+            <FileCheck2 className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-xs text-slate-400 font-medium">
+              No Continuity Plans registered for this business process yet.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Plan Code &amp; Version</TableHeaderCell>
+                  <TableHeaderCell>Title &amp; Strategy</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Est. Recovery / RPO</TableHeaderCell>
+                  <TableHeaderCell>SHA-256 Seal</TableHeaderCell>
+                  <TableHeaderCell className="text-right">Governance Actions</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {continuityPlans.map((plan) => (
+                  <TableRow key={plan.id}>
+                    <TableCell className="font-mono text-xs">
+                      <div className="font-bold text-indigo-400">{plan.plan_code}</div>
+                      <div className="text-slate-400">v{plan.version_label}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-xs font-semibold text-slate-200">{plan.title}</div>
+                      <div className="text-[11px] font-mono text-slate-400">{plan.strategy_type}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          plan.status === 'APPROVED'
+                            ? 'success'
+                            : plan.status === 'PENDING_APPROVAL'
+                            ? 'warning'
+                            : 'default'
+                        }
+                      >
+                        {plan.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-slate-300">
+                      RTO: {plan.estimated_recovery_hours}h | RPO: {plan.estimated_rpo_hours}h
+                    </TableCell>
+                    <TableCell className="font-mono text-[11px] text-slate-400">
+                      {plan.plan_hash_sha256 ? `${plan.plan_hash_sha256.slice(0, 12)}…` : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {canManage && plan.status === 'DRAFT' && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => submitPlanMutation.mutate(plan.id)}
+                            disabled={submitPlanMutation.isPending}
+                            className="text-xs py-1 px-2.5"
+                          >
+                            Submit
+                          </Button>
+                        )}
+                        {canApprove && plan.status === 'PENDING_APPROVAL' && (
+                          <Button
+                            size="sm"
+                            onClick={() => approvePlanMutation.mutate(plan.id)}
+                            disabled={approvePlanMutation.isPending}
+                            className="text-xs py-1 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white"
+                          >
+                            <CheckCircle2 size={12} className="mr-1" /> Approve
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+
+      {/* Batch 5: Empirical Resilience Exercises Section */}
+      <Card className="border-slate-800 bg-slate-900/90 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <ClipboardCheck className="h-5 w-5 text-cyan-400" />
+            <div>
+              <h3 className="text-sm font-semibold text-slate-100">
+                Empirical DR &amp; Continuity Exercises ({exercises.length})
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Measured actual RTO/RPO recovery times vs. BIA snapshot targets and closed-loop CAPA/Risk escalations.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {exercises.length === 0 ? (
+          <div className="p-8 text-center bg-slate-950/60 rounded-xl border border-slate-800">
+            <ClipboardCheck className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-xs text-slate-400 font-medium">
+              No resilience or failover exercises executed for this business process yet.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Exercise Code</TableHeaderCell>
+                  <TableHeaderCell>Type &amp; Status</TableHeaderCell>
+                  <TableHeaderCell>Target vs Actual RTO</TableHeaderCell>
+                  <TableHeaderCell>Target vs Actual RPO</TableHeaderCell>
+                  <TableHeaderCell>Outcome</TableHeaderCell>
+                  <TableHeaderCell>CAPA / Risk Escalation</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {exercises.map((ex) => (
+                  <TableRow key={ex.id}>
+                    <TableCell>
+                      <div className="font-mono text-xs font-bold text-indigo-400">{ex.exercise_code}</div>
+                      <div className="text-xs text-slate-200">{ex.title}</div>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <div className="text-slate-300">{ex.exercise_type}</div>
+                      <div className="text-[11px] text-slate-500">{ex.status}</div>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      T: {ex.target_rto_hours_snapshot}h /{' '}
+                      {ex.actual_rto_hours !== null ? (
+                        <span className={ex.rto_breached ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                          A: {ex.actual_rto_hours}h
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      T: {ex.target_rpo_hours_snapshot}h /{' '}
+                      {ex.actual_rpo_hours !== null ? (
+                        <span className={ex.rpo_breached ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                          A: {ex.actual_rpo_hours}h
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    <TableCell>{getOutcomeBadge(ex.outcome)}</TableCell>
+                    <TableCell className="font-mono text-xs text-slate-400">
+                      {ex.finding_id || ex.remediation_plan_id || ex.risk_id ? (
+                        <div className="flex flex-wrap gap-1">
+                          {ex.finding_id && <Badge variant="warning">Finding #{ex.finding_id}</Badge>}
+                          {ex.remediation_plan_id && <Badge variant="info">CAPA #{ex.remediation_plan_id}</Badge>}
+                          {ex.risk_id && <Badge variant="danger">Risk #{ex.risk_id}</Badge>}
+                        </div>
+                      ) : (
+                        '—'
                       )}
                     </TableCell>
                   </TableRow>
@@ -444,6 +745,7 @@ export const BusinessProcessDetailPage: React.FC = () => {
         onSuccess={() => {
           refetchProcess();
           queryClient.invalidateQueries({ queryKey: ['resilience-dependencies', processId] });
+          queryClient.invalidateQueries({ queryKey: ['resilience-dep-health', processId] });
         }}
         processId={processId}
       />

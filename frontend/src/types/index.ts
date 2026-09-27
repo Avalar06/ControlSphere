@@ -2347,13 +2347,59 @@ export interface QuantOverviewResponse {
   top_risk_scenarios: QuantitativeRiskScenario[];
 }
 
-// ─── Phase 13: Operational Resilience & Business Impact Analysis (RESILIENCE-GRC)
+// ─── Phase 13 & Batch 5: Operational Resilience, Continuity & DR Testing ─────
 
 export type CriticalityTier = 'TIER_1' | 'TIER_2' | 'TIER_3' | 'TIER_4';
 
 export type BiaStatus = 'DRAFT' | 'ACTIVE' | 'SUPERSEDED' | 'ARCHIVED';
 
-export type DependencyType = 'VENDOR' | 'CONTROL';
+export type DependencyType = 'VENDOR' | 'CONTROL' | 'CLOUD_ASSET' | 'DATA_ASSET' | 'PROCESS';
+
+export type ContinuityPlanStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'SUPERSEDED'
+  | 'ARCHIVED';
+
+export type ContinuityStrategyType =
+  | 'HOT_STANDBY'
+  | 'WARM_STANDBY'
+  | 'COLD_SITE'
+  | 'ACTIVE_ACTIVE'
+  | 'MANUAL_WORKAROUND'
+  | 'SUPPLIER_SUBSTITUTION';
+
+export type ExerciseType =
+  | 'TABLETOP'
+  | 'WALKTHROUGH'
+  | 'FUNCTIONAL_FAILOVER'
+  | 'FULL_INTERRUPTION'
+  | 'BACKUP_RESTORATION'
+  | 'THIRD_PARTY_RESILIENCE';
+
+export type ExerciseStatus =
+  | 'PLANNED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'REVIEWED'
+  | 'CANCELLED';
+
+export type ExerciseOutcome =
+  | 'PASS'
+  | 'PASS_WITH_MINOR_EXCEPTIONS'
+  | 'FAIL_RTO_BREACH'
+  | 'FAIL_RPO_BREACH'
+  | 'FAIL_MTD_BREACH'
+  | 'FAIL_CONTROL_DEFICIENCY';
+
+export type ResilienceEvidenceContext =
+  | 'CONTINUITY_RUNBOOK'
+  | 'EXERCISE_LOG'
+  | 'FAILOVER_LOG'
+  | 'BACKUP_RESTORE_PROOF'
+  | 'POST_MORTEM_REPORT'
+  | 'ARCHITECTURE_DIAGRAM';
 
 export interface BusinessProcessBase {
   name: string;
@@ -2375,15 +2421,59 @@ export interface ProcessDependency {
   process_id: number;
   dependency_type: DependencyType;
   dependency_id: number;
+  vendor_id?: number | null;
+  organization_control_id?: number | null;
+  cloud_asset_id?: number | null;
+  data_asset_id?: number | null;
+  depends_on_process_id?: number | null;
+  is_single_point_of_failure?: boolean;
+  failure_propagation_weight?: number;
+  recovery_priority_order?: number;
   notes?: string | null;
+  criticality_notes?: string | null;
   created_at: string;
 }
 
 export interface ProcessDependencyCreate {
-  process_id: number;
+  process_id?: number;
   dependency_type: DependencyType;
-  dependency_id: number;
+  dependency_id?: number;
+  vendor_id?: number | null;
+  organization_control_id?: number | null;
+  cloud_asset_id?: number | null;
+  data_asset_id?: number | null;
+  depends_on_process_id?: number | null;
+  is_single_point_of_failure?: boolean;
+  failure_propagation_weight?: number;
+  recovery_priority_order?: number;
   notes?: string | null;
+  criticality_notes?: string | null;
+}
+
+export interface DependencyHealthItem {
+  dependency_id: number;
+  dependency_type: DependencyType;
+  target_id: number;
+  target_name: string;
+  health_status: 'HEALTHY' | 'DEGRADED' | 'CRITICAL';
+  health_score: number;
+  is_single_point_of_failure: boolean;
+  failure_propagation_weight: number;
+  recovery_priority_order: number;
+  status_detail: string;
+}
+
+export interface ProcessDependencyHealth {
+  process_id: number;
+  process_name: string;
+  dependency_health_score: number;
+  total_dependencies: number;
+  spof_count: number;
+  unmitigated_spof_count: number;
+  healthy_count: number;
+  degraded_count: number;
+  critical_count: number;
+  dependencies: DependencyHealthItem[];
 }
 
 export interface BusinessImpactAnalysisBase {
@@ -2442,6 +2532,224 @@ export interface OutageCostCalculationResult {
   variable_outage_cost: number;
   total_projected_loss: number;
 }
+
+export interface ContinuityRecoveryStep {
+  id: number;
+  organization_id: number;
+  continuity_plan_id: number;
+  step_order: number;
+  title: string;
+  description: string;
+  responsible_role_or_team?: string | null;
+  responsible_user_id?: number | null;
+  estimated_duration_minutes: number;
+  cloud_asset_id?: number | null;
+  data_asset_id?: number | null;
+  vendor_id?: number | null;
+  organization_control_id?: number | null;
+  verification_criteria?: string | null;
+  is_automated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContinuityRecoveryStepCreate {
+  step_order: number;
+  title: string;
+  description: string;
+  responsible_role_or_team?: string | null;
+  responsible_user_id?: number | null;
+  estimated_duration_minutes?: number;
+  cloud_asset_id?: number | null;
+  data_asset_id?: number | null;
+  vendor_id?: number | null;
+  organization_control_id?: number | null;
+  verification_criteria?: string | null;
+  is_automated?: boolean;
+}
+
+export interface ResilienceEvidenceLink {
+  id: number;
+  organization_id: number;
+  continuity_plan_id?: number | null;
+  exercise_id?: number | null;
+  evidence_item_id: number;
+  evidence_type_context: ResilienceEvidenceContext;
+  evidence_sha256_snapshot: string;
+  notes?: string | null;
+  linked_by_user_id?: number | null;
+  created_at: string;
+}
+
+export interface ResilienceEvidenceLinkCreate {
+  evidence_item_id: number;
+  evidence_type_context: ResilienceEvidenceContext;
+  notes?: string | null;
+}
+
+export interface ContinuityPlan {
+  id: number;
+  organization_id: number;
+  process_id: number;
+  bia_id?: number | null;
+  plan_code: string;
+  title: string;
+  version_major: number;
+  version_minor: number;
+  version_label: string;
+  status: ContinuityPlanStatus;
+  strategy_type: ContinuityStrategyType;
+  activation_triggers: string;
+  communication_plan?: string | null;
+  fallback_location_or_region?: string | null;
+  estimated_recovery_hours: number;
+  estimated_rpo_hours: number;
+  review_frequency_days: number;
+  next_review_due_at?: string | null;
+  plan_hash_sha256?: string | null;
+  created_by_user_id?: number | null;
+  submitted_by_user_id?: number | null;
+  submitted_at?: string | null;
+  approved_by_user_id?: number | null;
+  approved_at?: string | null;
+  superseded_by_plan_id?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContinuityPlanDetail extends ContinuityPlan {
+  recovery_steps: ContinuityRecoveryStep[];
+  total_step_duration_minutes: number;
+  total_step_duration_hours: number;
+  evidence_links: ResilienceEvidenceLink[];
+}
+
+export interface ContinuityPlanCreate {
+  plan_code: string;
+  title: string;
+  bia_id?: number | null;
+  version_major?: number;
+  version_minor?: number;
+  strategy_type: ContinuityStrategyType;
+  activation_triggers: string;
+  communication_plan?: string | null;
+  fallback_location_or_region?: string | null;
+  estimated_recovery_hours: number;
+  estimated_rpo_hours: number;
+  review_frequency_days?: number;
+}
+
+export interface ResilienceExercise {
+  id: number;
+  organization_id: number;
+  process_id: number;
+  continuity_plan_id: number;
+  bia_id?: number | null;
+  exercise_code: string;
+  title: string;
+  exercise_type: ExerciseType;
+  status: ExerciseStatus;
+  scenario_description: string;
+  scope_notes?: string | null;
+  scheduled_start_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  target_rto_hours_snapshot: number;
+  target_rpo_hours_snapshot: number;
+  target_mtd_hours_snapshot: number;
+  actual_rto_hours?: number | null;
+  actual_rpo_hours?: number | null;
+  rto_variance_hours?: number | null;
+  rpo_variance_hours?: number | null;
+  rto_breached: boolean;
+  rpo_breached: boolean;
+  mtd_breached: boolean;
+  control_deficiency_observed: boolean;
+  outcome?: ExerciseOutcome | null;
+  lessons_learned?: string | null;
+  executive_summary?: string | null;
+  review_notes?: string | null;
+  result_hash_sha256?: string | null;
+  planned_by_user_id?: number | null;
+  executed_by_user_id?: number | null;
+  reviewed_by_user_id?: number | null;
+  reviewed_at?: string | null;
+  triggered_by_incident_id?: number | null;
+  finding_id?: number | null;
+  remediation_plan_id?: number | null;
+  risk_id?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ResilienceExerciseDetail extends ResilienceExercise {
+  evidence_links: ResilienceEvidenceLink[];
+}
+
+export interface ResilienceExerciseCreate {
+  process_id: number;
+  continuity_plan_id: number;
+  exercise_code: string;
+  title: string;
+  exercise_type: ExerciseType;
+  scenario_description: string;
+  scope_notes?: string | null;
+  scheduled_start_at: string;
+  triggered_by_incident_id?: number | null;
+}
+
+export interface ResilienceExerciseCompleteRequest {
+  actual_rto_hours: number;
+  actual_rpo_hours: number;
+  control_deficiency_observed?: boolean;
+  minor_exceptions_noted?: boolean;
+  lessons_learned?: string | null;
+  executive_summary?: string | null;
+  completed_at?: string | null;
+}
+
+export interface ExerciseEscalationRequest {
+  existing_finding_id?: number | null;
+  create_finding?: boolean;
+  organization_control_id?: number | null;
+  finding_title?: string | null;
+  finding_description?: string | null;
+  finding_recommendation?: string | null;
+  existing_remediation_plan_id?: number | null;
+  create_remediation_plan?: boolean;
+  remediation_title?: string | null;
+  remediation_description?: string | null;
+  remediation_owner_user_id?: number | null;
+  remediation_due_date?: string | null;
+  existing_risk_id?: number | null;
+  create_risk?: boolean;
+  risk_title?: string | null;
+}
+
+export interface ResilienceDashboard {
+  total_processes: number;
+  active_processes: number;
+  tier_1_processes: number;
+  processes_with_approved_bia: number;
+  bia_coverage_pct: number;
+  total_dependencies: number;
+  single_point_of_failure_count: number;
+  max_24h_financial_exposure: number;
+  tier_breakdown: Record<string, number>;
+  processes_with_approved_continuity_plan: number;
+  continuity_plan_coverage_pct: number;
+  overdue_continuity_plan_reviews: number;
+  total_exercises: number;
+  completed_or_reviewed_exercises: number;
+  exercise_pass_rate_pct: number;
+  rto_breach_exercise_count: number;
+  rpo_breach_exercise_count: number;
+  mtd_breach_exercise_count: number;
+  unmitigated_spof_count: number;
+  average_dependency_health_score: number;
+  resilience_assurance_score: number;
+}
+
 
 // ─── Phase 14: EXPOSURE-GRC Types ─────────────────────────────────────────────
 
