@@ -70,6 +70,16 @@ class SecurityException(Base):
     linked_organization_control_id = Column(Integer, ForeignKey("organization_controls.id", ondelete="SET NULL"), nullable=True, index=True)
     linked_policy_id = Column(Integer, ForeignKey("policies.id", ondelete="SET NULL"), nullable=True, index=True)
     linked_finding_id = Column(Integer, ForeignKey("findings.id", ondelete="SET NULL"), nullable=True, index=True)
+    linked_vendor_id = Column(
+        Integer,
+        ForeignKey(
+            "vendors.id",
+            ondelete="SET NULL",
+            name="fk_security_exceptions_linked_vendor_id_vendors",
+        ),
+        nullable=True,
+        index=True,
+    )
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
@@ -84,6 +94,7 @@ class SecurityException(Base):
     linked_control = relationship("OrganizationControl", foreign_keys=[linked_organization_control_id])
     linked_policy = relationship("Policy", foreign_keys=[linked_policy_id])
     linked_finding = relationship("Finding", foreign_keys=[linked_finding_id])
+    linked_vendor = relationship("Vendor", foreign_keys=[linked_vendor_id])
 
     compensating_controls = relationship("ExceptionCompensatingControl", back_populates="exception", cascade="all, delete-orphan")
 

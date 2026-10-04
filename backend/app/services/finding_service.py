@@ -400,6 +400,123 @@ class FindingService:
         db.add(finding)
         db.commit()
         db.refresh(finding)
+        FindingService._recalculate_linked_vendors(db, finding.id, organization_id)
+        return finding
+
+    @staticmethod
+    def _recalculate_linked_vendors(
+        db: Session,
+        finding_id: int,
+        organization_id: int,
+        verifier_id: Optional[int] = None,
+        verification_notes: Optional[str] = None,
+    ) -> None:
+        from app.models.tprm import (
+            VendorAssessment,
+            VendorAssessmentItem,
+            VendorSlaBreach,
+            VendorSlaBreachStatusEnum,
+        )
+        from app.services.tprm_service import TPRMService
+
+        finding = (
+            db.query(Finding)
+            .filter(
+                Finding.id == finding_id,
+                Finding.organization_id == organization_id,
+            )
+            .first()
+        )
+        is_closed_or_resolved = bool(
+            finding
+            and finding.status
+            in (
+                FindingStatusEnum.RESOLVED,
+                FindingStatusEnum.CLOSED,
+                FindingStatusEnum.ACCEPTED_RISK,
+            )
+        )
+        now_utc = datetime.now(timezone.utc)
+
+        vendor_ids = set()
+        item_rows = (
+            db.query(VendorAssessmentItem, VendorAssessment.vendor_id)
+            .join(
+                VendorAssessment,
+                VendorAssessment.id == VendorAssessmentItem.assessment_id,
+            )
+            .filter(
+                VendorAssessment.organization_id == organization_id,
+                VendorAssessmentItem.linked_finding_id == finding_id,
+            )
+            .all()
+        )
+        for item, vid in item_rows:
+            vendor_ids.add(vid)
+            if is_closed_or_resolved and item.findings_count > 0:
+                item.findings_count = 0
+
+        breach_rows = (
+            db.query(VendorSlaBreach)
+            .filter(
+                VendorSlaBreach.organization_id == organization_id,
+                VendorSlaBreach.linked_finding_id == finding_id,
+            )
+            .all()
+        )
+        for breach in breach_rows:
+            vendor_ids.add(breach.vendor_id)
+            if is_closed_or_resolved and breach.status in (
+                VendorSlaBreachStatusEnum.OPEN,
+                VendorSlaBreachStatusEnum.UNDER_INVESTIGATION,
+                VendorSlaBreachStatusEnum.ESCALATED,
+                VendorSlaBreachStatusEnum.ESCALATED_TO_FINDING,
+            ):
+                breach.status = VendorSlaBreachStatusEnum.RESOLVED
+                breach.resolved_by_id = (
+                    verifier_id
+                    or (finding.closed_by_id if finding else None)
+                    or (finding.resolved_by_id if finding else None)
+                )
+                breach.resolved_at = now_utc
+                if verification_notes and not breach.resolution_notes:
+                    breach.resolution_notes = verification_notes
+                breach.updated_at = now_utc
+
+        if vendor_ids:
+            db.flush()
+            for vid in vendor_ids:
+                TPRMService.recalculate_vendor_telemetry(db, vid, organization_id)
+            db.commit()
+
+    @staticmethod
+    def verify_and_close_finding(
+        db: Session,
+        finding: Finding,
+        verifier_id: int,
+        verification_notes: str = "Verified and closed",
+    ) -> Finding:
+        now_utc = datetime.now(timezone.utc)
+        finding.status = FindingStatusEnum.CLOSED
+        finding.resolved_at = finding.resolved_at or now_utc
+        finding.resolved_by_id = finding.resolved_by_id or verifier_id
+        finding.closed_at = now_utc
+        finding.closed_by_id = verifier_id
+        finding.resolution = finding.resolution or verification_notes
+        finding.remediation_notes = (
+            (finding.remediation_notes or "")
+            + f"\n[{now_utc.isoformat()}] Verified & Closed: {verification_notes}"
+        )
+        db.add(finding)
+        db.commit()
+        db.refresh(finding)
+        FindingService._recalculate_linked_vendors(
+            db=db,
+            finding_id=finding.id,
+            organization_id=finding.organization_id,
+            verifier_id=verifier_id,
+            verification_notes=verification_notes,
+        )
         return finding
 
     @staticmethod
@@ -438,6 +555,13 @@ class FindingService:
         db.add(finding)
         db.commit()
         db.refresh(finding)
+        FindingService._recalculate_linked_vendors(
+            db,
+            finding.id,
+            organization_id,
+            verifier_id=validator_id,
+            verification_notes=validation_in.validation_notes,
+        )
         return finding
 
     @staticmethod
@@ -471,6 +595,7 @@ class FindingService:
         db.add(finding)
         db.commit()
         db.refresh(finding)
+        FindingService._recalculate_linked_vendors(db, finding.id, organization_id)
         return finding
 
     @staticmethod

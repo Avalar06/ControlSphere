@@ -21,22 +21,35 @@ from app.models.tprm import (
     VendorAssessmentItem,
     VendorAssessmentStatusEnum,
     VendorAssessmentTypeEnum,
+    VendorContract,
+    VendorContractStatusEnum,
     VendorDocumentTypeEnum,
     VendorEngagement,
     VendorEvidenceLink,
+    VendorOffboardingItem,
+    VendorOffboardingRecord,
     VendorResponseStatusEnum,
     VendorRiskBandEnum,
+    VendorSlaBreach,
+    VendorSlaObligation,
     VendorStatusEnum,
+    VendorSubprocessor,
     VendorTierEnum,
 )
 from app.models.user import User
 from app.schemas.tprm import (
+    ConcentrationRiskReportResponse,
     VendorAssessmentCreate,
+    VendorAssessmentItemEscalateRequest,
     VendorAssessmentItemRead,
     VendorAssessmentItemUpdate,
     VendorAssessmentRead,
     VendorAssessmentReview,
     VendorAssessmentUpdate,
+    VendorContractCreate,
+    VendorContractRead,
+    VendorContractReview,
+    VendorContractUpdate,
     VendorCreate,
     VendorEngagementCreate,
     VendorEngagementRead,
@@ -44,16 +57,55 @@ from app.schemas.tprm import (
     VendorEvidenceLinkCreate,
     VendorEvidenceLinkRead,
     VendorInherentRiskBreakdown,
+    VendorOffboardingCancelRequest,
+    VendorOffboardingCompleteRequest,
+    VendorOffboardingInitiateRequest,
+    VendorOffboardingItemAttestRequest,
+    VendorOffboardingItemRead,
+    VendorOffboardingItemWaiveRequest,
+    VendorOffboardingRecordRead,
     VendorRead,
     VendorResidualRiskBreakdown,
     VendorRiskPostureResponse,
+    VendorSlaBreachCreate,
+    VendorSlaBreachEscalateRequest,
+    VendorSlaBreachRead,
+    VendorSlaBreachReopenRequest,
+    VendorSlaBreachResolveRequest,
+    VendorSlaBreachVerifyCloseRequest,
+    VendorSlaBreachWaiveRequest,
+    VendorSlaObligationCreate,
+    VendorSlaObligationRead,
+    VendorSlaObligationUpdate,
+    VendorSubprocessorCreate,
+    VendorSubprocessorRead,
+    VendorSubprocessorReview,
+    VendorSubprocessorUpdate,
     VendorTierOverride,
     VendorUpdate,
 )
 from app.services.audit_service import AuditService
-from app.services.tprm_service import TPRMService
+from app.services.tprm_service import (
+    ConflictError,
+    TPRMService,
+    UnprocessableEntityError,
+)
 
 router = APIRouter()
+
+
+def _raise_http_for_tprm_error(e: Exception) -> None:
+    if isinstance(e, PermissionError):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    if isinstance(e, LookupError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    if isinstance(e, ConflictError):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    if isinstance(e, UnprocessableEntityError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        )
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ─── 1. VENDORS CRUD & OVERVIEW ──────────────────────────────────────────────
@@ -75,17 +127,35 @@ def get_vendors_overview(
     status_counts = {s.value: 0 for s in VendorStatusEnum}
     risk_band_counts = {b.value: 0 for b in VendorRiskBandEnum}
     total_residual = 0.0
+    open_sla_breaches_total = 0
+    approved_subprocessors_total = 0
 
     for v in vendors:
         tier_counts[v.effective_tier.value] += 1
         status_counts[v.vendor_status.value] += 1
         risk_band_counts[v.risk_band.value] += 1
         total_residual += v.residual_risk_score
+        open_sla_breaches_total += getattr(v, "open_sla_breaches_count", 0) or 0
+        approved_subprocessors_total += getattr(v, "approved_subprocessors_count", 0) or 0
 
     avg_residual = round(total_residual / total_vendors, 1) if total_vendors > 0 else 0.0
     high_critical_count = (
         risk_band_counts[VendorRiskBandEnum.HIGH.value]
         + risk_band_counts[VendorRiskBandEnum.CRITICAL.value]
+    )
+
+    active_contracts_count = (
+        db.query(VendorContract)
+        .filter(
+            VendorContract.organization_id == current_user.organization_id,
+            VendorContract.status.in_(
+                [VendorContractStatusEnum.APPROVED, VendorContractStatusEnum.ACTIVE]
+            ),
+        )
+        .count()
+    )
+    concentration_report = TPRMService.compute_concentration_risk(
+        db, current_user.organization_id
     )
 
     return {
@@ -95,7 +165,34 @@ def get_vendors_overview(
         "tier_distribution": tier_counts,
         "status_distribution": status_counts,
         "risk_band_distribution": risk_band_counts,
+        "open_sla_breaches_count": open_sla_breaches_total,
+        "approved_subprocessors_count": approved_subprocessors_total,
+        "active_contracts_count": active_contracts_count,
+        "spof_fourth_parties_count": concentration_report.spof_count,
     }
+
+
+@router.get("/concentration-risk", response_model=ConcentrationRiskReportResponse)
+def get_concentration_risk(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_READ)),
+):
+    """Computes fourth-party concentration risk and identifies Single Points of Failure (SPOFs)."""
+    return TPRMService.compute_concentration_risk(db, current_user.organization_id)
+
+
+@router.get("/subprocessors", response_model=List[VendorSubprocessorRead])
+def list_all_organization_subprocessors(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_READ)),
+):
+    """Lists all subprocessors across the tenant organization."""
+    return (
+        db.query(VendorSubprocessor)
+        .filter(VendorSubprocessor.organization_id == current_user.organization_id)
+        .order_by(desc(VendorSubprocessor.created_at))
+        .all()
+    )
 
 
 @router.get("", response_model=List[VendorRead])
@@ -383,6 +480,15 @@ def create_engagement(
             detail=f"Vendor with ID {id} not found.",
         )
 
+    if vendor.vendor_status in (
+        VendorStatusEnum.OFFBOARDED,
+        VendorStatusEnum.TERMINATED,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot create new engagements for vendor in terminal status '{vendor.vendor_status.value}'.",
+        )
+
     # Check unique engagement code within org
     existing = (
         db.query(VendorEngagement)
@@ -558,6 +664,15 @@ def create_vendor_assessment(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Vendor with ID {id} not found.",
+        )
+
+    if vendor.vendor_status in (
+        VendorStatusEnum.OFFBOARDED,
+        VendorStatusEnum.TERMINATED,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot create new assessments for vendor in terminal status '{vendor.vendor_status.value}'.",
         )
 
     # Check unique assessment code
@@ -1125,6 +1240,16 @@ def get_vendor_risk_posture(
     else:
         base_residual = vendor.calculated_inherent_risk
 
+    penalties = TPRMService.compute_vendor_penalty_breakdown(
+        db=db, vendor=vendor, latest_assessment=latest_assessment
+    )
+    concentration_report = TPRMService.compute_concentration_risk(
+        db=db, organization_id=current_user.organization_id
+    )
+    latest_offboarding = (
+        vendor.offboarding_records[0].status if vendor.offboarding_records else None
+    )
+
     return VendorRiskPostureResponse(
         vendor_id=vendor.id,
         vendor_code=vendor.vendor_code,
@@ -1142,12 +1267,1418 @@ def get_vendor_risk_posture(
             latest_assessment_score=latest_score,
             risk_floor=round(risk_floor, 1),
             base_residual_risk=round(base_residual, 1),
-            finding_penalties=0.0,
-            exception_penalties=0.0,
+            finding_penalties=penalties["finding_penalties"],
+            exception_penalties=penalties["exception_penalties"],
+            sla_breach_penalties=penalties["sla_breach_penalties"],
+            subprocessor_penalties=penalties["subprocessor_penalties"],
             residual_risk_score=vendor.residual_risk_score,
             risk_band=vendor.risk_band,
         ),
+        finding_penalties=penalties["finding_penalties"],
+        exception_penalties=penalties["exception_penalties"],
+        sla_breach_penalties=penalties["sla_breach_penalties"],
+        subprocessor_penalties=penalties["subprocessor_penalties"],
+        open_sla_breaches_count=vendor.open_sla_breaches_count or 0,
+        approved_subprocessors_count=vendor.approved_subprocessors_count or 0,
+        concentration_risk_summary={
+            "shared_fourth_party_count": concentration_report.shared_fourth_party_count,
+            "spof_count": concentration_report.spof_count,
+        },
+        offboarding_status=latest_offboarding,
         engagements=vendor.engagements,
         latest_approved_assessment=latest_assessment,
         evidence_links=vendor.evidence_links,
+        contracts=vendor.contracts,
+        subprocessors=vendor.subprocessors,
+        sla_obligations=vendor.sla_obligations,
+        sla_breaches=vendor.sla_breaches,
+        offboarding_records=vendor.offboarding_records,
     )
+
+
+# ─── 7. BATCH 6: VENDOR CONTRACTS & LEGAL ASSURANCE ─────────────────────────
+
+def _get_vendor_or_404(db: Session, vendor_id: int, organization_id: int) -> Vendor:
+    vendor = (
+        db.query(Vendor)
+        .filter(Vendor.id == vendor_id, Vendor.organization_id == organization_id)
+        .first()
+    )
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vendor with ID {vendor_id} not found.",
+        )
+    return vendor
+
+
+def _get_contract_or_404(
+    db: Session, vendor_id: int, contract_id: int, organization_id: int
+) -> VendorContract:
+    contract = (
+        db.query(VendorContract)
+        .filter(
+            VendorContract.id == contract_id,
+            VendorContract.vendor_id == vendor_id,
+            VendorContract.organization_id == organization_id,
+        )
+        .first()
+    )
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vendor contract with ID {contract_id} not found.",
+        )
+    return contract
+
+
+@router.get("/{id}/contracts", response_model=List[VendorContractRead])
+def list_vendor_contracts(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_READ)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    return (
+        db.query(VendorContract)
+        .filter(
+            VendorContract.vendor_id == vendor.id,
+            VendorContract.organization_id == current_user.organization_id,
+        )
+        .order_by(desc(VendorContract.created_at))
+        .all()
+    )
+
+
+@router.post(
+    "/{id}/contracts",
+    response_model=VendorContractRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_vendor_contract(
+    id: int,
+    payload: VendorContractCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_MANAGE)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    try:
+        contract = TPRMService.create_contract(
+            db=db, vendor=vendor, payload=payload, creator_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(contract)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_CONTRACT_CREATED",
+        resource_type="vendor_contract",
+        resource_id=str(contract.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "vendor_id": vendor.id,
+            "contract_code": contract.contract_code,
+            "contract_type": contract.contract_type.value,
+        },
+    )
+    return contract
+
+
+@router.patch("/{id}/contracts/{contract_id}", response_model=VendorContractRead)
+def update_vendor_contract(
+    id: int,
+    contract_id: int,
+    payload: VendorContractUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_MANAGE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    contract = _get_contract_or_404(db, id, contract_id, current_user.organization_id)
+    try:
+        updated = TPRMService.update_contract(db=db, contract=contract, payload=payload)
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(updated)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_CONTRACT_UPDATED",
+        resource_type="vendor_contract",
+        resource_id=str(updated.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"contract_code": updated.contract_code},
+    )
+    return updated
+
+
+@router.post("/{id}/contracts/{contract_id}/submit", response_model=VendorContractRead)
+@router.post(
+    "/{id}/contracts/{contract_id}/submit-review", response_model=VendorContractRead
+)
+def submit_vendor_contract(
+    id: int,
+    contract_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_MANAGE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    contract = _get_contract_or_404(db, id, contract_id, current_user.organization_id)
+    try:
+        submitted = TPRMService.submit_contract(
+            db=db, contract=contract, submitter_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(submitted)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_CONTRACT_SUBMITTED",
+        resource_type="vendor_contract",
+        resource_id=str(submitted.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"contract_code": submitted.contract_code},
+    )
+    return submitted
+
+
+@router.post("/{id}/contracts/{contract_id}/approve", response_model=VendorContractRead)
+def approve_vendor_contract(
+    id: int,
+    contract_id: int,
+    payload: VendorContractReview,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    contract = _get_contract_or_404(db, id, contract_id, current_user.organization_id)
+    try:
+        approved = TPRMService.approve_contract(
+            db=db,
+            contract=contract,
+            approver_id=current_user.id,
+            payload=payload,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(approved)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_CONTRACT_APPROVED",
+        resource_type="vendor_contract",
+        resource_id=str(approved.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "contract_code": approved.contract_code,
+            "status": approved.status.value,
+        },
+    )
+    return approved
+
+
+@router.post("/{id}/contracts/{contract_id}/reject", response_model=VendorContractRead)
+def reject_vendor_contract(
+    id: int,
+    contract_id: int,
+    payload: VendorContractReview,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    contract = _get_contract_or_404(db, id, contract_id, current_user.organization_id)
+    try:
+        rejected = TPRMService.reject_contract(
+            db=db,
+            contract=contract,
+            reviewer_id=current_user.id,
+            payload=payload,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(rejected)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_CONTRACT_REJECTED",
+        resource_type="vendor_contract",
+        resource_id=str(rejected.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "contract_code": rejected.contract_code,
+            "rejection_reason": rejected.rejection_reason,
+        },
+    )
+    return rejected
+
+
+# ─── 8. BATCH 6: SUBPROCESSORS & FOURTH-PARTY LINEAGE ───────────────────────
+
+def _get_subprocessor_or_404(
+    db: Session, vendor_id: int, subprocessor_id: int, organization_id: int
+) -> VendorSubprocessor:
+    sp = (
+        db.query(VendorSubprocessor)
+        .filter(
+            VendorSubprocessor.id == subprocessor_id,
+            VendorSubprocessor.vendor_id == vendor_id,
+            VendorSubprocessor.organization_id == organization_id,
+        )
+        .first()
+    )
+    if not sp:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vendor subprocessor with ID {subprocessor_id} not found.",
+        )
+    return sp
+
+
+@router.get("/{id}/subprocessors", response_model=List[VendorSubprocessorRead])
+def list_vendor_subprocessors(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_READ)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    return (
+        db.query(VendorSubprocessor)
+        .filter(
+            VendorSubprocessor.vendor_id == vendor.id,
+            VendorSubprocessor.organization_id == current_user.organization_id,
+        )
+        .order_by(desc(VendorSubprocessor.created_at))
+        .all()
+    )
+
+
+@router.post(
+    "/{id}/subprocessors",
+    response_model=VendorSubprocessorRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_vendor_subprocessor(
+    id: int,
+    payload: VendorSubprocessorCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    try:
+        sp = TPRMService.create_subprocessor(
+            db=db, vendor=vendor, payload=payload, creator_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(sp)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SUBPROCESSOR_REGISTERED",
+        resource_type="vendor_subprocessor",
+        resource_id=str(sp.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "vendor_id": vendor.id,
+            "subprocessor_code": sp.subprocessor_code,
+            "subprocessor_name": sp.subprocessor_name,
+        },
+    )
+    return sp
+
+
+@router.patch(
+    "/{id}/subprocessors/{subprocessor_id}", response_model=VendorSubprocessorRead
+)
+def update_vendor_subprocessor(
+    id: int,
+    subprocessor_id: int,
+    payload: VendorSubprocessorUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    sp = _get_subprocessor_or_404(
+        db, id, subprocessor_id, current_user.organization_id
+    )
+    try:
+        updated = TPRMService.update_subprocessor(db=db, sp=sp, payload=payload)
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(updated)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SUBPROCESSOR_UPDATED",
+        resource_type="vendor_subprocessor",
+        resource_id=str(updated.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"subprocessor_code": updated.subprocessor_code},
+    )
+    return updated
+
+
+@router.post(
+    "/{id}/subprocessors/{subprocessor_id}/submit",
+    response_model=VendorSubprocessorRead,
+)
+@router.post(
+    "/{id}/subprocessors/{subprocessor_id}/submit-review",
+    response_model=VendorSubprocessorRead,
+)
+def submit_vendor_subprocessor(
+    id: int,
+    subprocessor_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    sp = _get_subprocessor_or_404(
+        db, id, subprocessor_id, current_user.organization_id
+    )
+    try:
+        submitted = TPRMService.submit_subprocessor(
+            db=db, sp=sp, submitter_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(submitted)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SUBPROCESSOR_SUBMITTED",
+        resource_type="vendor_subprocessor",
+        resource_id=str(submitted.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"subprocessor_code": submitted.subprocessor_code},
+    )
+    return submitted
+
+
+@router.post(
+    "/{id}/subprocessors/{subprocessor_id}/approve",
+    response_model=VendorSubprocessorRead,
+)
+def approve_vendor_subprocessor(
+    id: int,
+    subprocessor_id: int,
+    payload: VendorSubprocessorReview,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    sp = _get_subprocessor_or_404(
+        db, id, subprocessor_id, current_user.organization_id
+    )
+    try:
+        approved = TPRMService.approve_subprocessor(
+            db=db, sp=sp, approver_id=current_user.id, payload=payload
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(approved)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SUBPROCESSOR_APPROVED",
+        resource_type="vendor_subprocessor",
+        resource_id=str(approved.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"subprocessor_code": approved.subprocessor_code},
+    )
+    return approved
+
+
+@router.post(
+    "/{id}/subprocessors/{subprocessor_id}/reject",
+    response_model=VendorSubprocessorRead,
+)
+def reject_vendor_subprocessor(
+    id: int,
+    subprocessor_id: int,
+    payload: VendorSubprocessorReview,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    sp = _get_subprocessor_or_404(
+        db, id, subprocessor_id, current_user.organization_id
+    )
+    try:
+        rejected = TPRMService.reject_subprocessor(
+            db=db, sp=sp, reviewer_id=current_user.id, payload=payload
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(rejected)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SUBPROCESSOR_REJECTED",
+        resource_type="vendor_subprocessor",
+        resource_id=str(rejected.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "subprocessor_code": rejected.subprocessor_code,
+            "rejection_reason": rejected.rejection_reason,
+        },
+    )
+    return rejected
+
+
+@router.post(
+    "/{id}/subprocessors/{subprocessor_id}/suspend",
+    response_model=VendorSubprocessorRead,
+)
+def suspend_vendor_subprocessor(
+    id: int,
+    subprocessor_id: int,
+    payload: VendorSubprocessorReview,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    sp = _get_subprocessor_or_404(
+        db, id, subprocessor_id, current_user.organization_id
+    )
+    try:
+        suspended = TPRMService.suspend_subprocessor(
+            db=db, sp=sp, actor_id=current_user.id, payload=payload
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(suspended)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SUBPROCESSOR_SUSPENDED",
+        resource_type="vendor_subprocessor",
+        resource_id=str(suspended.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "subprocessor_code": suspended.subprocessor_code,
+            "suspension_reason": suspended.suspension_reason,
+        },
+    )
+    return suspended
+
+
+@router.post(
+    "/{id}/subprocessors/{subprocessor_id}/terminate",
+    response_model=VendorSubprocessorRead,
+)
+def terminate_vendor_subprocessor(
+    id: int,
+    subprocessor_id: int,
+    payload: VendorSubprocessorReview,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    sp = _get_subprocessor_or_404(
+        db, id, subprocessor_id, current_user.organization_id
+    )
+    try:
+        terminated = TPRMService.terminate_subprocessor(
+            db=db, sp=sp, actor_id=current_user.id, payload=payload
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(terminated)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SUBPROCESSOR_TERMINATED",
+        resource_type="vendor_subprocessor",
+        resource_id=str(terminated.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "subprocessor_code": terminated.subprocessor_code,
+            "termination_reason": terminated.termination_reason,
+        },
+    )
+    return terminated
+
+
+# ─── 9. BATCH 6: SLA OBLIGATIONS & BREACH ESCALATION ────────────────────────
+
+def _get_sla_obligation_or_404(
+    db: Session, vendor_id: int, obligation_id: int, organization_id: int
+) -> VendorSlaObligation:
+    ob = (
+        db.query(VendorSlaObligation)
+        .filter(
+            VendorSlaObligation.id == obligation_id,
+            VendorSlaObligation.vendor_id == vendor_id,
+            VendorSlaObligation.organization_id == organization_id,
+        )
+        .first()
+    )
+    if not ob:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"SLA obligation with ID {obligation_id} not found.",
+        )
+    return ob
+
+
+def _get_sla_breach_or_404(
+    db: Session, vendor_id: int, breach_id: int, organization_id: int
+) -> VendorSlaBreach:
+    breach = (
+        db.query(VendorSlaBreach)
+        .filter(
+            VendorSlaBreach.id == breach_id,
+            VendorSlaBreach.vendor_id == vendor_id,
+            VendorSlaBreach.organization_id == organization_id,
+        )
+        .first()
+    )
+    if not breach:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"SLA breach with ID {breach_id} not found.",
+        )
+    return breach
+
+
+@router.get("/{id}/sla-obligations", response_model=List[VendorSlaObligationRead])
+def list_vendor_sla_obligations(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_READ)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    return (
+        db.query(VendorSlaObligation)
+        .filter(
+            VendorSlaObligation.vendor_id == vendor.id,
+            VendorSlaObligation.organization_id == current_user.organization_id,
+        )
+        .order_by(desc(VendorSlaObligation.created_at))
+        .all()
+    )
+
+
+@router.post(
+    "/{id}/sla-obligations",
+    response_model=VendorSlaObligationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_vendor_sla_obligation(
+    id: int,
+    payload: VendorSlaObligationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_MANAGE)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    try:
+        ob = TPRMService.create_sla_obligation(
+            db=db, vendor=vendor, payload=payload, creator_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(ob)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SLA_OBLIGATION_CREATED",
+        resource_type="vendor_sla_obligation",
+        resource_id=str(ob.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "vendor_id": vendor.id,
+            "obligation_code": ob.obligation_code,
+            "metric_type": ob.metric_type.value,
+        },
+    )
+    return ob
+
+
+@router.patch(
+    "/{id}/sla-obligations/{obligation_id}",
+    response_model=VendorSlaObligationRead,
+)
+def update_vendor_sla_obligation(
+    id: int,
+    obligation_id: int,
+    payload: VendorSlaObligationUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_MANAGE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    ob = _get_sla_obligation_or_404(db, id, obligation_id, current_user.organization_id)
+    try:
+        updated = TPRMService.update_sla_obligation(
+            db=db, obligation=ob, payload=payload
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(updated)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SLA_OBLIGATION_UPDATED",
+        resource_type="vendor_sla_obligation",
+        resource_id=str(updated.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"obligation_code": updated.obligation_code},
+    )
+    return updated
+
+
+@router.get("/{id}/sla-breaches", response_model=List[VendorSlaBreachRead])
+def list_vendor_sla_breaches(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_READ)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    return (
+        db.query(VendorSlaBreach)
+        .filter(
+            VendorSlaBreach.vendor_id == vendor.id,
+            VendorSlaBreach.organization_id == current_user.organization_id,
+        )
+        .order_by(desc(VendorSlaBreach.occurred_at))
+        .all()
+    )
+
+
+@router.post(
+    "/{id}/sla-breaches",
+    response_model=VendorSlaBreachRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def record_vendor_sla_breach(
+    id: int,
+    payload: VendorSlaBreachCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    try:
+        breach = TPRMService.record_sla_breach(
+            db=db, vendor=vendor, payload=payload, reporter_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(breach)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SLA_BREACH_RECORDED",
+        resource_type="vendor_sla_breach",
+        resource_id=str(breach.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "vendor_id": vendor.id,
+            "breach_code": breach.breach_code,
+            "severity": breach.severity.value,
+            "observed_value": breach.observed_value,
+        },
+    )
+    return breach
+
+
+@router.post(
+    "/{id}/sla-breaches/{breach_id}/escalate",
+    response_model=VendorSlaBreachRead,
+)
+def escalate_vendor_sla_breach(
+    id: int,
+    breach_id: int,
+    payload: VendorSlaBreachEscalateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    breach = _get_sla_breach_or_404(db, id, breach_id, current_user.organization_id)
+    try:
+        escalated = TPRMService.escalate_sla_breach(
+            db=db, breach=breach, payload=payload, actor_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(escalated)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SLA_BREACH_ESCALATED",
+        resource_type="vendor_sla_breach",
+        resource_id=str(escalated.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "breach_code": escalated.breach_code,
+            "linked_finding_id": escalated.linked_finding_id,
+            "linked_remediation_plan_id": escalated.linked_remediation_plan_id,
+            "linked_risk_id": escalated.linked_risk_id,
+        },
+    )
+    return escalated
+
+
+@router.post(
+    "/{id}/sla-breaches/{breach_id}/resolve",
+    response_model=VendorSlaBreachRead,
+)
+def resolve_vendor_sla_breach(
+    id: int,
+    breach_id: int,
+    payload: VendorSlaBreachResolveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_MANAGE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    breach = _get_sla_breach_or_404(db, id, breach_id, current_user.organization_id)
+    try:
+        resolved = TPRMService.resolve_sla_breach(
+            db=db, breach=breach, payload=payload, resolver_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(resolved)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SLA_BREACH_RESOLVED",
+        resource_type="vendor_sla_breach",
+        resource_id=str(resolved.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "breach_code": resolved.breach_code,
+            "status": resolved.status.value,
+        },
+    )
+    return resolved
+
+
+@router.post(
+    "/{id}/sla-breaches/{breach_id}/waive",
+    response_model=VendorSlaBreachRead,
+)
+def waive_vendor_sla_breach(
+    id: int,
+    breach_id: int,
+    payload: VendorSlaBreachWaiveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    breach = _get_sla_breach_or_404(db, id, breach_id, current_user.organization_id)
+    try:
+        waived = TPRMService.waive_sla_breach(
+            db=db,
+            breach=breach,
+            payload=payload,
+            actor_id=current_user.id,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(waived)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SLA_BREACH_WAIVED",
+        resource_type="vendor_sla_breach",
+        resource_id=str(waived.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "breach_code": waived.breach_code,
+            "linked_exception_id": waived.linked_exception_id,
+        },
+    )
+    return waived
+
+
+@router.post(
+    "/{id}/sla-breaches/{breach_id}/reopen",
+    response_model=VendorSlaBreachRead,
+)
+def reopen_vendor_sla_breach(
+    id: int,
+    breach_id: int,
+    payload: Optional[VendorSlaBreachReopenRequest] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    breach = _get_sla_breach_or_404(db, id, breach_id, current_user.organization_id)
+    try:
+        reopened = TPRMService.reopen_sla_breach(
+            db=db,
+            breach=breach,
+            actor_id=current_user.id,
+            reason=payload.reason if payload else None,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(reopened)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SLA_BREACH_REOPENED",
+        resource_type="vendor_sla_breach",
+        resource_id=str(reopened.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"breach_code": reopened.breach_code},
+    )
+    return reopened
+
+
+@router.post(
+    "/{id}/sla-breaches/{breach_id}/verify-close",
+    response_model=VendorSlaBreachRead,
+)
+def verify_close_vendor_sla_breach(
+    id: int,
+    breach_id: int,
+    payload: Optional[VendorSlaBreachVerifyCloseRequest] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    breach = _get_sla_breach_or_404(db, id, breach_id, current_user.organization_id)
+    try:
+        closed = TPRMService.verify_close_sla_breach(
+            db=db,
+            breach=breach,
+            verifier_id=current_user.id,
+            resolution_notes=payload.resolution_notes if payload else None,
+            evidence_id=payload.evidence_id if payload else None,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(closed)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_SLA_BREACH_VERIFIED_CLOSED",
+        resource_type="vendor_sla_breach",
+        resource_id=str(closed.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={"breach_code": closed.breach_code},
+    )
+    return closed
+
+
+# ─── 10. BATCH 6: CLOSED-LOOP ASSESSMENT ITEM ESCALATION ────────────────────
+
+@router.post(
+    "/assessments/{assessment_id}/items/{item_id}/escalate",
+    response_model=VendorAssessmentItemRead,
+)
+def escalate_vendor_assessment_item(
+    assessment_id: int,
+    item_id: int,
+    payload: VendorAssessmentItemEscalateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    assessment = (
+        db.query(VendorAssessment)
+        .filter(
+            VendorAssessment.id == assessment_id,
+            VendorAssessment.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if not assessment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Assessment with ID {assessment_id} not found.",
+        )
+
+    item = (
+        db.query(VendorAssessmentItem)
+        .filter(
+            VendorAssessmentItem.id == item_id,
+            VendorAssessmentItem.assessment_id == assessment.id,
+            VendorAssessmentItem.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Assessment item with ID {item_id} not found.",
+        )
+
+    try:
+        escalated = TPRMService.escalate_assessment_item(
+            db=db,
+            assessment=assessment,
+            item=item,
+            payload=payload,
+            actor_id=current_user.id,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(escalated)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_ASSESSMENT_ITEM_ESCALATED",
+        resource_type="vendor_assessment_item",
+        resource_id=str(escalated.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "assessment_id": assessment.id,
+            "question_key": escalated.question_key,
+            "linked_finding_id": escalated.linked_finding_id,
+            "linked_remediation_plan_id": escalated.linked_remediation_plan_id,
+            "linked_risk_id": escalated.linked_risk_id,
+        },
+    )
+    return escalated
+
+
+# ─── 11. BATCH 6: GOVERNED VENDOR OFFBOARDING ───────────────────────────────
+
+def _get_offboarding_record_or_404(
+    db: Session, vendor_id: int, record_id: int, organization_id: int
+) -> VendorOffboardingRecord:
+    record = (
+        db.query(VendorOffboardingRecord)
+        .filter(
+            VendorOffboardingRecord.id == record_id,
+            VendorOffboardingRecord.vendor_id == vendor_id,
+            VendorOffboardingRecord.organization_id == organization_id,
+        )
+        .first()
+    )
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Offboarding record with ID {record_id} not found.",
+        )
+    return record
+
+
+@router.get("/{id}/offboarding", response_model=List[VendorOffboardingRecordRead])
+def list_vendor_offboarding_records(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_READ)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    return (
+        db.query(VendorOffboardingRecord)
+        .filter(
+            VendorOffboardingRecord.vendor_id == vendor.id,
+            VendorOffboardingRecord.organization_id == current_user.organization_id,
+        )
+        .order_by(desc(VendorOffboardingRecord.initiated_at))
+        .all()
+    )
+
+
+@router.post(
+    "/{id}/offboarding",
+    response_model=VendorOffboardingRecordRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def initiate_vendor_offboarding(
+    id: int,
+    payload: VendorOffboardingInitiateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    vendor = _get_vendor_or_404(db, id, current_user.organization_id)
+    try:
+        record = TPRMService.initiate_offboarding(
+            db=db, vendor=vendor, payload=payload, initiator_id=current_user.id
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(record)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_OFFBOARDING_INITIATED",
+        resource_type="vendor_offboarding_record",
+        resource_id=str(record.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "vendor_id": vendor.id,
+            "offboarding_code": record.offboarding_code,
+            "target_vendor_status": record.target_vendor_status.value,
+        },
+    )
+    return record
+
+
+@router.post(
+    "/{id}/offboarding/{record_id}/items/{item_id}/attest",
+    response_model=VendorOffboardingItemRead,
+)
+@router.post(
+    "/{id}/offboarding/{record_id}/items/{item_id}/complete",
+    response_model=VendorOffboardingItemRead,
+)
+@router.patch(
+    "/{id}/offboarding/{record_id}/items/{item_id}",
+    response_model=VendorOffboardingItemRead,
+)
+def attest_vendor_offboarding_item(
+    id: int,
+    record_id: int,
+    item_id: int,
+    payload: VendorOffboardingItemAttestRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    record = _get_offboarding_record_or_404(
+        db, id, record_id, current_user.organization_id
+    )
+    item = (
+        db.query(VendorOffboardingItem)
+        .filter(
+            VendorOffboardingItem.id == item_id,
+            VendorOffboardingItem.offboarding_record_id == record.id,
+            VendorOffboardingItem.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Offboarding item with ID {item_id} not found.",
+        )
+
+    try:
+        updated_item = TPRMService.attest_offboarding_item(
+            db=db,
+            record=record,
+            item=item,
+            payload=payload,
+            actor_id=current_user.id,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(updated_item)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_OFFBOARDING_ITEM_ATTESTED",
+        resource_type="vendor_offboarding_item",
+        resource_id=str(updated_item.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "offboarding_record_id": record.id,
+            "step_key": updated_item.step_key,
+            "evidence_id": updated_item.evidence_id,
+        },
+    )
+    return updated_item
+
+
+@router.post(
+    "/{id}/offboarding/{record_id}/items/{item_id}/waive",
+    response_model=VendorOffboardingItemRead,
+)
+def waive_vendor_offboarding_item(
+    id: int,
+    record_id: int,
+    item_id: int,
+    payload: VendorOffboardingItemWaiveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    record = _get_offboarding_record_or_404(
+        db, id, record_id, current_user.organization_id
+    )
+    item = (
+        db.query(VendorOffboardingItem)
+        .filter(
+            VendorOffboardingItem.id == item_id,
+            VendorOffboardingItem.offboarding_record_id == record.id,
+            VendorOffboardingItem.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Offboarding item with ID {item_id} not found.",
+        )
+
+    try:
+        waived_item = TPRMService.waive_offboarding_item(
+            db=db,
+            record=record,
+            item=item,
+            payload=payload,
+            actor_id=current_user.id,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(waived_item)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_OFFBOARDING_ITEM_WAIVED",
+        resource_type="vendor_offboarding_item",
+        resource_id=str(waived_item.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "offboarding_record_id": record.id,
+            "step_key": waived_item.step_key,
+            "linked_exception_id": waived_item.linked_exception_id,
+        },
+    )
+    return waived_item
+
+
+@router.post(
+    "/{id}/offboarding/{record_id}/submit",
+    response_model=VendorOffboardingRecordRead,
+)
+@router.post(
+    "/{id}/offboarding/{record_id}/submit-signoff",
+    response_model=VendorOffboardingRecordRead,
+)
+def submit_vendor_offboarding(
+    id: int,
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    record = _get_offboarding_record_or_404(
+        db, id, record_id, current_user.organization_id
+    )
+    try:
+        submitted = TPRMService.submit_offboarding(
+            db=db,
+            record=record,
+            submitter_id=current_user.id,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(submitted)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_OFFBOARDING_SUBMITTED",
+        resource_type="vendor_offboarding_record",
+        resource_id=str(submitted.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "vendor_id": id,
+            "offboarding_code": submitted.offboarding_code,
+        },
+    )
+    return submitted
+
+
+@router.post(
+    "/{id}/offboarding/{record_id}/verify-close",
+    response_model=VendorOffboardingRecordRead,
+)
+@router.post(
+    "/{id}/offboarding/{record_id}/approve",
+    response_model=VendorOffboardingRecordRead,
+)
+def verify_and_close_vendor_offboarding(
+    id: int,
+    record_id: int,
+    payload: VendorOffboardingCompleteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    record = _get_offboarding_record_or_404(
+        db, id, record_id, current_user.organization_id
+    )
+    try:
+        completed = TPRMService.verify_and_complete_offboarding(
+            db=db,
+            record=record,
+            payload=payload,
+            verifier_id=current_user.id,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(completed)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_OFFBOARDING_COMPLETED",
+        resource_type="vendor_offboarding_record",
+        resource_id=str(completed.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "vendor_id": id,
+            "offboarding_code": completed.offboarding_code,
+            "final_vendor_status": completed.vendor.vendor_status.value,
+        },
+    )
+    return completed
+
+
+@router.post(
+    "/{id}/offboarding/{record_id}/reject",
+    response_model=VendorOffboardingRecordRead,
+)
+def reject_vendor_offboarding(
+    id: int,
+    record_id: int,
+    payload: VendorOffboardingCancelRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_APPROVE)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    record = _get_offboarding_record_or_404(
+        db, id, record_id, current_user.organization_id
+    )
+    try:
+        rejected = TPRMService.reject_offboarding(
+            db=db,
+            record=record,
+            reviewer_id=current_user.id,
+            reason=payload.cancellation_reason,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(rejected)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_OFFBOARDING_REJECTED",
+        resource_type="vendor_offboarding_record",
+        resource_id=str(rejected.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "offboarding_code": rejected.offboarding_code,
+            "reason": payload.cancellation_reason,
+        },
+    )
+    return rejected
+
+
+@router.post(
+    "/{id}/offboarding/{record_id}/cancel",
+    response_model=VendorOffboardingRecordRead,
+)
+def cancel_vendor_offboarding(
+    id: int,
+    record_id: int,
+    payload: VendorOffboardingCancelRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.VENDOR_ASSESS)),
+):
+    _get_vendor_or_404(db, id, current_user.organization_id)
+    record = _get_offboarding_record_or_404(
+        db, id, record_id, current_user.organization_id
+    )
+    try:
+        cancelled = TPRMService.cancel_offboarding(
+            db=db,
+            record=record,
+            payload=payload,
+            actor_id=current_user.id,
+        )
+    except Exception as e:
+        _raise_http_for_tprm_error(e)
+
+    db.commit()
+    db.refresh(cancelled)
+    AuditService.log(
+        db=db,
+        organization_id=current_user.organization_id,
+        action="VENDOR_OFFBOARDING_CANCELLED",
+        resource_type="vendor_offboarding_record",
+        resource_id=str(cancelled.id),
+        actor_email=current_user.email,
+        actor_id=current_user.id,
+        details={
+            "offboarding_code": cancelled.offboarding_code,
+            "cancellation_reason": cancelled.cancellation_reason,
+        },
+    )
+    return cancelled

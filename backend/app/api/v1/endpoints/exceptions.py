@@ -87,6 +87,8 @@ def create_exception(
             organization_id=current_user.organization_id,
             creator_id=current_user.id,
         )
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -150,6 +152,8 @@ def update_exception(
             organization_id=current_user.organization_id,
             obj_in=exc_in,
         )
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

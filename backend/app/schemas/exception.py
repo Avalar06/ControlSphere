@@ -23,6 +23,7 @@ class ExceptionBase(BaseModel):
     linked_organization_control_id: Optional[int] = None
     linked_policy_id: Optional[int] = None
     linked_finding_id: Optional[int] = None
+    linked_vendor_id: Optional[int] = None
 
 
 class ExceptionCreate(ExceptionBase):
@@ -44,6 +45,7 @@ class ExceptionUpdate(BaseModel):
     linked_organization_control_id: Optional[int] = None
     linked_policy_id: Optional[int] = None
     linked_finding_id: Optional[int] = None
+    linked_vendor_id: Optional[int] = None
 
 
 class ExceptionReviewAction(BaseModel):

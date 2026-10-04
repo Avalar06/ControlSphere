@@ -798,6 +798,7 @@ export interface SecurityException {
   linked_organization_control_id?: number;
   linked_policy_id?: number;
   linked_finding_id?: number;
+  linked_vendor_id?: number;
   created_at: string;
   updated_at: string;
   requested_by?: User;
@@ -807,6 +808,7 @@ export interface SecurityException {
   linked_control?: OrganizationControl;
   linked_policy?: Policy;
   linked_finding?: Finding;
+  linked_vendor?: Vendor;
   compensating_controls_count: number;
   compensating_controls?: ExceptionCompensatingControl[];
 }
@@ -1443,6 +1445,9 @@ export interface Vendor {
   residual_risk_score: number;
   risk_band: VendorRiskBand;
   effective_tier: VendorTier;
+  open_sla_breaches_count?: number;
+  approved_subprocessors_count?: number;
+  offboarding_completed_at?: string;
   created_at: string;
   updated_at: string;
   business_owner?: User;
@@ -1450,6 +1455,11 @@ export interface Vendor {
   engagements?: VendorEngagement[];
   assessments?: VendorAssessment[];
   evidence_links?: VendorEvidenceLink[];
+  contracts?: VendorContract[];
+  subprocessors?: VendorSubprocessor[];
+  sla_obligations?: VendorSlaObligation[];
+  sla_breaches?: VendorSlaBreach[];
+  offboarding_records?: VendorOffboardingRecord[];
 }
 
 export interface VendorCreate {
@@ -1523,6 +1533,11 @@ export interface VendorAssessmentItem {
   vendor_response_text?: string;
   assessor_notes?: string;
   findings_count: number;
+  linked_finding_id?: number;
+  linked_remediation_plan_id?: number;
+  linked_risk_id?: number;
+  escalated_by_id?: number;
+  escalated_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -1541,6 +1556,16 @@ export interface VendorAssessmentItemUpdate {
   response_status?: VendorResponseStatus;
   vendor_response_text?: string;
   assessor_notes?: string;
+}
+
+export interface VendorAssessmentItemEscalateRequest {
+  severity?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  owner_id?: number;
+  due_date?: string;
+  create_remediation_plan?: boolean;
+  create_risk_entry?: boolean;
+  remediation_plan_title?: string;
+  escalation_notes?: string;
 }
 
 export interface VendorAssessment {
@@ -1624,6 +1649,8 @@ export interface VendorResidualRiskBreakdown {
   base_residual_risk: number;
   finding_penalties: number;
   exception_penalties: number;
+  sla_breach_penalties?: number;
+  subprocessor_penalties?: number;
   residual_risk_score: number;
   risk_band: VendorRiskBand;
 }
@@ -1638,6 +1665,11 @@ export interface VendorRiskPostureResponse {
   engagements: VendorEngagement[];
   latest_approved_assessment?: VendorAssessment;
   evidence_links: VendorEvidenceLink[];
+  contracts?: VendorContract[];
+  subprocessors?: VendorSubprocessor[];
+  sla_obligations?: VendorSlaObligation[];
+  open_sla_breaches?: VendorSlaBreach[];
+  active_offboarding?: VendorOffboardingRecord;
 }
 
 export interface VendorOverviewResponse {
@@ -1647,6 +1679,339 @@ export interface VendorOverviewResponse {
   tier_distribution: Record<string, number>;
   status_distribution: Record<string, number>;
   risk_band_distribution: Record<string, number>;
+  open_sla_breaches_total?: number;
+  critical_sla_breaches_total?: number;
+  fourth_party_spof_count?: number;
+  active_offboardings_count?: number;
+}
+
+// ─── Batch 6: TPRM Extended Lifecycle Governance ────────────────────────────
+
+export type VendorContractType =
+  | 'MSA'
+  | 'DPA'
+  | 'SLA_ADDENDUM'
+  | 'SOW'
+  | 'NDA'
+  | 'BAA'
+  | 'DORA_ICT_CONTRACT';
+
+export type VendorContractStatus =
+  | 'DRAFT'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'TERMINATED'
+  | 'SUPERSEDED';
+
+export interface VendorContract {
+  id: number;
+  organization_id: number;
+  vendor_id: number;
+  engagement_id?: number;
+  contract_code: string;
+  title: string;
+  contract_type: VendorContractType;
+  status: VendorContractStatus;
+  effective_date: string;
+  expiry_date?: string;
+  auto_renew: boolean;
+  notice_period_days: number;
+  dpa_included: boolean;
+  right_to_audit_clause: boolean;
+  subprocessor_authorization_clause: boolean;
+  exit_strategy_clause: boolean;
+  incident_notification_hours_clause?: number;
+  governing_jurisdiction?: string;
+  regulatory_mandates_applicable?: string;
+  evidence_id?: number;
+  evidence_sha256_snapshot?: string;
+  created_by_id?: number;
+  submitted_by_id?: number;
+  submitted_at?: string;
+  approved_by_id?: number;
+  approved_at?: string;
+  review_notes?: string;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorContractCreate {
+  engagement_id?: number;
+  contract_code: string;
+  title: string;
+  contract_type?: VendorContractType;
+  effective_date: string;
+  expiry_date?: string;
+  auto_renew?: boolean;
+  notice_period_days?: number;
+  dpa_included?: boolean;
+  right_to_audit_clause?: boolean;
+  subprocessor_authorization_clause?: boolean;
+  exit_strategy_clause?: boolean;
+  incident_notification_hours_clause?: number;
+  governing_jurisdiction?: string;
+  regulatory_mandates_applicable?: string;
+  evidence_id?: number;
+}
+
+export type SubprocessorStatus =
+  | 'PROPOSED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'SUSPENDED'
+  | 'TERMINATED';
+
+export interface VendorSubprocessor {
+  id: number;
+  organization_id: number;
+  parent_vendor_id: number;
+  subprocessor_vendor_id?: number;
+  subprocessor_code: string;
+  subprocessor_legal_name: string;
+  service_description: string;
+  jurisdiction_country: string;
+  hosting_region?: string;
+  criticality: BusinessCriticality;
+  data_classification_shared: DataClassification;
+  pii_shared: PiiFinancialAccess;
+  status: SubprocessorStatus;
+  dpa_flowdown_verified: boolean;
+  evidence_id?: number;
+  evidence_sha256_snapshot?: string;
+  proposed_by_id?: number;
+  approved_by_id?: number;
+  approved_at?: string;
+  rejection_reason?: string;
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorSubprocessorCreate {
+  subprocessor_vendor_id?: number;
+  subprocessor_code: string;
+  subprocessor_legal_name: string;
+  service_description: string;
+  jurisdiction_country: string;
+  hosting_region?: string;
+  criticality?: BusinessCriticality;
+  data_classification_shared?: DataClassification;
+  pii_shared?: PiiFinancialAccess;
+  dpa_flowdown_verified?: boolean;
+  evidence_id?: number;
+}
+
+export interface ConcentrationRiskNode {
+  subprocessor_key: string;
+  subprocessor_legal_name: string;
+  subprocessor_vendor_id?: number;
+  jurisdiction_country: string;
+  dependent_vendor_ids: number[];
+  dependent_vendor_codes: string[];
+  dependent_vendors_count: number;
+  critical_or_high_dependent_count: number;
+  max_data_classification_shared: DataClassification;
+  concentration_risk_score: number;
+  concentration_risk_band: VendorRiskBand;
+  is_single_point_of_failure: boolean;
+}
+
+export interface ConcentrationRiskReportResponse {
+  total_active_subprocessor_links: number;
+  unique_fourth_parties: number;
+  single_points_of_failure_count: number;
+  nodes: ConcentrationRiskNode[];
+  jurisdiction_distribution: Record<string, number>;
+}
+
+export type SlaMetricType =
+  | 'AVAILABILITY_PCT'
+  | 'INCIDENT_RESPONSE_MINUTES'
+  | 'BREACH_NOTIFICATION_HOURS'
+  | 'RTO_HOURS'
+  | 'RPO_HOURS'
+  | 'PATCH_CRITICAL_DAYS'
+  | 'SUPPORT_RESOLUTION_HOURS'
+  | 'CUSTOM';
+
+export type SlaComparisonOperator = 'GTE' | 'LTE';
+
+export type SlaMeasurementPeriod =
+  | 'DAILY'
+  | 'WEEKLY'
+  | 'MONTHLY'
+  | 'QUARTERLY'
+  | 'ANNUAL'
+  | 'PER_INCIDENT';
+
+export type SlaBreachSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+export type SlaBreachStatus =
+  | 'OPEN'
+  | 'ESCALATED_TO_FINDING'
+  | 'REMEDIATION_IN_PROGRESS'
+  | 'RESOLVED'
+  | 'WAIVED'
+  | 'CLOSED';
+
+export interface VendorSlaObligation {
+  id: number;
+  organization_id: number;
+  vendor_id: number;
+  engagement_id?: number;
+  contract_id?: number;
+  obligation_code: string;
+  title: string;
+  description?: string;
+  metric_type: SlaMetricType;
+  comparison_operator: SlaComparisonOperator;
+  target_value: number;
+  warning_threshold_value?: number;
+  measurement_unit: string;
+  measurement_period: SlaMeasurementPeriod;
+  breach_severity_default: SlaBreachSeverity;
+  credit_penalty_pct?: number;
+  is_active: boolean;
+  created_by_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorSlaObligationCreate {
+  engagement_id?: number;
+  contract_id?: number;
+  obligation_code: string;
+  title: string;
+  description?: string;
+  metric_type: SlaMetricType;
+  comparison_operator: SlaComparisonOperator;
+  target_value: number;
+  warning_threshold_value?: number;
+  measurement_unit: string;
+  measurement_period?: SlaMeasurementPeriod;
+  breach_severity_default?: SlaBreachSeverity;
+  credit_penalty_pct?: number;
+}
+
+export interface VendorSlaBreach {
+  id: number;
+  organization_id: number;
+  vendor_id: number;
+  sla_obligation_id: number;
+  breach_code: string;
+  period_start: string;
+  period_end: string;
+  target_value_snapshot: number;
+  actual_value: number;
+  variance_magnitude: number;
+  severity: SlaBreachSeverity;
+  status: SlaBreachStatus;
+  root_cause_summary?: string;
+  vendor_remediation_commitment?: string;
+  service_credit_due_pct?: number;
+  linked_finding_id?: number;
+  linked_remediation_plan_id?: number;
+  linked_incident_id?: number;
+  linked_exception_id?: number;
+  resolution_evidence_id?: number;
+  resolution_evidence_sha256_snapshot?: string;
+  recorded_by_id?: number;
+  resolved_by_id?: number;
+  resolved_at?: string;
+  verified_closed_by_id?: number;
+  verified_closed_at?: string;
+  closure_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorSlaBreachCreate {
+  breach_code: string;
+  period_start: string;
+  period_end: string;
+  actual_value: number;
+  severity?: SlaBreachSeverity;
+  root_cause_summary?: string;
+  vendor_remediation_commitment?: string;
+  service_credit_due_pct?: number;
+  linked_incident_id?: number;
+}
+
+export type OffboardingReason =
+  | 'CONTRACT_EXPIRY'
+  | 'TERMINATION_FOR_CAUSE'
+  | 'CONSOLIDATION'
+  | 'RISK_EXCEEDED_APPETITE'
+  | 'MUTUAL_EXIT'
+  | 'INSOLVENCY';
+
+export type OffboardingStatus =
+  | 'INITIATED'
+  | 'IN_PROGRESS'
+  | 'PENDING_FINAL_SIGN_OFF'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export type OffboardingCheckType =
+  | 'ACCESS_REVOCATION'
+  | 'DATA_DESTRUCTION_CERT'
+  | 'ASSET_CREDENTIAL_RETURN'
+  | 'SUBPROCESSOR_DISCONNECT'
+  | 'FINAL_ARCHIVE_SIGNOFF';
+
+export type OffboardingItemStatus = 'PENDING' | 'ATTESTED' | 'WAIVED';
+
+export interface VendorOffboardingItem {
+  id: number;
+  organization_id: number;
+  offboarding_id: number;
+  check_type: OffboardingCheckType;
+  title: string;
+  description: string;
+  is_mandatory: boolean;
+  status: OffboardingItemStatus;
+  evidence_id?: number;
+  evidence_sha256_snapshot?: string;
+  waiver_exception_id?: number;
+  waiver_justification?: string;
+  attested_by_id?: number;
+  attested_at?: string;
+  attestation_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorOffboardingRecord {
+  id: number;
+  organization_id: number;
+  vendor_id: number;
+  engagement_id?: number;
+  offboarding_code: string;
+  reason: OffboardingReason;
+  status: OffboardingStatus;
+  target_completion_date?: string;
+  initiated_by_id?: number;
+  initiated_at: string;
+  submitted_for_signoff_by_id?: number;
+  submitted_for_signoff_at?: string;
+  approved_by_id?: number;
+  approved_at?: string;
+  closure_certificate_summary?: string;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+  items: VendorOffboardingItem[];
+}
+
+export interface VendorOffboardingCreate {
+  engagement_id?: number;
+  offboarding_code: string;
+  reason: OffboardingReason;
+  target_completion_date?: string;
 }
 
 // ============================================================================

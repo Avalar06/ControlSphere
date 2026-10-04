@@ -8,7 +8,10 @@ import {
   Clock,
   ExternalLink,
   FileCheck2,
+  FileText,
   FolderCheck,
+  GitBranch,
+  LogOut,
   Plus,
   RefreshCw,
   Server,
@@ -26,18 +29,28 @@ import type {
   EvidenceItem,
   HostingModel,
   NetworkConnectivity,
+  OffboardingReason,
   PiiFinancialAccess,
   RationalizedCommonControl,
+  SlaComparisonOperator,
+  SlaMetricType,
   Vendor,
   VendorAssessment,
   VendorAssessmentCreate,
   VendorAssessmentItemCreate,
   VendorAssessmentType,
+  VendorContract,
+  VendorContractCreate,
   VendorDocumentType,
   VendorEngagementCreate,
   VendorEvidenceLinkCreate,
+  VendorOffboardingRecord,
   VendorRiskPostureResponse,
+  VendorSlaBreach,
+  VendorSlaObligation,
   VendorStatus,
+  VendorSubprocessor,
+  VendorSubprocessorCreate,
   VendorTier,
 } from '../types';
 
@@ -57,8 +70,21 @@ export const VendorDetailPage: React.FC = () => {
   const [assessments, setAssessments] = useState<VendorAssessment[]>([]);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
   const [commonControls, setCommonControls] = useState<RationalizedCommonControl[]>([]);
+  const [subprocessors, setSubprocessors] = useState<VendorSubprocessor[]>([]);
+  const [contracts, setContracts] = useState<VendorContract[]>([]);
+  const [slaObligations, setSlaObligations] = useState<VendorSlaObligation[]>([]);
+  const [slaBreaches, setSlaBreaches] = useState<VendorSlaBreach[]>([]);
+  const [offboardings, setOffboardings] = useState<VendorOffboardingRecord[]>([]);
 
-  const [activeTab, setActiveTab] = useState<'posture' | 'engagements' | 'assessments' | 'evidence'>('posture');
+  const [activeTab, setActiveTab] = useState<
+    | 'posture'
+    | 'engagements'
+    | 'assessments'
+    | 'evidence'
+    | 'subprocessors'
+    | 'contracts_slas'
+    | 'offboarding'
+  >('posture');
 
   // Tier Override Modal
   const [showTierModal, setShowTierModal] = useState(false);
@@ -110,24 +136,84 @@ export const VendorDetailPage: React.FC = () => {
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
+  // Batch 6 Forms
+  const [subForm, setSubForm] = useState<VendorSubprocessorCreate>({
+    subprocessor_code: '',
+    subprocessor_legal_name: '',
+    service_description: '',
+    jurisdiction_country: 'US',
+    criticality: 'HIGH',
+    data_classification_shared: 'CONFIDENTIAL',
+    pii_shared: 'NO_PII_ACCESS',
+    dpa_flowdown_verified: true,
+  });
+  const [contractForm, setContractForm] = useState<VendorContractCreate>({
+    contract_code: '',
+    title: '',
+    contract_type: 'MSA',
+    effective_date: new Date().toISOString().slice(0, 10),
+    dpa_included: true,
+    right_to_audit_clause: true,
+    subprocessor_authorization_clause: true,
+    exit_strategy_clause: true,
+  });
+  const [slaForm, setSlaForm] = useState<{
+    obligation_code: string;
+    title: string;
+    metric_type: SlaMetricType;
+    comparison_operator: SlaComparisonOperator;
+    target_value: number;
+    measurement_unit: string;
+  }>({
+    obligation_code: '',
+    title: '',
+    metric_type: 'AVAILABILITY_PCT',
+    comparison_operator: 'GTE',
+    target_value: 99.9,
+    measurement_unit: 'PERCENT',
+  });
+  const [offboardingReason, setOffboardingReason] = useState<OffboardingReason>('CONTRACT_EXPIRY');
+  const [offboardingCode, setOffboardingCode] = useState('OFF-2026-01');
+  const [batch6Msg, setBatch6Msg] = useState<string | null>(null);
+
   const fetchVendorData = async () => {
     if (!vendorId) return;
     setLoading(true);
     try {
-      const [vendorData, postureData, assessmentsData, evidenceData, ccData] =
-        await Promise.all([
-          tprmService.getVendor(vendorId),
-          tprmService.getVendorRiskPosture(vendorId).catch(() => null),
-          tprmService.listVendorAssessments(vendorId).catch(() => []),
-          api.get<EvidenceItem[]>('/evidence').then((r) => r.data).catch(() => []),
-          harmonizationService.listCommonControls().catch(() => []),
-        ]);
+      const [
+        vendorData,
+        postureData,
+        assessmentsData,
+        evidenceData,
+        ccData,
+        subsData,
+        contractsData,
+        slasData,
+        breachesData,
+        offboardingsData,
+      ] = await Promise.all([
+        tprmService.getVendor(vendorId),
+        tprmService.getVendorRiskPosture(vendorId).catch(() => null),
+        tprmService.listVendorAssessments(vendorId).catch(() => []),
+        api.get<EvidenceItem[]>('/evidence').then((r) => r.data).catch(() => []),
+        harmonizationService.listCommonControls().catch(() => []),
+        tprmService.listSubprocessors(vendorId).catch(() => []),
+        tprmService.listContracts(vendorId).catch(() => []),
+        tprmService.listSlaObligations(vendorId).catch(() => []),
+        tprmService.listSlaBreaches(vendorId).catch(() => []),
+        tprmService.listOffboardingRecords(vendorId).catch(() => []),
+      ]);
 
       setVendor(vendorData);
       setPosture(postureData);
       setAssessments(assessmentsData);
       setEvidenceItems(evidenceData);
       setCommonControls(ccData);
+      setSubprocessors(subsData);
+      setContracts(contractsData);
+      setSlaObligations(slasData);
+      setSlaBreaches(breachesData);
+      setOffboardings(offboardingsData);
     } catch (err) {
       console.error('Failed to fetch vendor workspace', err);
     } finally {
@@ -458,7 +544,7 @@ export const VendorDetailPage: React.FC = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-px">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-px">
         <button
           onClick={() => setActiveTab('posture')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all ${
@@ -506,7 +592,52 @@ export const VendorDetailPage: React.FC = () => {
           <FolderCheck size={14} />
           <span>Evidence &amp; Certifications ({vendor.evidence_links?.length || 0})</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('subprocessors')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all ${
+            activeTab === 'subprocessors'
+              ? 'border-indigo-500 text-indigo-400 bg-slate-900/50'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <GitBranch size={14} />
+          <span>Subprocessors (4th Party) ({subprocessors.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('contracts_slas')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all ${
+            activeTab === 'contracts_slas'
+              ? 'border-indigo-500 text-indigo-400 bg-slate-900/50'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <FileText size={14} />
+          <span>Contracts &amp; SLAs ({contracts.length + slaObligations.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('offboarding')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all ${
+            activeTab === 'offboarding'
+              ? 'border-indigo-500 text-indigo-400 bg-slate-900/50'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <LogOut size={14} />
+          <span>Governed Offboarding ({offboardings.length})</span>
+        </button>
       </div>
+
+      {batch6Msg && (
+        <div className="p-3 rounded-md bg-indigo-950/80 border border-indigo-800 text-xs text-indigo-200 flex items-center justify-between">
+          <span>{batch6Msg}</span>
+          <button onClick={() => setBatch6Msg(null)} className="text-slate-400 hover:text-white">
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Tab 1: Risk Posture & Telemetry */}
       {activeTab === 'posture' && (
@@ -604,7 +735,21 @@ export const VendorDetailPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-slate-300">
                   <span>Finding &amp; Exception Penalties:</span>
-                  <span className="font-mono text-slate-300">+0.0</span>
+                  <span className="font-mono text-slate-300">
+                    +{((posture?.residual?.finding_penalties || 0) + (posture?.residual?.exception_penalties || 0)).toFixed(1)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>SLA Breach Penalties (Cap 20.0):</span>
+                  <span className="font-mono text-red-400">
+                    +{(posture?.residual?.sla_breach_penalties || 0).toFixed(1)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>4th-Party Subprocessor Penalties (Cap 12.0):</span>
+                  <span className="font-mono text-amber-400">
+                    +{(posture?.residual?.subprocessor_penalties || 0).toFixed(1)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-slate-300 font-semibold border-t border-slate-800 pt-1.5">
                   <span>Final Risk Band:</span>
@@ -894,6 +1039,585 @@ export const VendorDetailPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Tab 5: Subprocessors (4th Party) */}
+      {activeTab === 'subprocessors' && (
+        <div className="space-y-4">
+          {canManage && (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  await tprmService.createSubprocessor(vendor.id, subForm);
+                  setSubForm({
+                    ...subForm,
+                    subprocessor_code: '',
+                    subprocessor_legal_name: '',
+                    service_description: '',
+                  });
+                  setBatch6Msg('Fourth-party subprocessor registered in PROPOSED status.');
+                  await fetchVendorData();
+                } catch (err: any) {
+                  setBatch6Msg(err.response?.data?.detail || 'Failed to register subprocessor.');
+                }
+              }}
+              className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-5 gap-3 items-end"
+            >
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Subprocessor Code</label>
+                <input
+                  required
+                  placeholder="SUB-AWS-01"
+                  value={subForm.subprocessor_code}
+                  onChange={(e) => setSubForm({ ...subForm, subprocessor_code: e.target.value })}
+                  className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100 font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Legal Entity Name</label>
+                <input
+                  required
+                  placeholder="Amazon Web Services"
+                  value={subForm.subprocessor_legal_name}
+                  onChange={(e) => setSubForm({ ...subForm, subprocessor_legal_name: e.target.value })}
+                  className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Service Description</label>
+                <input
+                  required
+                  placeholder="Cloud compute & storage"
+                  value={subForm.service_description}
+                  onChange={(e) => setSubForm({ ...subForm, service_description: e.target.value })}
+                  className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Jurisdiction (ISO)</label>
+                <input
+                  required
+                  maxLength={3}
+                  value={subForm.jurisdiction_country}
+                  onChange={(e) => setSubForm({ ...subForm, jurisdiction_country: e.target.value.toUpperCase() })}
+                  className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100 font-mono uppercase"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-3 py-1.5 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-500 text-white"
+              >
+                + Propose Subprocessor
+              </button>
+            </form>
+          )}
+
+          <div className="rounded-lg bg-slate-900/90 border border-slate-800 overflow-hidden">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-950/70 text-slate-400 font-semibold uppercase text-[11px]">
+                  <th className="py-3 px-4">Code &amp; Legal Name</th>
+                  <th className="py-3 px-4">Service &amp; Jurisdiction</th>
+                  <th className="py-3 px-4">Criticality &amp; Data</th>
+                  <th className="py-3 px-4">DPA Flow-down</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Governance Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {subprocessors.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                      No fourth-party subprocessors registered for this vendor.
+                    </td>
+                  </tr>
+                ) : (
+                  subprocessors.map((sub) => (
+                    <tr key={sub.id} className="hover:bg-slate-800/30">
+                      <td className="py-3 px-4">
+                        <div className="font-mono font-bold text-indigo-400">{sub.subprocessor_code}</div>
+                        <div className="font-semibold text-slate-200">{sub.subprocessor_legal_name}</div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-300">
+                        <div>{sub.service_description}</div>
+                        <div className="text-[11px] font-mono text-slate-400">ISO: {sub.jurisdiction_country}</div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-300">
+                        <div>{sub.criticality}</div>
+                        <div className="text-[11px] text-slate-400">{sub.data_classification_shared}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        {sub.dpa_flowdown_verified ? (
+                          <span className="text-emerald-400 font-semibold">Verified</span>
+                        ) : (
+                          <span className="text-amber-400 font-semibold">Unverified (+Risk)</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-mono font-semibold text-slate-200">{sub.status}</td>
+                      <td className="py-3 px-4 text-right space-x-2">
+                        {canApprove && sub.status === 'PROPOSED' && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await tprmService.approveSubprocessor(sub.id, 'Approved via TPRM Workspace');
+                                setBatch6Msg(`Subprocessor ${sub.subprocessor_code} approved.`);
+                                await fetchVendorData();
+                              } catch (err: any) {
+                                setBatch6Msg(err.response?.data?.detail || 'Four-Eyes SoD or approval error.');
+                              }
+                            }}
+                            className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-semibold"
+                          >
+                            Approve (4-Eyes)
+                          </button>
+                        )}
+                        {canApprove && sub.status === 'APPROVED' && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await tprmService.terminateSubprocessor(sub.id, 'Disconnected');
+                                await fetchVendorData();
+                              } catch (err: any) {
+                                setBatch6Msg(err.response?.data?.detail || 'Failed to terminate.');
+                              }
+                            }}
+                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]"
+                          >
+                            Terminate
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 6: Contracts & SLAs */}
+      {activeTab === 'contracts_slas' && (
+        <div className="space-y-6">
+          {/* Contracts Section */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-slate-100">
+              Authoritative Contracts (MSA / DPA / SLA Addendum / DORA ICT)
+            </h3>
+            {canManage && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    await tprmService.createContract(vendor.id, {
+                      ...contractForm,
+                      effective_date: new Date(contractForm.effective_date).toISOString(),
+                    });
+                    setContractForm({ ...contractForm, contract_code: '', title: '' });
+                    setBatch6Msg('Contract registered in DRAFT status.');
+                    await fetchVendorData();
+                  } catch (err: any) {
+                    setBatch6Msg(err.response?.data?.detail || 'Failed to create contract.');
+                  }
+                }}
+                className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
+              >
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Contract Code</label>
+                  <input
+                    required
+                    placeholder="MSA-2026-01"
+                    value={contractForm.contract_code}
+                    onChange={(e) => setContractForm({ ...contractForm, contract_code: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100 font-mono uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Contract Title</label>
+                  <input
+                    required
+                    placeholder="Master Services & DPA Agreement"
+                    value={contractForm.title}
+                    onChange={(e) => setContractForm({ ...contractForm, title: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Effective Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={contractForm.effective_date}
+                    onChange={(e) => setContractForm({ ...contractForm, effective_date: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-500 text-white"
+                >
+                  + Register Contract
+                </button>
+              </form>
+            )}
+
+            <div className="rounded-lg bg-slate-900/90 border border-slate-800 overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-950/70 text-slate-400 font-semibold uppercase text-[11px]">
+                    <th className="py-2.5 px-4">Code &amp; Title</th>
+                    <th className="py-2.5 px-4">Type</th>
+                    <th className="py-2.5 px-4">Mandatory Clauses</th>
+                    <th className="py-2.5 px-4">Status</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {contracts.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-500">
+                        No vendor contracts registered.
+                      </td>
+                    </tr>
+                  ) : (
+                    contracts.map((c) => (
+                      <tr key={c.id}>
+                        <td className="py-3 px-4">
+                          <span className="font-mono font-bold text-indigo-400">{c.contract_code}</span>{' '}
+                          <span className="text-slate-200 font-medium">{c.title}</span>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-300">{c.contract_type}</td>
+                        <td className="py-3 px-4 text-[11px] text-slate-300">
+                          DPA: {c.dpa_included ? 'Yes' : 'No'} &bull; Audit: {c.right_to_audit_clause ? 'Yes' : 'No'} &bull; Exit: {c.exit_strategy_clause ? 'Yes' : 'No'}
+                        </td>
+                        <td className="py-3 px-4 font-mono font-semibold text-slate-200">{c.status}</td>
+                        <td className="py-3 px-4 text-right space-x-2">
+                          {canManage && c.status === 'DRAFT' && (
+                            <button
+                              onClick={async () => {
+                                await tprmService.submitContract(c.id);
+                                await fetchVendorData();
+                              }}
+                              className="px-2 py-1 rounded bg-blue-600 text-white text-[11px]"
+                            >
+                              Submit
+                            </button>
+                          )}
+                          {canApprove && c.status === 'UNDER_REVIEW' && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await tprmService.approveContract(c.id, 'Approved');
+                                  await fetchVendorData();
+                                } catch (err: any) {
+                                  setBatch6Msg(err.response?.data?.detail || 'Four-Eyes SoD error.');
+                                }
+                              }}
+                              className="px-2 py-1 rounded bg-emerald-600 text-white text-[11px]"
+                            >
+                              Approve (4-Eyes)
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* SLA Obligations & Breaches Section */}
+          <div className="space-y-3 pt-4 border-t border-slate-800">
+            <h3 className="text-sm font-bold text-slate-100">
+              Contractual SLA Obligations &amp; Breach Escalation
+            </h3>
+            {canManage && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    await tprmService.createSlaObligation(vendor.id, slaForm);
+                    setSlaForm({ ...slaForm, obligation_code: '', title: '' });
+                    setBatch6Msg('SLA Obligation created.');
+                    await fetchVendorData();
+                  } catch (err: any) {
+                    setBatch6Msg(err.response?.data?.detail || 'Failed to create SLA obligation.');
+                  }
+                }}
+                className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-5 gap-3 items-end"
+              >
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">SLA Code</label>
+                  <input
+                    required
+                    placeholder="SLA-UPTIME-01"
+                    value={slaForm.obligation_code}
+                    onChange={(e) => setSlaForm({ ...slaForm, obligation_code: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100 font-mono uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">SLA Title</label>
+                  <input
+                    required
+                    placeholder="99.9% Monthly Availability"
+                    value={slaForm.title}
+                    onChange={(e) => setSlaForm({ ...slaForm, title: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Operator</label>
+                  <select
+                    value={slaForm.comparison_operator}
+                    onChange={(e) => setSlaForm({ ...slaForm, comparison_operator: e.target.value as SlaComparisonOperator })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100"
+                  >
+                    <option value="GTE">GTE (&ge; Target)</option>
+                    <option value="LTE">LTE (&le; Target)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Target Value</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={slaForm.target_value}
+                    onChange={(e) => setSlaForm({ ...slaForm, target_value: Number(e.target.value) })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100 font-mono"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-500 text-white"
+                >
+                  + Add SLA Obligation
+                </button>
+              </form>
+            )}
+
+            <div className="rounded-lg bg-slate-900/90 border border-slate-800 overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-950/70 text-slate-400 font-semibold uppercase text-[11px]">
+                    <th className="py-2.5 px-4">SLA Breach Code</th>
+                    <th className="py-2.5 px-4">Target vs Actual</th>
+                    <th className="py-2.5 px-4">Variance</th>
+                    <th className="py-2.5 px-4">Severity &amp; Status</th>
+                    <th className="py-2.5 px-4">Linked Finding / CAPA</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {slaBreaches.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-6 text-center text-slate-500">
+                        No SLA breaches recorded for this vendor.
+                      </td>
+                    </tr>
+                  ) : (
+                    slaBreaches.map((b) => (
+                      <tr key={b.id}>
+                        <td className="py-3 px-4 font-mono font-bold text-red-400">{b.breach_code}</td>
+                        <td className="py-3 px-4 font-mono text-slate-200">
+                          Target: {b.target_value_snapshot} | Actual: {b.actual_value}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-amber-400">
+                          {b.variance_magnitude.toFixed(2)}
+                        </td>
+                        <td className="py-3 px-4 font-mono">
+                          <span className="text-red-300 font-bold">{b.severity}</span> &bull; {b.status}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-indigo-300">
+                          {b.linked_finding_id ? `Finding #${b.linked_finding_id}` : 'None'}
+                          {b.linked_remediation_plan_id ? ` / CAPA #${b.linked_remediation_plan_id}` : ''}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {canManage && b.status === 'OPEN' && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await tprmService.escalateSlaBreach(b.id, {
+                                    create_remediation_plan: true,
+                                    escalation_notes: 'Escalated from Vendor SLA Workspace',
+                                  });
+                                  setBatch6Msg(`SLA Breach ${b.breach_code} escalated to Finding & CAPA.`);
+                                  await fetchVendorData();
+                                } catch (err: any) {
+                                  setBatch6Msg(err.response?.data?.detail || 'Escalation failed.');
+                                }
+                              }}
+                              className="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-semibold"
+                            >
+                              Escalate to Finding / CAPA
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 7: Governed Offboarding */}
+      {activeTab === 'offboarding' && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-4 rounded-xl border border-slate-800">
+            <div>
+              <h3 className="text-sm font-bold text-slate-100">
+                5-Step Governed Vendor Offboarding &amp; Data Destruction Workflow
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Direct status bypass to OFFBOARDED is prohibited. All 5 mandatory exit controls must be attested with Phase 3 Evidence or waived via an active SecurityException before Four-Eyes sign-off.
+              </p>
+            </div>
+
+            {canManage && vendor.vendor_status !== 'OFFBOARDED' && offboardings.filter((o) => o.status !== 'CANCELLED' && o.status !== 'COMPLETED').length === 0 && (
+              <div className="flex items-center gap-2">
+                <input
+                  value={offboardingCode}
+                  onChange={(e) => setOffboardingCode(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs font-mono rounded bg-slate-950 border border-slate-800 text-slate-100"
+                  placeholder="OFF-2026-01"
+                />
+                <select
+                  value={offboardingReason}
+                  onChange={(e) => setOffboardingReason(e.target.value as OffboardingReason)}
+                  className="px-2.5 py-1.5 text-xs rounded bg-slate-950 border border-slate-800 text-slate-100"
+                >
+                  <option value="CONTRACT_EXPIRY">CONTRACT EXPIRY</option>
+                  <option value="TERMINATION_FOR_CAUSE">TERMINATION FOR CAUSE</option>
+                  <option value="RISK_EXCEEDED_APPETITE">RISK EXCEEDED APPETITE</option>
+                  <option value="CONSOLIDATION">CONSOLIDATION</option>
+                  <option value="MUTUAL_EXIT">MUTUAL EXIT</option>
+                </select>
+                <button
+                  onClick={async () => {
+                    try {
+                      await tprmService.initiateOffboarding(vendor.id, {
+                        offboarding_code: offboardingCode,
+                        reason: offboardingReason,
+                      });
+                      setBatch6Msg('Governed 5-step vendor offboarding workflow initiated.');
+                      await fetchVendorData();
+                    } catch (err: any) {
+                      setBatch6Msg(err.response?.data?.detail || 'Failed to initiate offboarding.');
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded bg-red-600 hover:bg-red-500 text-white"
+                >
+                  Initiate Offboarding
+                </button>
+              </div>
+            )}
+          </div>
+
+          {offboardings.map((off) => (
+            <div key={off.id} className="p-5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="font-mono font-bold text-indigo-400 text-xs">{off.offboarding_code}</span>
+                  <span className="ml-2 text-xs text-slate-300 font-semibold">Reason: {off.reason}</span>
+                  <span className="ml-3 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-amber-300 border border-slate-700">
+                    {off.status}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {canManage && (off.status === 'INITIATED' || off.status === 'IN_PROGRESS') && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await tprmService.submitOffboarding(off.id);
+                          setBatch6Msg('Offboarding submitted for Four-Eyes final sign-off.');
+                          await fetchVendorData();
+                        } catch (err: any) {
+                          setBatch6Msg(err.response?.data?.detail || 'All mandatory items must be attested or waived first.');
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-semibold rounded bg-blue-600 hover:bg-blue-500 text-white"
+                    >
+                      Submit for Sign-Off
+                    </button>
+                  )}
+                  {canApprove && off.status === 'PENDING_FINAL_SIGN_OFF' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await tprmService.approveOffboarding(
+                            off.id,
+                            'All 5 exit controls verified; vendor offboarding approved under Four-Eyes governance.'
+                          );
+                          setBatch6Msg('Offboarding completed! Vendor transitioned to OFFBOARDED.');
+                          await fetchVendorData();
+                        } catch (err: any) {
+                          setBatch6Msg(err.response?.data?.detail || 'Four-Eyes approval failed.');
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-semibold rounded bg-emerald-600 hover:bg-emerald-500 text-white"
+                    >
+                      Approve Final Offboarding (4-Eyes)
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="divide-y divide-slate-800/60 border border-slate-800 rounded-lg overflow-hidden">
+                {off.items.map((item) => (
+                  <div key={item.id} className="p-3 bg-slate-950/60 flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-indigo-300 text-[11px]">{item.check_type}</span>
+                        <span className="font-semibold text-slate-100">{item.title}</span>
+                        <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                          item.status === 'ATTESTED'
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : item.status === 'WAIVED'
+                            ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{item.description}</p>
+                      {item.evidence_sha256_snapshot && (
+                        <div className="text-[10px] font-mono text-emerald-400 mt-0.5">
+                          SHA-256 Snapshot: {item.evidence_sha256_snapshot.slice(0, 24)}...
+                        </div>
+                      )}
+                    </div>
+
+                    {canManage && item.status === 'PENDING' && evidenceItems.length > 0 && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await tprmService.attestOffboardingItem(off.id, item.id, {
+                              evidence_id: evidenceItems[0].id,
+                              attestation_notes: 'Attested with Phase 3 Evidence artifact',
+                            });
+                            await fetchVendorData();
+                          } catch (err: any) {
+                            setBatch6Msg(err.response?.data?.detail || 'Attestation failed.');
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold shrink-0"
+                      >
+                        Attest with Evidence #{evidenceItems[0].id}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

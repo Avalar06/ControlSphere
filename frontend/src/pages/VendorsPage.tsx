@@ -5,6 +5,7 @@ import {
   Building2,
   ExternalLink,
   Filter,
+  GitBranch,
   Plus,
   RefreshCw,
   Search,
@@ -15,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { tprmService } from '../lib/tprmService';
 import { api } from '../lib/api';
 import type {
+  ConcentrationRiskReportResponse,
   User,
   Vendor,
   VendorCreate,
@@ -31,6 +33,7 @@ export const VendorsPage: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<VendorOverviewResponse | null>(null);
+  const [concentrationRisk, setConcentrationRisk] = useState<ConcentrationRiskReportResponse | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
@@ -54,12 +57,14 @@ export const VendorsPage: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [overviewData, vendorsData, usersData] = await Promise.all([
+      const [overviewData, concentrationData, vendorsData, usersData] = await Promise.all([
         tprmService.getOverview().catch(() => null),
+        tprmService.getConcentrationRisk().catch(() => null),
         tprmService.listVendors().catch(() => []),
         api.get<User[]>('/users').then((r) => r.data).catch(() => []),
       ]);
       setOverview(overviewData);
+      setConcentrationRisk(concentrationData);
       setVendors(vendorsData);
       setUsers(usersData);
     } catch (err) {
@@ -328,6 +333,83 @@ export const VendorsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Batch 6: Fourth-Party Concentration Risk & Contractual SLA Telemetry Strip */}
+      <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <GitBranch size={16} className="text-indigo-400" />
+            <h2 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
+              Batch 6 Supply-Chain Lineage, 4th-Party Concentration Risk &amp; SLA Telemetry
+            </h2>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <span className="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300 font-mono">
+              4th-Party SPOFs:{' '}
+              <strong className={(concentrationRisk?.single_points_of_failure_count || overview?.fourth_party_spof_count || 0) > 0 ? 'text-red-400' : 'text-emerald-400'}>
+                {concentrationRisk?.single_points_of_failure_count ?? overview?.fourth_party_spof_count ?? 0}
+              </strong>
+            </span>
+            <span className="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300 font-mono">
+              Open SLA Breaches:{' '}
+              <strong className={(overview?.open_sla_breaches_total || 0) > 0 ? 'text-amber-400' : 'text-emerald-400'}>
+                {overview?.open_sla_breaches_total ?? 0}
+              </strong>
+            </span>
+            <span className="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300 font-mono">
+              Active Offboardings:{' '}
+              <strong className="text-indigo-400">
+                {overview?.active_offboardings_count ?? 0}
+              </strong>
+            </span>
+          </div>
+        </div>
+
+        {concentrationRisk && concentrationRisk.nodes.length > 0 && (
+          <div className="pt-2 border-t border-slate-800/80 overflow-x-auto">
+            <table className="w-full text-left text-[11px]">
+              <thead>
+                <tr className="text-slate-400 uppercase font-semibold border-b border-slate-800">
+                  <th className="py-1.5 px-2">4th-Party Subprocessor</th>
+                  <th className="py-1.5 px-2">Jurisdiction</th>
+                  <th className="py-1.5 px-2">Dependent Vendors</th>
+                  <th className="py-1.5 px-2">Max Data Shared</th>
+                  <th className="py-1.5 px-2">Concentration Score</th>
+                  <th className="py-1.5 px-2">SPOF Alert</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {concentrationRisk.nodes.slice(0, 5).map((node) => (
+                  <tr key={node.subprocessor_key} className="text-slate-300">
+                    <td className="py-1.5 px-2 font-semibold text-slate-100">
+                      {node.subprocessor_legal_name}{' '}
+                      <span className="font-mono text-slate-400">({node.subprocessor_key})</span>
+                    </td>
+                    <td className="py-1.5 px-2 font-mono">{node.jurisdiction_country}</td>
+                    <td className="py-1.5 px-2 font-mono">
+                      {node.dependent_vendors_count} ({node.dependent_vendor_codes.join(', ')})
+                    </td>
+                    <td className="py-1.5 px-2">{node.max_data_classification_shared}</td>
+                    <td className="py-1.5 px-2 font-mono font-bold text-amber-400">
+                      {node.concentration_risk_score.toFixed(1)} ({node.concentration_risk_band})
+                    </td>
+                    <td className="py-1.5 px-2">
+                      {node.is_single_point_of_failure ? (
+                        <span className="px-1.5 py-0.5 rounded bg-red-950 text-red-400 border border-red-800 font-bold text-[10px]">
+                          SPOF CRITICAL
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">Normal</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Filter Bar */}
       <div className="p-3.5 rounded-lg bg-slate-900/70 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex flex-1 items-center gap-2">
@@ -437,11 +519,23 @@ export const VendorsPage: React.FC = () => {
                             {v.legal_name}
                           </span>
                         </div>
-                        {v.trade_name && (
-                          <div className="text-[11px] text-slate-400 italic mt-0.5">
-                            DBA: {v.trade_name}
-                          </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                          {v.trade_name && (
+                            <span className="text-[11px] text-slate-400 italic">
+                              DBA: {v.trade_name}
+                            </span>
+                          )}
+                          {(v.open_sla_breaches_count ?? 0) > 0 && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-red-950/80 text-red-400 border border-red-800/70">
+                              {v.open_sla_breaches_count} SLA Breach
+                            </span>
+                          )}
+                          {(v.approved_subprocessors_count ?? 0) > 0 && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-indigo-950/80 text-indigo-300 border border-indigo-800/70">
+                              {v.approved_subprocessors_count} 4th-Party
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="py-3.5 px-4">

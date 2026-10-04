@@ -569,13 +569,59 @@ export const VendorAssessmentDetailPage: React.FC = () => {
                 >
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
                     <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-indigo-300 border border-slate-700">
                           {item.question_key}
                         </span>
                         <span className="text-xs text-slate-400">
                           Weight: <strong>{item.weight}</strong>
                         </span>
+                        {item.linked_finding_id && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-950 text-red-300 border border-red-800">
+                            Finding #{item.linked_finding_id}
+                          </span>
+                        )}
+                        {item.linked_remediation_plan_id && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">
+                            CAPA #{item.linked_remediation_plan_id}
+                          </span>
+                        )}
+                        {item.linked_risk_id && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-950 text-purple-300 border border-purple-800">
+                            Risk #{item.linked_risk_id}
+                          </span>
+                        )}
+                        {canAssess &&
+                          !item.linked_finding_id &&
+                          (item.response_status === 'NON_COMPLIANT' ||
+                            item.response_status === 'PARTIALLY_COMPLIANT') && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await tprmService.escalateAssessmentItem(assessment.id, item.id, {
+                                    severity:
+                                      item.response_status === 'NON_COMPLIANT' ? 'HIGH' : 'MEDIUM',
+                                    create_remediation_plan: true,
+                                    create_risk_entry: true,
+                                    escalation_notes: `Escalated from questionnaire item ${item.question_key}`,
+                                  });
+                                  setSaveMessage(
+                                    `Item ${item.question_key} escalated to Finding, Remediation Plan & Risk Register.`
+                                  );
+                                  await fetchAssessment();
+                                } catch (err: any) {
+                                  setActionError(
+                                    err.response?.data?.detail ||
+                                      'Failed to escalate questionnaire item.'
+                                  );
+                                }
+                              }}
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors"
+                            >
+                              Escalate to Finding / CAPA
+                            </button>
+                          )}
                       </div>
                       <h4 className="text-xs font-semibold text-slate-100">
                         {item.question_text}

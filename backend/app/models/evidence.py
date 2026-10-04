@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 import enum
 from sqlalchemy import (
     Boolean,
@@ -30,6 +30,7 @@ class EvidenceStatusEnum(str, enum.Enum):
     ACCEPTED = "ACCEPTED"
     REJECTED = "REJECTED"
     SUPERSEDED = "SUPERSEDED"
+    EXPIRED = "EXPIRED"
 
 
 class ReviewDecisionEnum(str, enum.Enum):
@@ -82,6 +83,7 @@ class EvidenceItem(Base):
 
     status = Column(Enum(EvidenceStatusEnum), default=EvidenceStatusEnum.UPLOADED, nullable=False, index=True)
     superseded_by_id = Column(Integer, ForeignKey("evidence_items.id", ondelete="SET NULL"), nullable=True)
+    valid_until = None
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)

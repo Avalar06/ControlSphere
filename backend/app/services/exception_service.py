@@ -105,6 +105,7 @@ class ExceptionService:
                 "linked_organization_control_id": e.linked_organization_control_id,
                 "linked_policy_id": e.linked_policy_id,
                 "linked_finding_id": e.linked_finding_id,
+                "linked_vendor_id": e.linked_vendor_id,
                 "created_at": e.created_at,
                 "updated_at": e.updated_at,
                 "requested_by": e.requested_by,
@@ -174,6 +175,7 @@ class ExceptionService:
             "linked_organization_control_id": e.linked_organization_control_id,
             "linked_policy_id": e.linked_policy_id,
             "linked_finding_id": e.linked_finding_id,
+            "linked_vendor_id": e.linked_vendor_id,
             "created_at": e.created_at,
             "updated_at": e.updated_at,
             "requested_by": e.requested_by,
@@ -267,6 +269,20 @@ class ExceptionService:
             if not fnd:
                 raise ValueError("Linked finding not found in your organization.")
 
+        # Validate linked vendor if supplied (Cross-tenant IDOR protection)
+        if obj_in.linked_vendor_id is not None:
+            from app.models.tprm import Vendor
+            vendor = (
+                db.query(Vendor)
+                .filter(
+                    Vendor.id == obj_in.linked_vendor_id,
+                    Vendor.organization_id == organization_id,
+                )
+                .first()
+            )
+            if not vendor:
+                raise LookupError("Linked vendor not found in your organization.")
+
         exc = SecurityException(
             organization_id=organization_id,
             title=obj_in.title.strip(),
@@ -284,6 +300,7 @@ class ExceptionService:
             linked_organization_control_id=obj_in.linked_organization_control_id,
             linked_policy_id=obj_in.linked_policy_id,
             linked_finding_id=obj_in.linked_finding_id,
+            linked_vendor_id=obj_in.linked_vendor_id,
         )
         db.add(exc)
         db.commit()
@@ -310,6 +327,31 @@ class ExceptionService:
 
         if exc.status in [ExceptionStatusEnum.CLOSED, ExceptionStatusEnum.REJECTED]:
             raise ValueError(f"Cannot modify exception in status '{exc.status.value}'.")
+
+        update_data = obj_in.model_dump(exclude_unset=True)
+
+        # Validate linked_vendor_id reassignment and tenant scope
+        if "linked_vendor_id" in update_data:
+            if update_data["linked_vendor_id"] != exc.linked_vendor_id:
+                if exc.status not in [
+                    ExceptionStatusEnum.REQUESTED,
+                    ExceptionStatusEnum.UNDER_REVIEW,
+                ]:
+                    raise ValueError(
+                        "Cannot reassign linked_vendor_id after exception approval."
+                    )
+            if update_data["linked_vendor_id"] is not None:
+                from app.models.tprm import Vendor
+                vendor = (
+                    db.query(Vendor)
+                    .filter(
+                        Vendor.id == update_data["linked_vendor_id"],
+                        Vendor.organization_id == organization_id,
+                    )
+                    .first()
+                )
+                if not vendor:
+                    raise LookupError("Linked vendor not found in your organization.")
 
         # Validate owner
         if obj_in.owner_id is not None:
@@ -384,13 +426,20 @@ class ExceptionService:
         if new_eff and new_exp and new_exp <= new_eff:
             raise ValueError("Expiration date must be strictly after the effective date.")
 
-        update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(exc, field, value)
 
         db.add(exc)
         db.commit()
         db.refresh(exc)
+
+        if exc.linked_vendor_id is not None:
+            from app.services.tprm_service import TPRMService
+            TPRMService.recalculate_vendor_telemetry(
+                db, exc.linked_vendor_id, organization_id
+            )
+            db.commit()
+
         return exc
 
     @staticmethod
@@ -459,6 +508,14 @@ class ExceptionService:
         db.add(exc)
         db.commit()
         db.refresh(exc)
+
+        if exc.linked_vendor_id is not None:
+            from app.services.tprm_service import TPRMService
+            TPRMService.recalculate_vendor_telemetry(
+                db, exc.linked_vendor_id, organization_id
+            )
+            db.commit()
+
         return exc
 
     @staticmethod
@@ -525,6 +582,14 @@ class ExceptionService:
         db.add(exc)
         db.commit()
         db.refresh(exc)
+
+        if exc.linked_vendor_id is not None:
+            from app.services.tprm_service import TPRMService
+            TPRMService.recalculate_vendor_telemetry(
+                db, exc.linked_vendor_id, organization_id
+            )
+            db.commit()
+
         return exc
 
     @staticmethod
